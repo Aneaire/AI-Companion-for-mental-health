@@ -1,0 +1,30 @@
+{
+  "name": "source",
+  "module": "server/index.ts",
+  "scripts": {
+    "start": "bun server/index.ts",
+    "dev": "bun --watch server/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pg": "^8.15.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@hono/zod-validator": "^0.5.0",
+    "@supabase/supabase-js": "^2.49.10",
+    "drizzle-kit": "^0.31.1",
+    "drizzle-orm": "^0.44.2",
+    "hono": "^4.7.9",
+    "pg": "^8.16.0",
+    "postgres": "^3.4.7",
+    "zod": "^3.24.4"
+  }
+}
