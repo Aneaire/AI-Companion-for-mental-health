@@ -91,12 +91,15 @@ cp .env.example .env
 4. Start the development servers
 
 ```bash
+# Start both frontend and backend concurrently
+bun run dev:all
+
+# Or start them separately:
 # Start the backend server
-bun run server
+bun run dev:server
 
 # In a new terminal, start the frontend
-cd frontend
-bun run dev
+bun run dev:frontend
 ```
 
 ## 📝 Project Structure
