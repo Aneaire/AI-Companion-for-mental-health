@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ALTER COLUMN "timestamp" SET NOT NULL;

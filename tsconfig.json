@@ -18,6 +18,10 @@
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["./node_modules/@types/react"]
+    },
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,

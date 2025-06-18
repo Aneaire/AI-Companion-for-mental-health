@@ -15,12 +15,16 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import client from "@/lib/client";
+import { useUser } from "@clerk/clerk-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
 const formSchema = z.object({
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
   nickname: z.string().min(2, {
     message: "Nickname must be at least 2 characters.",
   }),
@@ -48,19 +52,20 @@ export function UserProfileDialog({
   onOpenChange,
   clerkId,
 }: UserProfileDialogProps) {
+  const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      email: user?.primaryEmailAddress?.emailAddress || "",
       nickname: "",
       firstName: "",
       lastName: "",
       age: "",
     },
   });
-
   const handleSubmit = async (data: FormValues) => {
     try {
       setIsSubmitting(true);
@@ -103,6 +108,24 @@ export function UserProfileDialog({
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4"
           >
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      {...field}
+                      disabled={true}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="nickname"

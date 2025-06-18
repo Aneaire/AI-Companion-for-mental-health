@@ -7,11 +7,19 @@ export interface MentalHealthConcern {
   iconColor: string;
 }
 
+export interface ConversationContext {
+  messages: Message[];
+  summary?: string;
+  lastUpdated: Date;
+  sessionId?: number | null; // Add sessionId to the context
+}
+
 export interface Message {
   sender: "user" | "ai";
   text: string;
   timestamp: Date;
   tempId?: number; // Optional: for precise tracking
+  contextId?: string; // To group messages in the same context
 }
 
 // Define the mental health concerns users can select from with added color themes

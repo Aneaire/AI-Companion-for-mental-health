@@ -1,22 +1,16 @@
 // components/MessageList.tsx
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { MentalHealthConcern, Message } from "@/types/chat";
+import type { Message } from "@/types/chat";
 import { useUser } from "@clerk/clerk-react";
 import { BrainCircuit } from "lucide-react";
-import type { JSX } from "react";
+import { useEffect, useRef, type JSX } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface MessageListProps {
   messages: Message[];
-  selectedConcern: MentalHealthConcern | null;
 }
 
-import { useEffect, useRef } from "react";
-// ... other imports
-
-export function MessageList({
-  messages,
-  selectedConcern,
-}: MessageListProps): JSX.Element {
+export function MessageList({ messages }: MessageListProps): JSX.Element {
   const data = useUser();
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
 
@@ -29,26 +23,26 @@ export function MessageList({
       {messages.map((message, index) => (
         <div
           key={index}
-          className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"} mb-2`}
+          className={`flex ${
+            message.sender === "user" ? "justify-end" : "justify-start"
+          } mb-2`}
         >
           {message.sender === "ai" && (
             <Avatar className="mr-1 mt-1 size-10">
-              <AvatarFallback
-                className={`${selectedConcern?.iconColor || "text-indigo-500"} bg-white text-xs`}
-              >
+              <AvatarFallback className="bg-white text-indigo-500 text-xs">
                 <BrainCircuit size={25} />
               </AvatarFallback>
             </Avatar>
           )}
 
           <div
-            className={`max-w-3/4 rounded-lg px-3 py-2 shadow-sm md:text-base text-sm bg-indigo-600 ${
+            className={`max-w-3/4 rounded-lg px-3 py-2 shadow-sm md:text-base text-sm ${
               message.sender === "user"
-                ? `${selectedConcern ? selectedConcern.iconColor.replace("text", "bg") : "bg-indigo-600"} text-white`
+                ? "bg-indigo-600 text-white"
                 : "bg-white border border-gray-100 text-gray-800"
             }`}
           >
-            {message.text}
+            <ReactMarkdown>{message.text}</ReactMarkdown>
           </div>
 
           {message.sender === "user" && (
@@ -58,7 +52,6 @@ export function MessageList({
           )}
         </div>
       ))}
-      {/* 👇 Add this dummy div to scroll into view */}
       <div ref={endOfMessagesRef} />
     </div>
   );

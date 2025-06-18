@@ -187,7 +187,7 @@ export default function MessageInput({
           {/* Send button */}
           <button
             onClick={handleSubmit}
-            disabled={!disabled}
+            disabled={disabled}
             className={`flex items-center justify-center p-2 mr-2 rounded-md ${
               message.trim()
                 ? "text-white bg-purple-600 hover:bg-purple-700"

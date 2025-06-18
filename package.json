@@ -6,6 +6,7 @@
     "dev": "bun --watch server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "dev:frontend": "cd frontend && bun run dev",
     "dev:server": "bun --watch server/index.ts",
@@ -15,6 +16,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/pg": "^8.15.4",
+    "@types/react": "18.2.66",
+    "@types/react-dom": "18.2.22",
     "concurrently": "^8.2.2"
   },
   "peerDependencies": {
@@ -29,6 +32,8 @@
     "hono": "^4.7.9",
     "pg": "^8.16.0",
     "postgres": "^3.4.7",
-    "zod": "^3.24.4"
+    "react-markdown": "^10.1.0",
+    "zod": "^3.24.4",
+    "zustand": "^5.0.5"
   }
 }

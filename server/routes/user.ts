@@ -8,6 +8,7 @@ import { users } from "../db/schema";
 // Define the schemas
 const createProfileSchema = z.object({
   clerkId: z.string(),
+  email: z.string().email(),
   nickname: z.string().min(2),
   firstName: z.string().min(2),
   lastName: z.string().min(2),
@@ -17,6 +18,7 @@ const createProfileSchema = z.object({
 const profileResponseSchema = z.object({
   id: z.number(),
   clerkId: z.string(),
+  email: z.string(),
   nickname: z.string(),
   firstName: z.string(),
   lastName: z.string(),
@@ -30,7 +32,7 @@ const profileResponseSchema = z.object({
 const user = new Hono()
   .post("/profile", zValidator("json", createProfileSchema), async (c) => {
     try {
-      const { clerkId, nickname, firstName, lastName, age } =
+      const { clerkId, email, nickname, firstName, lastName, age } =
         c.req.valid("json");
 
       // Check if user already exists
@@ -45,6 +47,7 @@ const user = new Hono()
         const updatedUser = await db
           .update(users)
           .set({
+            email,
             nickname,
             firstName,
             lastName,
@@ -61,6 +64,7 @@ const user = new Hono()
           .insert(users)
           .values({
             clerkId,
+            email,
             nickname,
             firstName,
             lastName,
@@ -85,7 +89,6 @@ const user = new Hono()
         .from(users)
         .where(eq(users.clerkId, clerkId))
         .limit(1);
-
       if (user.length === 0) {
         return c.json({ error: "User not found" }, 404);
       }

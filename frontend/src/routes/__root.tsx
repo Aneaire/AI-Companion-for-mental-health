@@ -5,8 +5,10 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useEffect, useState } from "react";
 
 import { ParticlesBackground } from "@/components/common/Particle";
+import { Toaster } from "@/components/ui/sonner";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import HeaderUser from "@/integrations/clerk/header-user";
+import { useUserProfile } from "@/lib/queries/user";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -18,29 +20,13 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => {
     const { userId, isLoaded } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isProfileChecked, setIsProfileChecked] = useState(false);
+    const { data: userProfile, isError } = useUserProfile(userId || null);
 
     useEffect(() => {
-      const checkUserProfile = async () => {
-        if (!userId) return;
-
-        try {
-          const response = await fetch(`/api/user/profile/${userId}`);
-          if (!response.ok) {
-            // If user profile doesn't exist, show the dialog
-            setIsProfileOpen(true);
-          }
-        } catch (error) {
-          console.error("Error checking user profile:", error);
-        } finally {
-          setIsProfileChecked(true);
-        }
-      };
-
-      if (userId) {
-        checkUserProfile();
+      if (isError) {
+        setIsProfileOpen(true);
       }
-    }, [userId]);
+    }, [isError]);
 
     return (
       <>
@@ -57,7 +43,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
               <div className="container mx-auto md:p-4 p-2">
                 <Outlet />
               </div>
-              {userId && isProfileChecked && (
+              {userId && (
                 <UserProfileDialog
                   open={isProfileOpen}
                   onOpenChange={setIsProfileOpen}
@@ -71,6 +57,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             <TanStackRouterDevtools />
           </div>
         </div>
+        <Toaster />
       </>
     );
   },

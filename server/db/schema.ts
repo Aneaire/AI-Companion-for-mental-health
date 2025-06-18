@@ -1,6 +1,6 @@
 import {
-  boolean,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -12,6 +12,7 @@ import {
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   clerkId: varchar("clerk_id").notNull().unique(),
+  email: varchar("email").notNull(),
   nickname: varchar("nickname").notNull(),
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
@@ -22,12 +23,29 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Add more tables as needed
-export const todos = pgTable("todos", {
+export const chatSessions = pgTable("chat_sessions", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  completed: boolean("completed").default(false),
-  userId: serial("user_id").references(() => users.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  preferredName: varchar("preferred_name"),
+  currentEmotions: jsonb("current_emotions").$type<string[]>(),
+  reasonForVisit: text("reason_for_visit").notNull(),
+  supportType: jsonb("support_type").$type<string[]>(),
+  supportTypeOther: text("support_type_other"),
+  additionalContext: text("additional_context"),
+  responseTone: varchar("response_tone"),
+  imageResponse: text("image_response"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id")
+    .notNull()
+    .references(() => chatSessions.id),
+  sender: varchar("sender", { enum: ["user", "ai"] }).notNull(),
+  text: text("text").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
 });

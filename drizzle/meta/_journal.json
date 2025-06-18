@@ -8,6 +8,41 @@
       "when": 1749273640498,
       "tag": "0000_right_skrulls",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1750045171758,
+      "tag": "0001_magical_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750065078862,
+      "tag": "0002_productive_rachel_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1750075811581,
+      "tag": "0003_typical_harry_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1750132040607,
+      "tag": "0004_nasty_silverclaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1750134870106,
+      "tag": "0005_tidy_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }
