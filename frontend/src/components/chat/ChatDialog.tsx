@@ -11,7 +11,7 @@ import ChatForm from "./ChatForm";
 interface ChatDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (sessionId: number) => void;
+  onSubmit: (formData: any, aiResponse: string, sessionId: number) => void;
 }
 
 export function ChatDialog({

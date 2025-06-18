@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import chat from "./routes/chat";
-import expense from "./routes/expense";
+import threadsRoute from "./routes/threads";
 import user from "./routes/user";
 
 const app = new Hono();
@@ -13,7 +13,7 @@ app.use("*", cors());
 const routes = app
   .route("/api/chat", chat)
   .route("/api/user", user)
-  .route("/api/expense", expense);
+  .route("/api/threads", threadsRoute);
 
 export default app;
 export type AppType = typeof routes;

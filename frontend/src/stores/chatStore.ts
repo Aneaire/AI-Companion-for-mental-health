@@ -14,8 +14,6 @@ interface ChatState {
   clearMessages: () => void;
 }
 
-const MAX_CONTEXT_MESSAGES = 10; // Maximum number of messages to keep in context
-
 export const useChatStore = create<ChatState>()(
   persist(
     (set: (state: Partial<ChatState>) => void, get: () => ChatState) => ({
@@ -36,14 +34,6 @@ export const useChatStore = create<ChatState>()(
       addMessage: (message: Message) => {
         const { currentContext } = get();
         const updatedMessages = [...currentContext.messages, message];
-
-        // Keep only the last MAX_CONTEXT_MESSAGES messages
-        if (updatedMessages.length > MAX_CONTEXT_MESSAGES) {
-          updatedMessages.splice(
-            0,
-            updatedMessages.length - MAX_CONTEXT_MESSAGES
-          );
-        }
 
         const updatedContext = {
           ...currentContext,

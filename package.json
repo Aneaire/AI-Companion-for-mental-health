@@ -24,7 +24,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^5.1.6",
     "@google/generative-ai": "^0.24.1",
+    "@hono/node-server": "^1.14.4",
     "@hono/zod-validator": "^0.5.0",
     "@supabase/supabase-js": "^2.49.10",
     "drizzle-kit": "^0.31.1",

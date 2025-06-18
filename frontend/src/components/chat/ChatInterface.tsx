@@ -1,4 +1,4 @@
-// components/ChatInterface.tsx
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Message } from "@/types/chat";
 import type { JSX } from "react";
 import MessageInput from "./MessageInput";
@@ -16,11 +16,13 @@ export function ChatInterface({
   isLoading,
 }: ChatInterfaceProps): JSX.Element {
   return (
-    <>
-      <MessageList messages={messages} />
-      <div>
+    <div className="flex flex-col h-full min-h-0">
+      <ScrollArea className="flex-1 h-full min-h-0">
+        <MessageList messages={messages} isLoading={isLoading} />
+      </ScrollArea>
+      <div className="sticky bottom-0 bg-white p-4 border-t border-gray-200 z-10">
         <MessageInput disabled={isLoading} onSendMessage={onSendMessage} />
       </div>
-    </>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import client from "@/lib/client";
-import { useChatStore } from "@/stores/chatStore";
-import type { Message } from "@/types/chat";
+import { useUserProfile } from "@/lib/queries/user";
+import { useAuth } from "@clerk/clerk-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import type { JSX } from "react";
@@ -88,7 +88,7 @@ interface FormData {
 }
 
 interface ChatFormProps {
-  onSubmit: (sessionId: number) => void;
+  onSubmit: (formData: FormData, aiResponse: string, sessionId: number) => void;
 }
 
 type SupportTypeEnum =
@@ -111,6 +111,8 @@ const emotionColors: Record<string, string> = {
 
 const ChatForm = ({ onSubmit }: ChatFormProps): JSX.Element => {
   const [currentStep, setCurrentStep] = useState<string | null>(null);
+  const { userId } = useAuth();
+  const { data: userProfile } = useUserProfile(userId || null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -128,66 +130,93 @@ const ChatForm = ({ onSubmit }: ChatFormProps): JSX.Element => {
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await client.api.chat.$post({
-        json: { message: "", initialForm: data },
-      });
+      try {
+        if (!userProfile?.id) {
+          throw new Error("User not authenticated");
+        }
 
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
+        console.log("user id", userProfile?.id);
+        // First create the thread
+        const threadResponse = await client.api.threads.$post({
+          json: {
+            userId: userProfile.id,
+            preferredName: data.preferredName,
+            currentEmotions: data.currentEmotions,
+            reasonForVisit: data.reasonForVisit,
+            supportType: data.supportType,
+            supportTypeOther: data.supportTypeOther,
+            additionalContext: data.additionalContext,
+            responseTone: data.responseTone,
+            imageResponse: data.imageResponse,
+          },
+        });
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No reader available");
-      }
+        if (!threadResponse.ok) {
+          throw new Error("Failed to create thread");
+        }
 
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-      let buffer = ""; // To handle partial SSE messages
+        const session = await threadResponse.json();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        // Then get the AI's initial response
+        const chatResponse = await client.api.chat.$post({
+          json: {
+            message: "",
+            initialForm: data,
+            userId: userProfile.id,
+            sessionId: session.id,
+          },
+        });
 
-        buffer += decoder.decode(value);
+        if (!chatResponse.ok) {
+          throw new Error("Failed to get AI response");
+        }
 
-        // Process complete SSE messages from the buffer
-        let lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete last line in buffer
+        const reader = chatResponse.body?.getReader();
+        if (!reader) {
+          throw new Error("No reader available");
+        }
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            fullResponse += line.substring("data: ".length);
-          } else if (line.startsWith("event: session_id")) {
-            const sessionIdData = lines[lines.indexOf(line) + 1];
-            if (sessionIdData && sessionIdData.startsWith("data: ")) {
-              const receivedSessionId = parseInt(
-                sessionIdData.substring("data: ".length),
-                10
-              );
-              onSubmit(receivedSessionId); // Pass the sessionId to the onSubmit callback
+        const decoder = new TextDecoder();
+        let fullResponse = "";
+        let buffer = ""; // To handle partial SSE messages
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value);
+
+            // Process complete SSE messages from the buffer
+            let lines = buffer.split("\n");
+            buffer = lines.pop() || ""; // Keep incomplete last line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                fullResponse += line.substring("data: ".length);
+              }
             }
           }
-        }
-      }
 
-      return fullResponse;
+          onSubmit(data, fullResponse, session.id);
+          return { session, response: fullResponse };
+        } catch (streamError) {
+          console.error("Stream processing error:", streamError);
+          throw new Error("Error processing response stream");
+        } finally {
+          reader.releaseLock();
+        }
+      } catch (error) {
+        console.error("Mutation error:", error);
+        throw error;
+      }
     },
     onSuccess: (response) => {
-      console.log("Frontend ChatForm - Full Response:", response);
-      // Add the AI's response to the chat store
-      const aiMessage: Message = {
-        sender: "ai",
-        text: response,
-        timestamp: new Date(),
-        contextId: "default",
-      };
-      useChatStore.getState().addMessage(aiMessage);
-
+      console.log("Thread created and AI responded:", response);
       toast("We're ready to support you. Let's begin.");
     },
-    onError: (er) => {
-      console.log(er);
+    onError: (error) => {
+      console.error("Form submission error:", error);
       toast.error("Something went wrong. Please try again.");
     },
   });

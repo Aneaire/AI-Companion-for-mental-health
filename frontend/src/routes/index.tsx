@@ -1,197 +1,112 @@
 import { ChatDialog } from "@/components/chat/ChatDialog";
-import { ChatInterface } from "@/components/chat/ChatInterface";
-import { Header } from "@/components/chat/Header";
-import client from "@/lib/client";
-import { useChatStore } from "@/stores/chatStore";
-import type { Message } from "@/types/chat";
+import { Sidebar } from "@/components/chat/Sidebar";
+import { Thread } from "@/components/chat/Thread";
+import HeaderUser from "@/integrations/clerk/header-user";
+import { useCreateThread, useThreads } from "@/lib/queries/threads";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useState } from "react";
 
-interface ErrorResponse {
-  error: string;
-}
-
-interface FetchedMessage {
-  role: "user" | "model";
-  text: string;
-  timestamp: number;
-}
-
-function App(): JSX.Element {
-  const [isLoading, setIsLoading] = useState(false);
-  const {
-    currentContext,
-    addMessage,
-    updateLastMessage,
-    setSessionId,
-    clearMessages,
-  } = useChatStore();
-  const [showChat, setShowChat] = useState(currentContext.messages.length > 0);
-
-  // Load messages from local storage on mount
-  useEffect(() => {
-    const storedSessionId = localStorage.getItem("sessionId");
-    if (storedSessionId) {
-      const parsedSessionId = parseInt(storedSessionId, 10);
-      setSessionId(parsedSessionId); // Update the store with the retrieved sessionId
-
-      const fetchMessages = async () => {
-        try {
-          const response = await client.api.chat[":sessionId"].$get({
-            param: { sessionId: String(parsedSessionId) },
-          });
-          if (!response.ok) {
-            throw new Error("Failed to fetch previous messages");
-          }
-          const fetchedMessages: FetchedMessage[] = await response.json();
-          // Clear existing messages before adding fetched ones if needed
-          clearMessages();
-          fetchedMessages.forEach((msg) =>
-            addMessage({
-              sender: msg.role === "model" ? "ai" : "user",
-              text: msg.text,
-              timestamp: new Date(msg.timestamp),
-              contextId: "default", // Assuming default context for fetched messages
-            })
-          );
-          setShowChat(true);
-        } catch (error) {
-          console.error("Error fetching previous messages:", error);
-          // Optionally clear session ID if fetching fails
-          localStorage.removeItem("sessionId");
-          setSessionId(null);
-        }
-      };
-      fetchMessages();
-    }
-  }, [addMessage, updateLastMessage, setSessionId, clearMessages]);
-
-  const handleFormSubmit = async (sessionId: number) => {
-    setSessionId(sessionId);
-    localStorage.setItem("sessionId", String(sessionId));
-    setShowChat(true);
-  };
-
-  const handleSendMessage = async (message: string): Promise<void> => {
-    if (!message.trim() && !showChat) return;
-
-    const userMessage: Message = {
-      sender: "user",
-      text: message,
-      timestamp: new Date(),
-      contextId: "default",
-    };
-
-    if (message.trim()) {
-      addMessage(userMessage);
-    }
-    setIsLoading(true);
-
-    try {
-      const response = await client.api.chat.$post({
-        json: {
-          message: message,
-          context: currentContext.messages.map((msg) => ({
-            role: msg.sender === "ai" ? "model" : "user",
-            text: msg.text,
-            timestamp: msg.timestamp.getTime(),
-            ...(msg.contextId ? { contextId: msg.contextId } : {}),
-          })),
-          ...(currentContext.sessionId
-            ? { sessionId: currentContext.sessionId }
-            : {}),
-          ...(message.trim() === "" && !currentContext.messages.length
-            ? { initialForm: undefined }
-            : {}),
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as ErrorResponse;
-        console.error("Frontend received error data:", errorData);
-        throw new Error(errorData.error || "Failed to get response");
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No reader available");
-      }
-
-      if (message.trim() || currentContext.messages.length) {
-        const tempId = Date.now();
-        const aiMessage: Message = {
-          sender: "ai",
-          text: "",
-          timestamp: new Date(),
-          tempId,
-          contextId: "default",
-        };
-        addMessage(aiMessage);
-      }
-
-      setIsLoading(false);
-
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-      let buffer = ""; // To handle partial SSE messages
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value);
-
-        // Process complete SSE messages from the buffer
-        let lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete last line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            fullResponse += line.substring("data: ".length);
-          }
-        }
-
-        updateLastMessage(fullResponse);
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      const errorMessage: Message = {
-        sender: "ai",
-        text:
-          error instanceof Error
-            ? error.message
-            : "I apologize, but I encountered an error. Please try again.",
-        timestamp: new Date(),
-        contextId: "default",
-      };
-      addMessage(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col md:h-[80vh] h-[90vh] md:mt-14 mt-10 max-w-5xl mx-auto bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg overflow-hidden">
-      <Header />
-
-      <main className="flex-1 overflow-hidden flex flex-col p-3">
-        <ChatDialog
-          open={!showChat}
-          onOpenChange={setShowChat}
-          onSubmit={handleFormSubmit as (sessionId: number) => void}
-        />
-        <ChatInterface
-          messages={currentContext.messages}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-        />
-      </main>
-    </div>
-  );
+function getThreadTitle(thread: any) {
+  if (thread.sessionName) return thread.sessionName;
+  if (thread.reasonForVisit) return thread.reasonForVisit;
+  if (thread.createdAt) {
+    const date = new Date(thread.createdAt);
+    return `Thread #${thread.id} (${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
+  }
+  return `Thread #${thread.id}`;
 }
 
 export const Route = createFileRoute("/")({
-  component: App,
+  component: function IndexPage() {
+    const { data: threads = [], isLoading, refetch } = useThreads();
+    const createThread = useCreateThread();
+    const [selectedThreadId, setSelectedThreadId] = useState<number | null>(
+      null
+    );
+    const [chatDialogOpen, setChatDialogOpen] = useState(false);
+    const [pendingThreadId, setPendingThreadId] = useState<number | null>(null);
+
+    // Select first thread when loaded
+    useEffect(() => {
+      if (!isLoading && threads.length > 0 && selectedThreadId == null) {
+        setSelectedThreadId(threads[0].id);
+      }
+    }, [isLoading, threads, selectedThreadId]);
+
+    useEffect(() => {
+      if (pendingThreadId && threads.some((t) => t.id === pendingThreadId)) {
+        setSelectedThreadId(pendingThreadId);
+        setPendingThreadId(null);
+      }
+    }, [threads, pendingThreadId]);
+
+    // Add a new useEffect to refetch threads when pendingThreadId is set
+    useEffect(() => {
+      if (pendingThreadId) {
+        // Refetch threads to ensure the new thread is included
+        refetch();
+      }
+    }, [pendingThreadId, refetch]);
+
+    const handleSelectThread = (id: number) => {
+      setSelectedThreadId(id);
+    };
+
+    // Called after ChatForm is submitted in ChatDialog
+    const handleChatFormSubmit = async (
+      formData: any,
+      aiResponse: string,
+      sessionId: number
+    ) => {
+      setChatDialogOpen(false);
+      setPendingThreadId(sessionId);
+    };
+
+    const handleNewThread = () => {
+      setChatDialogOpen(true);
+    };
+
+    return (
+      <div className="flex h-screen w-full">
+        <Sidebar
+          threads={threads.map((t) => ({
+            id: t.id,
+            title: getThreadTitle(t),
+          }))}
+          onSelectThread={handleSelectThread}
+          onNewThread={handleNewThread}
+          selectedThreadId={selectedThreadId}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden pb-5 relative">
+          <div className="absolute top-5 right-5 scale-125">
+            <HeaderUser />
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              Loading threads...
+            </div>
+          ) : threads.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center h-full">
+              <button
+                className="px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white text-lg font-semibold shadow-lg hover:scale-105 transition"
+                onClick={() => setChatDialogOpen(true)}
+              >
+                Start a New Conversation
+              </button>
+              <ChatDialog
+                open={chatDialogOpen}
+                onOpenChange={setChatDialogOpen}
+                onSubmit={handleChatFormSubmit}
+              />
+            </div>
+          ) : (
+            <Thread selectedThreadId={selectedThreadId} />
+          )}
+        </div>
+      </div>
+    );
+  },
 });
 
-export default App;
+export default Route.options.component;

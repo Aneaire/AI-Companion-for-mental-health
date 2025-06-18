@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { ParticlesBackground } from "@/components/common/Particle";
 import { Toaster } from "@/components/ui/sonner";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
-import HeaderUser from "@/integrations/clerk/header-user";
 import { useUserProfile } from "@/lib/queries/user";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import type { QueryClient } from "@tanstack/react-query";
@@ -30,19 +29,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
     return (
       <>
-        <div className="min-h-screen relative">
+        <div className="h-screen w-screen relative overflow-hidden">
           <ParticlesBackground />
 
-          <div className="relative z-10">
-            <div className="absolute md:top-4 md:right-10 top-2 right-4 scale-125">
-              <SignedIn>
-                <HeaderUser />
-              </SignedIn>
-            </div>
+          <div className="relative z-10 h-full w-full flex flex-col">
             <SignedIn>
-              <div className="container mx-auto md:p-4 p-2">
+              <div className="flex-1 flex h-full w-full">
                 <Outlet />
               </div>
+
               {userId && (
                 <UserProfileDialog
                   open={isProfileOpen}

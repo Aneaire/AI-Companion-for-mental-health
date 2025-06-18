@@ -1,14 +1,60 @@
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
+import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import path from "path";
 import { z } from "zod";
 import { db } from "../db/config";
-import { chatSessions, messages, users } from "../db/schema";
+import { chatSessions, messages } from "../db/schema";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!); // Corrected API Key Access
+
+// Function to save conversation to file
+const saveConversationToFile = async (
+  sessionId: number,
+  prompt: string,
+  response: string,
+  systemInstructions: string,
+  conversationHistory: Content[]
+) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const fileName = `chat_session_${sessionId}_${timestamp}.txt`;
+  const filePath = path.join(process.cwd(), "chat_logs", fileName);
+
+  // Create chat_logs directory if it doesn't exist
+  if (!fs.existsSync(path.join(process.cwd(), "chat_logs"))) {
+    fs.mkdirSync(path.join(process.cwd(), "chat_logs"));
+  }
+
+  const content = `Session ID: ${sessionId}
+Timestamp: ${timestamp}
+
+System Instructions:
+${systemInstructions}
+
+Conversation History:
+${conversationHistory
+  .map((msg) => `${msg.role.toUpperCase()}: ${msg.parts[0].text}`)
+  .join("\n\n")}
+
+User Prompt:
+${prompt}
+
+AI Response:
+${response}
+----------------------------------------
+`;
+
+  try {
+    await fs.promises.writeFile(filePath, content, "utf8");
+    console.log(`Conversation saved to ${fileName}`);
+  } catch (error) {
+    console.error("Error saving conversation to file:", error);
+  }
+};
 
 // Define the schemas
 export const chatRequestSchema = z.object({
@@ -54,68 +100,24 @@ const chat = new Hono()
     const { initialForm, context, message, userId, sessionId } = parsed.data;
     let currentSessionId = sessionId;
 
-    // Handle initial form submission and create a new chat session
+    // Handle initial form submission
     if (initialForm) {
-      try {
-        // Check if default user exists, if not create one
-        const defaultUser = await db
-          .select()
-          .from(users)
-          .where(eq(users.clerkId, "default_user"))
-          .limit(1);
-
-        let userId = defaultUser[0]?.id;
-
-        if (!userId) {
-          const [newUser] = await db
-            .insert(users)
-            .values({
-              clerkId: "default_user",
-              email: "default@example.com",
-              nickname: "Default User",
-              firstName: "Default",
-              lastName: "User",
-              age: 18,
-              status: "active",
-              hobby: "",
-            })
-            .returning();
-          userId = newUser.id;
-        }
-
-        const [newSession] = await db
-          .insert(chatSessions)
-          .values({
-            userId: userId,
-            preferredName: initialForm.preferredName || null,
-            currentEmotions: initialForm.currentEmotions || null,
-            reasonForVisit: initialForm.reasonForVisit,
-            supportType: initialForm.supportType || null,
-            supportTypeOther: initialForm.supportTypeOther || null,
-            additionalContext: initialForm.additionalContext || null,
-            responseTone: initialForm.responseTone || null,
-            imageResponse: initialForm.imageResponse || null,
-          })
-          .returning();
-        currentSessionId = newSession.id;
-
-        // Save the initial user message (from the form submission)
-        // await db.insert(messages).values({
-        //   sessionId: currentSessionId,
-        //   sender: "user",
-        //   text: message,
-        //   timestamp: new Date(),
-        // });
-      } catch (error) {
-        console.error("Error creating chat session or initial message:", error);
+      if (!currentSessionId) {
         return c.json(
-          {
-            error: `Failed to start chat session: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          },
-          500
+          { error: "Session ID is required for initial form submission" },
+          400
         );
+      }
+
+      // Verify the session belongs to the user
+      const session = await db
+        .select()
+        .from(chatSessions)
+        .where(eq(chatSessions.id, currentSessionId))
+        .limit(1);
+
+      if (session.length === 0 || session[0].userId !== userId) {
+        return c.json({ error: "Invalid session or unauthorized" }, 403);
       }
     } else if (!currentSessionId) {
       return c.json(
@@ -253,6 +255,15 @@ const chat = new Hono()
             text: aiResponseText,
             timestamp: new Date(),
           });
+
+          // Save the conversation to a file with system instructions and history
+          await saveConversationToFile(
+            currentSessionId,
+            message,
+            aiResponseText,
+            model.systemInstruction?.parts[0].text || "",
+            conversationHistory
+          );
         }
       } catch (error) {
         console.error(

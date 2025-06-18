@@ -28,6 +28,7 @@ export const chatSessions = pgTable("chat_sessions", {
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
+  sessionName: varchar("session_name"),
   preferredName: varchar("preferred_name"),
   currentEmotions: jsonb("current_emotions").$type<string[]>(),
   reasonForVisit: text("reason_for_visit").notNull(),
