@@ -168,10 +168,30 @@ export function Thread({ selectedThreadId }: ThreadProps): JSX.Element {
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
-            fullResponse += line.substring("data: ".length);
+            // Re-add the newline character that was removed by split('\n')
+            fullResponse += line.substring("data: ".length) + "\n";
           }
         }
 
+        // Only update if there's actual new content to avoid unnecessary renders
+        if (
+          fullResponse !==
+          currentContext.messages[currentContext.messages.length - 1]?.text
+        ) {
+          updateLastMessage(fullResponse);
+        }
+      }
+      // After the loop, the last chunk might not have ended with a newline.
+      // Append any remaining buffer content, assuming it's part of the final text.
+      if (buffer) {
+        fullResponse += buffer;
+        updateLastMessage(fullResponse);
+      }
+      // Finally, ensure the message ends with a newline if it's markdown,
+      // as ReactMarkdown sometimes needs it for proper rendering of lists/blocks
+      // This is a "belt and suspenders" approach if `patchMarkdown` isn't fully reliable.
+      if (!fullResponse.endsWith("\n")) {
+        fullResponse += "\n";
         updateLastMessage(fullResponse);
       }
     } catch (error) {
@@ -192,9 +212,11 @@ export function Thread({ selectedThreadId }: ThreadProps): JSX.Element {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white md:max-w-4xl md:mx-auto md:my-6 ">
-      <ChatHeader />
-      <main className="flex-1 overflow-hidden">
+    <div className="flex flex-col min-h-screen h-full bg-white md:max-w-4xl md:mx-auto md:my-6 w-full max-w-full flex-1">
+      <div className="hidden md:block">
+        <ChatHeader />
+      </div>
+      <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col ">
         <Suspense
           fallback={
             <div className="flex items-center justify-center h-full">

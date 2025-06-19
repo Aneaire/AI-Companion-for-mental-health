@@ -1,7 +1,6 @@
 import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { useAuth } from "@clerk/clerk-react";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useEffect, useState } from "react";
 
 import { ParticlesBackground } from "@/components/common/Particle";
@@ -49,7 +48,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             <SignedOut>
               <WelcomeScreen />
             </SignedOut>
-            <TanStackRouterDevtools />
+            {/* <TanStackRouterDevtools /> */}
           </div>
         </div>
         <Toaster />

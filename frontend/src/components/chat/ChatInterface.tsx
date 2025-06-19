@@ -16,7 +16,7 @@ export function ChatInterface({
   isLoading,
 }: ChatInterfaceProps): JSX.Element {
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 ">
       <ScrollArea className="flex-1 h-full min-h-0">
         <MessageList messages={messages} isLoading={isLoading} />
       </ScrollArea>
