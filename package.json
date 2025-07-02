@@ -6,7 +6,7 @@
     "dev": "bun --watch server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "drizzle-kit generate && drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "dev:frontend": "cd frontend && bun run dev",
     "dev:server": "bun --watch server/index.ts",
@@ -14,6 +14,7 @@
   },
   "type": "module",
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.16",
     "@types/bun": "latest",
     "@types/pg": "^8.15.4",
     "@types/react": "18.2.66",
@@ -35,7 +36,9 @@
     "pg": "^8.16.0",
     "postgres": "^3.4.7",
     "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
     "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
     "zod": "^3.24.4",
     "zustand": "^5.0.5"
   }

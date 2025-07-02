@@ -15,7 +15,7 @@ export interface ConversationContext {
 }
 
 export interface Message {
-  sender: "user" | "ai";
+  sender: "user" | "ai" | "impostor" | "therapist";
   text: string;
   timestamp: Date;
   tempId?: number; // Optional: for precise tracking

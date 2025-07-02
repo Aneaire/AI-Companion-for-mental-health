@@ -1,16 +1,18 @@
+// chat.ts (AI Response Agent)
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { zValidator } from "@hono/zod-validator";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import path from "path";
+import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
 import { chatSessions, messages } from "../db/schema";
 
 // Initialize Gemini
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!); // Corrected API Key Access
+const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 // Function to save conversation to file
 const saveConversationToFile = async (
@@ -24,7 +26,6 @@ const saveConversationToFile = async (
   const fileName = `chat_session_${sessionId}_${timestamp}.txt`;
   const filePath = path.join(process.cwd(), "chat_logs", fileName);
 
-  // Create chat_logs directory if it doesn't exist
   if (!fs.existsSync(path.join(process.cwd(), "chat_logs"))) {
     fs.mkdirSync(path.join(process.cwd(), "chat_logs"));
   }
@@ -68,6 +69,8 @@ export const chatRequestSchema = z.object({
       additionalContext: z.string().optional(),
       responseTone: z.string().optional(),
       imageResponse: z.string().optional(),
+      responseCharacter: z.string().optional(),
+      responseDescription: z.string().optional(),
     })
     .optional(),
   context: z
@@ -81,26 +84,40 @@ export const chatRequestSchema = z.object({
     )
     .optional(),
   message: z.string(), // The actual new message from the user
-  userId: z.number().optional(), // Assuming userId will be passed from frontend
+  userId: z.string().optional(), // Now accepts string userId
   sessionId: z.number().optional(), // Existing session ID for ongoing chats
-});
-
-const chatResponseSchema = z.object({
-  text: z.string(),
+  strategy: z.string().optional(), // Added for strategy from the agent
+  nextSteps: z.array(z.string()).optional(), // Added for next steps from the agent
+  observerRationale: z.string().optional(), // Added for observer rationale
+  observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
+  sentiment: z.string().optional(), // Added for sentiment analysis
+  sender: z.string().optional(), // Added for sender
 });
 
 const chat = new Hono()
   .post("/", zValidator("json", chatRequestSchema), async (c) => {
-    const parsed = chatRequestSchema.safeParse(await c.req.json());
+    const rawBody = await c.req.json();
+    const parsed = chatRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
       console.error("Zod validation error:", parsed.error.errors);
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
-    const { initialForm, context, message, userId, sessionId } = parsed.data;
+    const {
+      initialForm,
+      context,
+      message,
+      userId,
+      sessionId,
+      strategy,
+      nextSteps,
+      observerRationale,
+      observerNextSteps,
+      sentiment,
+      sender,
+    } = parsed.data;
     let currentSessionId = sessionId;
 
-    // Handle initial form submission
     if (initialForm) {
       if (!currentSessionId) {
         return c.json(
@@ -109,14 +126,16 @@ const chat = new Hono()
         );
       }
 
-      // Verify the session belongs to the user
       const session = await db
         .select()
         .from(chatSessions)
         .where(eq(chatSessions.id, currentSessionId))
         .limit(1);
 
-      if (session.length === 0 || session[0].userId !== userId) {
+      if (
+        session.length === 0 ||
+        String(session[0].userId) !== String(userId)
+      ) {
         return c.json({ error: "Invalid session or unauthorized" }, 403);
       }
     } else if (!currentSessionId) {
@@ -126,10 +145,8 @@ const chat = new Hono()
       );
     }
 
-    // Prepare conversation history for the AI
     const conversationHistory: Content[] = [];
 
-    // Add initial form context to the AI prompt if available
     if (initialForm) {
       let initialContextString = "User Initial Information:\n";
       if (initialForm.preferredName)
@@ -151,6 +168,10 @@ const chat = new Hono()
         initialContextString += `- Preferred Response Tone: ${initialForm.responseTone}\n`;
       if (initialForm.imageResponse)
         initialContextString += `- User's Reflection on Image: ${initialForm.imageResponse}\n`;
+      if (initialForm.responseCharacter)
+        initialContextString += `- AI Character Personality: ${initialForm.responseCharacter}\n`;
+      if (initialForm.responseDescription)
+        initialContextString += `- Custom Response Style: ${initialForm.responseDescription}\n`;
 
       conversationHistory.push({
         role: "user",
@@ -158,7 +179,6 @@ const chat = new Hono()
       });
     }
 
-    // Add previous messages from context
     if (context) {
       context.forEach((msg) => {
         conversationHistory.push({
@@ -168,58 +188,156 @@ const chat = new Hono()
       });
     }
 
-    // Add the current user message
-    // Ensure conversation history always starts with a user role for Gemini API
     if (
       conversationHistory.length > 0 &&
       conversationHistory[0].role === "model"
     ) {
-      conversationHistory.unshift({ role: "user", parts: [{ text: "" }] }); // Prepend a dummy user message
+      conversationHistory.unshift({ role: "user", parts: [{ text: "" }] });
     }
 
     conversationHistory.push({ role: "user", parts: [{ text: message }] });
 
-    // Save the current user message to the database (if it's not the initial form submission message handled above)
-    if (!initialForm && currentSessionId) {
+    // Always save the user message if there is a message and a session
+    if (message && currentSessionId) {
       try {
+        // Ensure sender is a valid enum value
+        const allowedSenders = ["user", "ai", "therapist", "impostor"] as const;
+        type SenderType = (typeof allowedSenders)[number];
+        const safeSender: SenderType = allowedSenders.includes(
+          sender as SenderType
+        )
+          ? (sender as SenderType)
+          : "user";
         await db.insert(messages).values({
           sessionId: currentSessionId,
-          sender: "user",
+          sender: safeSender,
           text: message,
           timestamp: new Date(),
         });
+        // Update chat session's updated_at
+        await db
+          .update(chatSessions)
+          .set({ updatedAt: new Date() })
+          .where(eq(chatSessions.id, currentSessionId));
       } catch (error) {
         console.error("Error saving user message:", error);
       }
+      // Count messages and run summary logic if needed
+      const msgCountRes = await db
+        .select({ count: count() })
+        .from(messages)
+        .where(eq(messages.sessionId, currentSessionId));
+      const msgCount = msgCountRes[0]?.count || 0;
+      if (msgCount > 0 && msgCount % 10 === 0) {
+        try {
+          const summaryPrompt =
+            "Summarize the following conversation in 3-5 sentences, focusing on the main concerns, emotions, and any progress or advice given.\n\n" +
+            conversationHistory
+              .map((msg) => `${msg.role.toUpperCase()}: ${msg.parts[0].text}`)
+              .join("\n\n");
+          const summaryModel = gemini.getGenerativeModel({
+            model: geminiConfig.model,
+          });
+          const summaryResult = await summaryModel.generateContent(
+            summaryPrompt
+          );
+          const summaryText =
+            summaryResult.response.candidates?.[0]?.content?.parts?.[0]?.text ||
+            "";
+          await db
+            .update(chatSessions)
+            .set({ summaryContext: summaryText })
+            .where(eq(chatSessions.id, currentSessionId));
+        } catch (err) {
+          console.error("Error generating or saving summary:", err);
+        }
+      }
     }
 
-    // Do not remove any conditions in the parts[{text}]
+    if (initialForm && currentSessionId) {
+      try {
+        const summaryPrompt =
+          "Summarize the following conversation in 3-5 sentences, focusing on the main concerns, emotions, and any progress or advice given.\n\n" +
+          conversationHistory
+            .map((msg) => `${msg.role.toUpperCase()}: ${msg.parts[0].text}`)
+            .join("\n\n");
+        const summaryModel = gemini.getGenerativeModel({
+          model: "gemini-1.5-flash",
+        });
+        const summaryResult = await summaryModel.generateContent(summaryPrompt);
+        const summaryText =
+          summaryResult.response.candidates?.[0]?.content?.parts?.[0]?.text ||
+          "";
+        await db
+          .update(chatSessions)
+          .set({ summaryContext: summaryText })
+          .where(eq(chatSessions.id, currentSessionId));
+      } catch (err) {
+        console.error("Error generating or saving initial summary:", err);
+      }
+    }
+
+    let systemInstructionText = `
+You are a highly empathetic, supportive, and non-judgmental AI mental health companion. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide general coping strategies or guidance when appropriate. You are NOT a licensed therapist, medical professional, or crisis counselor, and you must clearly state this if the user expresses a need for professional help or is in crisis.
+
+**Core Principles for Interaction:**
+1.  **Empathetic Listening & Validation:** Always start by acknowledging and validating the user's feelings. Make them feel heard and understood.
+2.  **Non-Judgmental & Safe Space:** Maintain a consistently safe, open, and non-judgmental environment.
+3.  **Personalization:** Refer to the user's preferred name occasionally if available (${
+      initialForm?.preferredName ? initialForm.preferredName : "you"
+    }).
+4.  **Contextual Relevance:** Integrate information from the initial form and conversation history seamlessly.
+5.  **Proactive Support (when appropriate):** Offer relevant, general coping strategies, reflections, or gentle thought-provoking questions.
+6.  **Concise & Clear:** Keep responses focused and easy to understand. Avoid jargon.
+7.  **Ethical Boundaries:**
+    * **Do not diagnose.**
+    * **Do not provide medical advice or prescribe treatments.**
+    * **If the user expresses suicidal thoughts, self-harm, or severe distress, immediately prioritize safety by stating that you are an AI and cannot provide professional help, and direct them to emergency services or a mental health crisis hotline.**
+    * Always remind the user that you are an AI and not a substitute for professional help.
+8.  **Adapt to User Preferences:** Pay attention to preferred response tone, character, or style from the initial form.
+`;
+
+    // Incorporate observer's strategic guidance dynamically
+    if (strategy && nextSteps && nextSteps.length > 0) {
+      systemInstructionText += `\n**Strategic Guidance from the User Observer (HIGH PRIORITY):**\nThe observer has analyzed the user's current state and recommends the following approach for your response:\n**Overall Strategy:** "${strategy}"\n**Specific Actions/Goals for this response:**\n${nextSteps
+        .map((step) => `- ${step}`)
+        .join("\n")}\n`;
+    }
+    if (observerRationale) {
+      systemInstructionText += `\n**Observer Rationale for Strategy:**\n${observerRationale}\n`;
+    }
+    if (observerNextSteps && observerNextSteps.length > 0) {
+      systemInstructionText += `\n**Observer's Broader Recommended Next Steps (Consider for ongoing conversation):**\n${observerNextSteps
+        .map((step) => `- ${step}`)
+        .join("\n")}\n`;
+    }
+    // Add conditional instructions based on sentiment
+    if (sentiment === "urgent" || sentiment === "crisis_risk") {
+      systemInstructionText += `\n**URGENT USER STATE DETECTED!**\nThe user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety.\n1.  Immediately acknowledge their distress with empathy.\n2.  State clearly: "I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please contact [LOCAL EMERGENCY NUMBER, e.g., 911 in the US, or a national crisis hotline like the National Suicide Prevention Lifeline: 988 or Crisis Text Line: Text HOME to 741741 (US)]."\n3.  Gently encourage them to seek professional help.\n4.  Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose."\n5.  Do NOT end the conversation abruptly, but ensure the crisis information is provided.\n`;
+    } else if (sentiment === "negative") {
+      systemInstructionText += `\n**User Sentiment: Negative.** Focus on empathetic listening, validation, and gently exploring their feelings. Offer comfort and reassurance.\n`;
+    } else if (sentiment === "positive") {
+      systemInstructionText += `\n**User Sentiment: Positive.** Acknowledge their positive state. Reinforce positive coping, celebrate small wins, or gently explore what's working well for them.\n`;
+    } else if (sentiment === "confused") {
+      systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
+    }
+
+    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Start by acknowledging the user's message and their emotions (if applicable).\n- Integrate the observer's strategy and next steps into your response seamlessly.\n- Offer empathetic support, a relevant insight, or a gentle follow-up question.\n- Avoid repeating information unless for emphasis.\n- Do not provide a JSON output; just the conversational text.\n`;
+
+    // Crisis protocol: stream a crisis message before the AI response if needed
+    if (sentiment === "urgent" || sentiment === "crisis_risk") {
+      console.log("Crisis protocol triggered: streaming crisis message");
+      const crisisMessage = `\nIt sounds like you're going through an incredibly difficult time, and I want you to know that support is available. I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please reach out to trained professionals:\n\n* **National Suicide Prevention Lifeline:** Call or text 988 (US and Canada)\n* **Crisis Text Line:** Text HOME to 741741 (US)\n* **Emergency Services:** Call your local emergency number (e.g., 911 in the US, 999 in UK, 112 in EU, etc.)\n\nPlease reach out to one of these resources. They are there to help you.\n`;
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({ event: "crisis", data: crisisMessage });
+      });
+    }
+
     const model = gemini.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: geminiConfig.model,
       systemInstruction: {
         role: "model",
-        parts: [
-          {
-            text: `You are a compassionate and supportive companion, designed to assist users in a conversational and empathetic manner. Your goal is to provide helpful, relevant, and concise responses that align with the user's emotional state, needs, and preferences. Use the following guidelines:
-    
-    1. **Personalization**: If the user provides a preferred name, use it occasionally to make responses feel personal (e.g., "I'm here for you, [Name]"). If no name is provided, use neutral but warm language.
-    2. **Emotional Awareness**: Adapt your tone based on the user's stated emotions (e.g., if they're feeling "anxious," acknowledge this gently and offer calming or reassuring responses). If no emotions are provided, maintain a supportive and understanding tone.
-    3. **Context-Driven Responses**: Tailor your responses to the user's reason for visit and desired support type (e.g., "emotional support," "problem-solving"). If additional context or specific support details are provided, incorporate them naturally into your response.
-    4. **Tone Adjustment**: Match the user's preferred response tone (e.g., "casual," "formal," "encouraging") if specified. If no tone is provided, use a warm, conversational, and empathetic tone.
-    5. **Conversational Flow**: Continue the conversation naturally, referencing prior messages in the conversation history when relevant. Do not repeat greetings, introductions, or redundant phrases unless appropriate.
-    6. **Clarity and Brevity**: Keep responses clear, concise, and focused on the user's query or needs. Avoid overly long explanations unless the user requests detailed information.
-    7. **Grounded Responses**: Base your responses solely on the provided conversation history and user input. Do not invent or assume information not explicitly provided.
-    8. **Image Reflection**: If the user provides a reflection on an image, acknowledge it thoughtfully and connect it to their reason for visit or emotions when relevant.
-    9. **Edge Cases**: If the user's message is vague or empty, gently prompt for clarification (e.g., "Could you share a bit more about what's on your mind? I'm here to help.") while maintaining a supportive tone.
-    
-    Example response structure:
-    - Acknowledge the user's input or emotions briefly.
-    - Provide a relevant, empathetic response or suggestion.
-    - Optionally, ask a gentle follow-up question to deepen the conversation.
-    
-    Always aim to make the user feel heard, supported, and understood.`,
-          },
-        ],
+        parts: [{ text: systemInstructionText }],
       },
     });
 
@@ -231,7 +349,6 @@ const chat = new Hono()
     });
 
     return streamSSE(c, async (stream) => {
-      // Send session ID as the first event if it's a new session
       if (currentSessionId && initialForm) {
         await stream.writeSSE({
           event: "session_id",
@@ -247,16 +364,32 @@ const chat = new Hono()
           aiResponseText += chunkText;
           await stream.writeSSE({ data: chunkText });
         }
-        // Save AI's full response to the database
         if (currentSessionId) {
+          // Alternate sender for AI-to-AI loop
+          const allowedSenders = [
+            "user",
+            "ai",
+            "therapist",
+            "impostor",
+          ] as const;
+          type SenderType = (typeof allowedSenders)[number];
+          let aiSender: SenderType = "ai";
+          if (sender === "impostor") aiSender = "therapist";
+          else if (sender === "therapist") aiSender = "impostor";
+          else if (allowedSenders.includes(sender as SenderType))
+            aiSender = sender as SenderType;
           await db.insert(messages).values({
             sessionId: currentSessionId,
-            sender: "ai",
+            sender: aiSender,
             text: aiResponseText,
             timestamp: new Date(),
           });
+          // Update chat session's updated_at
+          await db
+            .update(chatSessions)
+            .set({ updatedAt: new Date() })
+            .where(eq(chatSessions.id, currentSessionId));
 
-          // Save the conversation to a file with system instructions and history
           await saveConversationToFile(
             currentSessionId,
             message,
@@ -293,10 +426,10 @@ const chat = new Hono()
 
         return c.json(
           existingMessages.map((msg) => ({
-            role: msg.sender === "ai" ? "model" : "user",
+            sender: msg.sender,
             text: msg.text,
             timestamp: msg.timestamp.getTime(),
-          })) as { role: "user" | "model"; text: string; timestamp: number }[]
+          }))
         );
       } catch (error) {
         console.error("Error fetching chat session messages:", error);

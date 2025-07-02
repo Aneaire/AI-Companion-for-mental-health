@@ -1,9 +1,10 @@
 import { ChatDialog } from "@/components/chat/ChatDialog";
+import type { FormData } from "@/components/chat/ChatForm";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
-import HeaderUser from "@/integrations/clerk/header-user";
 import { useCreateThread, useThreads } from "@/lib/queries/threads";
+import { useChatStore } from "@/stores/chatStore";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
@@ -28,6 +29,7 @@ function Index() {
 
   const { data: threads, isLoading } = useThreads();
   const createThread = useCreateThread();
+  const { addMessage, setSessionId, clearMessages } = useChatStore();
 
   const handleSelectThread = (id: number) => {
     setSelectedThreadId(id);
@@ -37,14 +39,22 @@ function Index() {
     setChatDialogOpen(true);
   };
 
-  const handleChatFormSubmit = async (data: any) => {
-    try {
-      const newThread = await createThread.mutateAsync(data);
-      setSelectedThreadId(newThread.id);
-      setChatDialogOpen(false);
-    } catch (error) {
-      console.error("Error creating thread:", error);
-    }
+  const handleChatFormSubmit = (
+    formData: FormData,
+    aiResponse: string,
+    sessionId: number
+  ) => {
+    // Set the new session and clear previous messages
+    setSessionId(sessionId);
+    clearMessages();
+    // Remove leading digits and whitespace from the AI response
+    const cleanAIResponse = aiResponse.replace(/^[0-9]+/, "").trim();
+    addMessage({
+      sender: "ai",
+      text: cleanAIResponse,
+      timestamp: new Date(),
+      contextId: "default",
+    });
   };
 
   // Close sidebar when window is resized to desktop
@@ -90,10 +100,7 @@ function Index() {
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Topbar */}
         <MobileTopbar onMenuClick={() => setIsSidebarOpen(true)} />
-        {/* Desktop header */}
-        <div className="absolute top-4 right-4 hidden md:flex items-center gap-4 z-20">
-          <HeaderUser />
-        </div>
+
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             Loading threads...
@@ -109,15 +116,20 @@ function Index() {
             >
               Start a New Conversation
             </button>
-            <ChatDialog
-              open={chatDialogOpen}
-              onOpenChange={setChatDialogOpen}
-              onSubmit={handleChatFormSubmit}
-            />
           </div>
         ) : (
           <Thread selectedThreadId={selectedThreadId} />
         )}
+        {/* Always render ChatDialog so it can be opened from anywhere */}
+        <ChatDialog
+          open={chatDialogOpen}
+          onOpenChange={setChatDialogOpen}
+          onSubmit={handleChatFormSubmit}
+          onThreadCreated={(session) => {
+            setSelectedThreadId(session.id);
+            setChatDialogOpen(false);
+          }}
+        />
       </div>
     </div>
   );

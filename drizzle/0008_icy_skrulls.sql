@@ -1,0 +1,1 @@
+ALTER TABLE "chat_sessions" ADD COLUMN "thread_type" varchar DEFAULT 'chat' NOT NULL;

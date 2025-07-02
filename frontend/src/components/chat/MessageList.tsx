@@ -7,11 +7,11 @@ import ReactMarkdown from "react-markdown";
 
 interface MessageListProps {
   messages: Message[];
-  isLoading: boolean;
+  isLoading: boolean | "idle" | "observer" | "generating" | "streaming";
 }
 
 // Enhanced patchMarkdown to handle more streaming edge cases
-function patchMarkdown(text: string): string {
+export function patchMarkdown(text: string): string {
   let patched = text;
 
   // Handle incomplete code blocks
@@ -252,17 +252,42 @@ export function MessageList({
         })
       )}
 
-      {isLoading && stabilizedMessages.length === 0 && (
-        <div className="flex justify-start gap-2 p-3">
+      {/* Enhanced loading indicators for smooth transition */}
+      {typeof isLoading === "string" && isLoading === "observer" && (
+        <div className="flex justify-start gap-2 p-3 animate-fade-in">
           <Avatar className="size-8 flex-shrink-0">
             <AvatarFallback className="bg-indigo-100 text-indigo-600">
               <BrainCircuit size={20} />
             </AvatarFallback>
           </Avatar>
-          <div className="flex space-x-1 items-center bg-gray-50 border border-gray-200 rounded-2xl p-3">
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl p-3 shadow-sm">
+            <span className="text-gray-500 text-sm font-medium">
+              Thinking...
+            </span>
+            <div className="ml-2 flex space-x-1 items-center">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+            </div>
+          </div>
+        </div>
+      )}
+      {typeof isLoading === "string" && isLoading === "generating" && (
+        <div className="flex justify-start gap-2 p-3 animate-fade-in">
+          <Avatar className="size-8 flex-shrink-0">
+            <AvatarFallback className="bg-indigo-100 text-indigo-600">
+              <BrainCircuit size={20} />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl p-3 shadow-sm">
+            <span className="text-gray-500 text-sm font-medium">
+              Generating...
+            </span>
+            <div className="ml-2 flex space-x-1 items-center">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+            </div>
           </div>
         </div>
       )}

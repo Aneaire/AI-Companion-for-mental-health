@@ -76,4 +76,7 @@ Real-time chat app with Google's Gemini model:
 - Backend: Hono, streaming, Drizzle ORM, PostgreSQL, basic schema.
 - Frontend: TanStack Router, message streaming, API client, basic components.
 
-## Update this rules if needed
+## Note
+
+- You can always implement the code directly you don't have to ask everytime
+- Make use of full capability of hono when touching API's

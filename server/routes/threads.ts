@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/config";
@@ -7,15 +7,24 @@ import { chatSessions } from "../db/schema";
 export const threadsRoute = new Hono()
   .get("/", async (c) => {
     const userId = c.req.query("userId");
+    let threadType = c.req.query("threadType") || "chat";
     if (!userId) {
       return c.json({ error: "userId is required" }, 400);
+    }
+    if (threadType !== "chat") {
+      threadType = "chat";
     }
 
     const sessions = await db
       .select()
       .from(chatSessions)
-      .where(eq(chatSessions.userId, parseInt(userId)));
-    // .orderBy(desc(chatSessions.id));
+      .where(
+        and(
+          eq(chatSessions.userId, parseInt(userId)),
+          eq(chatSessions.threadType, "chat")
+        )
+      )
+      .orderBy(desc(chatSessions.updatedAt));
     return c.json(sessions);
   })
   .post("/", async (c) => {
@@ -31,6 +40,7 @@ export const threadsRoute = new Hono()
       additionalContext: z.string().optional(),
       responseTone: z.string().optional(),
       imageResponse: z.string().optional(),
+      threadType: z.enum(["chat"]).default("chat").optional(),
     });
 
     const parsed = schema.safeParse(body);
@@ -50,6 +60,7 @@ export const threadsRoute = new Hono()
         additionalContext: parsed.data.additionalContext,
         responseTone: parsed.data.responseTone,
         imageResponse: parsed.data.imageResponse,
+        threadType: parsed.data.threadType || "chat",
       })
       .returning();
     return c.json(session);

@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import HeaderUser from "@/integrations/clerk/header-user";
 import { useUser } from "@clerk/clerk-react";
-import { Plus } from "lucide-react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { MessageSquare, Plus } from "lucide-react";
 import { useEffect, useRef, type JSX } from "react";
 
 export interface SidebarProps {
@@ -26,6 +27,7 @@ export function Sidebar({
   const touchStartX = useRef<number | null>(null);
   const touchCurrentX = useRef<number | null>(null);
   const { user } = useUser();
+  const location = useLocation();
 
   // Swipe-to-close for mobile
   useEffect(() => {
@@ -95,6 +97,24 @@ export function Sidebar({
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
+        {/* Navigation Section */}
+        <div className="p-3 border-b border-gray-200">
+          <div className="flex flex-col gap-1">
+            <Link
+              to="/"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              onClick={() => onClose()} // Close sidebar on mobile after navigation
+            >
+              <MessageSquare size={16} />
+              Chat
+            </Link>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <span className="font-semibold text-lg text-gray-800">Threads</span>
           <Button
@@ -115,7 +135,7 @@ export function Sidebar({
               {threads.map((thread) => (
                 <li key={thread.id}>
                   <button
-                    className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors duration-200 truncate
+                    className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors duration-200
                       ${
                         selectedThreadId === thread.id
                           ? "bg-blue-50 text-blue-700 border-l-4 border-blue-500 font-semibold shadow-sm"
@@ -132,8 +152,9 @@ export function Sidebar({
                       onSelectThread(thread.id);
                       onClose(); // Close sidebar on mobile after selection
                     }}
+                    title={thread.title} // Show full title on hover
                   >
-                    {thread.title}
+                    <span className="line-clamp-1 w-full">{thread.title}</span>
                   </button>
                 </li>
               ))}
@@ -143,7 +164,7 @@ export function Sidebar({
         {/* Clerk HeaderUser at the bottom, only on mobile */}
         <div className=" border-t border-gray-200 p-4 mt-auto flex items-center justify-between gap-2">
           {user?.fullName && (
-            <span className="text-gray-700 text-sm line-clamp-1 font-semibold font-stretch-125%">
+            <span className="text-gray-700 text-sm truncate font-semibold font-stretch-125%">
               {user.fullName}
             </span>
           )}
@@ -153,5 +174,3 @@ export function Sidebar({
     </>
   );
 }
-
-export default Sidebar;

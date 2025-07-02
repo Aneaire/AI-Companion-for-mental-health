@@ -1,0 +1,3 @@
+export const geminiConfig = {
+  model: "gemini-2.0-flash",
+};

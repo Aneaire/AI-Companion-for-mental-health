@@ -50,6 +50,62 @@
       "when": 1750233568259,
       "tag": "0006_wakeful_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1750343994860,
+      "tag": "0007_previous_loners",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1751182693110,
+      "tag": "0008_icy_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1751188256762,
+      "tag": "0009_omniscient_anita_blake",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1751205859371,
+      "tag": "0010_steady_mach_iv",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1751207114899,
+      "tag": "0011_material_wendigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1751211315955,
+      "tag": "0012_known_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1751276082480,
+      "tag": "0013_tense_power_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1751282327150,
+      "tag": "0014_sloppy_ma_gnuci",
+      "breakpoints": true
     }
   ]
 }

@@ -1,10 +1,20 @@
-import type { ConversationContext, Message } from "@/types/chat";
+import type { FormData } from "@/lib/client";
+import type { Message } from "@/types/chat";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+interface ConversationContext {
+  messages: Message[];
+  summary?: string;
+  lastUpdated: Date;
+  sessionId?: number | null;
+  initialForm?: FormData;
+}
 
 interface ChatState {
   currentContext: ConversationContext;
   contexts: Map<string, ConversationContext>;
+  loadingState: "idle" | "observer" | "generating" | "streaming";
   setCurrentContext: (contextId: string) => void;
   addMessage: (message: Message) => void;
   updateContextSummary: (summary: string) => void;
@@ -12,6 +22,11 @@ interface ChatState {
   updateLastMessage: (newText: string) => void;
   setSessionId: (sessionId: number | null) => void;
   clearMessages: () => void;
+  setInitialForm: (form: FormData) => void;
+  setLoadingState: (
+    state: "idle" | "observer" | "generating" | "streaming"
+  ) => void;
+  setMessages: (messages: Message[]) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -23,6 +38,7 @@ export const useChatStore = create<ChatState>()(
         sessionId: null,
       },
       contexts: new Map(),
+      loadingState: "idle",
       setCurrentContext: (contextId: string) => {
         const { contexts } = get();
         const context = contexts.get(contextId) || {
@@ -63,9 +79,10 @@ export const useChatStore = create<ChatState>()(
         const messages = [...currentContext.messages];
         if (messages.length > 0) {
           const lastMessageIndex = messages.length - 1;
+          const cleanedText = newText.replace(/\s+'/g, "'");
           messages[lastMessageIndex] = {
             ...messages[lastMessageIndex],
-            text: newText,
+            text: cleanedText,
           };
         }
         set({
@@ -91,6 +108,23 @@ export const useChatStore = create<ChatState>()(
         const { currentContext } = get();
         set({
           currentContext: { ...currentContext, messages: [] },
+        });
+      },
+      setInitialForm: (form: FormData) => {
+        const { currentContext } = get();
+        set({
+          currentContext: { ...currentContext, initialForm: form },
+        });
+      },
+      setLoadingState: (
+        state: "idle" | "observer" | "generating" | "streaming"
+      ) => {
+        set({ loadingState: state });
+      },
+      setMessages: (messages: Message[]) => {
+        const { currentContext } = get();
+        set({
+          currentContext: { ...currentContext, messages },
         });
       },
     }),
@@ -154,6 +188,7 @@ export const useChatStore = create<ChatState>()(
                 ? msg.timestamp.getTime()
                 : msg.timestamp,
           })),
+          initialForm: state.currentContext.initialForm,
         },
       }),
       merge: (persistedState: any, currentState: ChatState) => {
