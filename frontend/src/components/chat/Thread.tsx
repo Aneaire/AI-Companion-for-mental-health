@@ -2,7 +2,7 @@ import { ChatDialog } from "@/components/chat/ChatDialog";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
-import client, { observerApi } from "@/lib/client";
+import client, { chatApi, impostorApi, observerApi } from "@/lib/client";
 import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
@@ -25,6 +25,7 @@ interface FetchedMessage {
 export interface ThreadProps {
   selectedThreadId: number | null;
   onSendMessage?: (message: string) => Promise<void>;
+  isImpersonateMode?: boolean;
 }
 
 // Enhanced Loading Fallback Component
@@ -130,6 +131,7 @@ function DevToolsToggle({
 export function Thread({
   selectedThreadId,
   onSendMessage,
+  isImpersonateMode = false,
 }: ThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
@@ -157,6 +159,7 @@ export function Thread({
   const [agentNextSteps, setAgentNextSteps] = useState<string[]>([]);
   const [showDevTools, setShowDevTools] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     if (selectedThreadId) {
@@ -470,6 +473,89 @@ export function Thread({
     }
   }, [selectedThreadId]);
 
+  const handleStartImpersonation = async () => {
+    if (!userProfile?.id || !currentContext.sessionId) {
+      toast.error("Session not ready for impersonation");
+      return;
+    }
+    setIsImpersonating(true);
+    setLoadingState("generating");
+    try {
+      // Get the impersonation profile
+      const userProfileData = await impostorApi.getProfile(userProfile.id);
+      if (!userProfileData) {
+        throw new Error("No impersonation profile found");
+      }
+      // Get initial response from impostor (patient)
+      const impostorData = await impostorApi.sendMessage({
+        sessionId: currentContext.sessionId,
+        message:
+          "Hello, I am here for therapy. I have been struggling with some issues.",
+        userProfile: userProfileData,
+      });
+      // Add the impostor message as user
+      addMessage({
+        sender: "user",
+        text: impostorData.response,
+        timestamp: new Date(),
+        contextId: "impersonate",
+      });
+      // Get therapist response (streaming)
+      const therapistResponse = await chatApi.sendMessage({
+        message: impostorData.response,
+        sessionId: currentContext.sessionId,
+        userId: String(userProfile.id),
+        sender: "impostor",
+      });
+      // Handle streaming response
+      const reader = therapistResponse.body?.getReader();
+      if (reader) {
+        const tempAiMessage = {
+          sender: "ai" as const,
+          text: "",
+          timestamp: new Date(),
+          tempId: Date.now(),
+          contextId: "impersonate" as const,
+        };
+        addMessage(tempAiMessage);
+        const decoder = new TextDecoder();
+        let fullResponse = "";
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value);
+          let lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const content = line.substring("data: ".length);
+              if (content.trim() === "" || /^\d+$/.test(content.trim()))
+                continue;
+              fullResponse += content + "\n";
+            }
+          }
+          updateLastMessage(fullResponse);
+        }
+        if (buffer) {
+          fullResponse += buffer;
+          updateLastMessage(fullResponse);
+        }
+      }
+    } catch (error) {
+      console.error("Error starting impersonation:", error);
+      toast.error("Failed to start impersonation");
+      setIsImpersonating(false);
+    } finally {
+      setLoadingState("idle");
+    }
+  };
+
+  const handleStopImpersonation = async () => {
+    setIsImpersonating(false);
+    toast.info("Impersonation stopped");
+  };
+
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
       {/* Enhanced Header with subtle shadow */}
@@ -501,6 +587,10 @@ export function Thread({
               onSendMessage={onSendMessage || handleSendMessage}
               loadingState={loadingState}
               inputVisible={true}
+              isImpersonateMode={isImpersonateMode}
+              onStartImpersonation={handleStartImpersonation}
+              onStopImpersonation={handleStopImpersonation}
+              isImpersonating={isImpersonating}
             />
           </div>
         </Suspense>

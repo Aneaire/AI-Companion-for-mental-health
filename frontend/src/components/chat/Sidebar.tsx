@@ -111,6 +111,14 @@ export function Sidebar({
             >
               <MessageSquare size={16} />
               Chat
+            </Link>{" "}
+            <Link
+              to="/impersonate"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              onClick={() => onClose()}
+            >
+              {" "}
+              <MessageSquare size={16} /> Impersonate
             </Link>
           </div>
         </div>

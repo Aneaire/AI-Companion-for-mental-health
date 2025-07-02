@@ -1,7 +1,6 @@
 import { ChatDialog } from "@/components/chat/ChatDialog";
 import type { FormData } from "@/components/chat/ChatForm";
 import MobileTopbar from "@/components/chat/MobileTopbar";
-import { Sidebar } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
 import { useCreateThread, useThreads } from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
@@ -84,19 +83,6 @@ function Index() {
 
   return (
     <div className="flex h-screen w-full bg-gray-50">
-      <Sidebar
-        threads={
-          threads?.map((t) => ({
-            id: t.id,
-            title: getThreadTitle(t),
-          })) || []
-        }
-        onSelectThread={handleSelectThread}
-        onNewThread={handleNewThread}
-        selectedThreadId={selectedThreadId}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Topbar */}
         <MobileTopbar onMenuClick={() => setIsSidebarOpen(true)} />

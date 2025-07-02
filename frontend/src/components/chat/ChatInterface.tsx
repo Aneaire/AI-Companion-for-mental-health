@@ -2,6 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Message } from "@/types/chat";
 import type { JSX } from "react";
 import MessageInput from "./MessageInput";
+import ImpersonateInput from "./ImpersonateInput";
 import { MessageList } from "./MessageList";
 
 interface ChatInterfaceProps {
@@ -9,6 +10,10 @@ interface ChatInterfaceProps {
   onSendMessage: (message: string) => void;
   loadingState: "idle" | "observer" | "generating" | "streaming";
   inputVisible: boolean;
+  isImpersonateMode?: boolean;
+  onStartImpersonation?: () => void;
+  onStopImpersonation?: () => void;
+  isImpersonating?: boolean;
 }
 
 export function ChatInterface({
@@ -16,6 +21,10 @@ export function ChatInterface({
   onSendMessage,
   loadingState,
   inputVisible,
+  isImpersonateMode = false,
+  onStartImpersonation,
+  onStopImpersonation,
+  isImpersonating = false,
 }: ChatInterfaceProps): JSX.Element {
   return (
     <div className="flex flex-col h-full min-h-0 ">
@@ -24,77 +33,22 @@ export function ChatInterface({
       </ScrollArea>
       {inputVisible && (
         <div className="sticky bottom-0 bg-white p-4 border-t border-gray-200 z-10">
-          <MessageInput
-            disabled={loadingState !== "idle"}
-            onSendMessage={onSendMessage}
-          />
+          {isImpersonateMode ? (
+            <ImpersonateInput
+              disabled={loadingState !== "idle"}
+              onSendMessage={onSendMessage}
+              onStartImpersonation={onStartImpersonation || (() => {})}
+              onStopImpersonation={onStopImpersonation || (() => {})}
+              isImpersonating={isImpersonating}
+            />
+          ) : (
+            <MessageInput
+              disabled={loadingState !== "idle"}
+              onSendMessage={onSendMessage}
+            />
+          )}
         </div>
       )}
     </div>
   );
 }
-
-/*
-// --- ImpersonateForm (archived for future use) ---
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-const impersonateSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
-  age: z.string().min(1, "Age is required"),
-  problemDescription: z.string().min(1, "Problem description is required"),
-  background: z.string().optional(),
-  personality: z.string().optional(),
-});
-
-export type ImpersonateFormData = z.infer<typeof impersonateSchema>;
-
-interface ImpersonateFormProps {
-  onSubmit: (data: ImpersonateFormData) => void;
-}
-
-export function ImpersonateForm({ onSubmit }: ImpersonateFormProps): JSX.Element {
-  const form = useForm<ImpersonateFormData>({
-    resolver: zodResolver(impersonateSchema),
-    defaultValues: {
-      fullName: "",
-      age: "",
-      problemDescription: "",
-      background: "",
-      personality: "",
-    },
-  });
-
-  const handleSubmit = async (data: ImpersonateFormData) => {
-    onSubmit(data);
-  };
-
-  return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-      <div>
-        <label>Full Name</label>
-        <input {...form.register("fullName")}/>
-      </div>
-      <div>
-        <label>Age</label>
-        <input {...form.register("age")}/>
-      </div>
-      <div>
-        <label>Problem Description</label>
-        <textarea {...form.register("problemDescription")}/>
-      </div>
-      <div>
-        <label>Background (optional)</label>
-        <textarea {...form.register("background")}/>
-      </div>
-      <div>
-        <label>Personality (optional)</label>
-        <textarea {...form.register("personality")}/>
-      </div>
-      <button type="submit">Submit</button>
-    </form>
-  );
-}
-// --- End ImpersonateForm ---
-*/
