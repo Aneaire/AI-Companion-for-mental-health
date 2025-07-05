@@ -69,7 +69,10 @@ export function MessageQualityAnalyzer({
       const result = await qualityApi.analyzeQuality({
         messages: messages.map((msg) => ({
           text: msg.text,
-          sender: msg.sender,
+          sender:
+            msg.sender === "therapist" || msg.sender === "impostor"
+              ? "ai"
+              : msg.sender,
           timestamp: msg.timestamp.getTime(),
         })),
         initialForm,
@@ -89,6 +92,12 @@ export function MessageQualityAnalyzer({
       analyzeMessages();
     }
   }, [isOpen]);
+
+  // Clear analysis result when messages change
+  useEffect(() => {
+    setAnalysisResult(null);
+    setError(null);
+  }, [messages]);
 
   const chartData =
     analysisResult?.qualityScores.map((score, index) => ({

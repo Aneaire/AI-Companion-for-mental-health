@@ -86,7 +86,7 @@ async function analyzeMessageQuality(
   }
 ) {
   const model = gemini.getGenerativeModel({
-    model: geminiConfig.model,
+    model: geminiConfig.twoPoint5FlashLite,
   });
 
   // Filter only user messages for analysis

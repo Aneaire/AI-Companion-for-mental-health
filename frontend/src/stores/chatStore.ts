@@ -3,6 +3,14 @@ import type { Message } from "@/types/chat";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface ConversationPreferences {
+  briefAndConcise: boolean;
+  empatheticAndSupportive: boolean;
+  solutionFocused: boolean;
+  casualAndFriendly: boolean;
+  professionalAndFormal: boolean;
+}
+
 interface ConversationContext {
   messages: Message[];
   summary?: string;
@@ -15,6 +23,7 @@ interface ChatState {
   currentContext: ConversationContext;
   contexts: Map<string, ConversationContext>;
   loadingState: "idle" | "observer" | "generating" | "streaming";
+  conversationPreferences: ConversationPreferences;
   setCurrentContext: (contextId: string) => void;
   addMessage: (message: Message) => void;
   updateContextSummary: (summary: string) => void;
@@ -29,6 +38,7 @@ interface ChatState {
   setMessages: (messages: Message[]) => void;
   impersonateMaxExchanges: number;
   setImpersonateMaxExchanges: (val: number) => void;
+  setConversationPreferences: (preferences: ConversationPreferences) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -41,6 +51,13 @@ export const useChatStore = create<ChatState>()(
       },
       contexts: new Map(),
       loadingState: "idle",
+      conversationPreferences: {
+        briefAndConcise: false,
+        empatheticAndSupportive: false,
+        solutionFocused: false,
+        casualAndFriendly: false,
+        professionalAndFormal: false,
+      },
       setCurrentContext: (contextId: string) => {
         const { contexts } = get();
         const context = contexts.get(contextId) || {
@@ -132,6 +149,8 @@ export const useChatStore = create<ChatState>()(
       impersonateMaxExchanges: 10,
       setImpersonateMaxExchanges: (val: number) =>
         set({ impersonateMaxExchanges: val }),
+      setConversationPreferences: (preferences: ConversationPreferences) =>
+        set({ conversationPreferences: preferences }),
     }),
     {
       name: "chat-storage",
@@ -180,6 +199,7 @@ export const useChatStore = create<ChatState>()(
           initialForm: state.currentContext.initialForm,
         },
         impersonateMaxExchanges: state.impersonateMaxExchanges,
+        conversationPreferences: state.conversationPreferences,
       }),
       merge: (persistedState: any, currentState: ChatState) => {
         // Only merge the minimal persisted state
@@ -191,6 +211,13 @@ export const useChatStore = create<ChatState>()(
             initialForm: persistedState.currentContext?.initialForm,
           },
           impersonateMaxExchanges: persistedState.impersonateMaxExchanges ?? 10,
+          conversationPreferences: persistedState.conversationPreferences ?? {
+            briefAndConcise: false,
+            empatheticAndSupportive: false,
+            solutionFocused: false,
+            casualAndFriendly: false,
+            professionalAndFormal: false,
+          },
         };
       },
     }

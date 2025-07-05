@@ -151,6 +151,8 @@ export function Thread({
     setLoadingState,
     impersonateMaxExchanges,
     setImpersonateMaxExchanges,
+    conversationPreferences,
+    setConversationPreferences,
   } = useChatStore();
   const [showChat, setShowChat] = useState(currentContext.messages.length > 0);
   const [progressRecommendation, setProgressRecommendation] =
@@ -170,6 +172,29 @@ export function Thread({
     isImpersonateMode ? "impersonate" : "chat"
   );
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Helper function to convert preferences to system instructions
+  const getPreferencesInstruction = () => {
+    const instructions: string[] = [];
+
+    if (conversationPreferences.briefAndConcise) {
+      instructions.push("Keep responses brief and concise");
+    }
+    if (conversationPreferences.empatheticAndSupportive) {
+      instructions.push("Be empathetic and emotionally supportive");
+    }
+    if (conversationPreferences.solutionFocused) {
+      instructions.push("Focus on providing practical solutions and advice");
+    }
+    if (conversationPreferences.casualAndFriendly) {
+      instructions.push("Use a casual and friendly tone");
+    }
+    if (conversationPreferences.professionalAndFormal) {
+      instructions.push("Maintain a professional and formal approach");
+    }
+
+    return instructions.length > 0 ? instructions.join(". ") + "." : "";
+  };
 
   useEffect(() => {
     if (selectedThreadId) {
@@ -345,6 +370,14 @@ export function Thread({
           ...(observerRationale ? { observerRationale } : {}),
           ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
           ...(observerSentiment ? { sentiment: observerSentiment } : {}),
+          // Pass conversation preferences
+          ...(getPreferencesInstruction()
+            ? {
+                systemInstruction: observerStrategy
+                  ? `${observerStrategy} ${getPreferencesInstruction()}`
+                  : getPreferencesInstruction(),
+              }
+            : {}),
         },
       });
 
@@ -588,6 +621,14 @@ export function Thread({
             ...(observerRationale ? { observerRationale } : {}),
             ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
             ...(observerSentiment ? { sentiment: observerSentiment } : {}),
+            // Pass conversation preferences
+            ...(getPreferencesInstruction()
+              ? {
+                  systemInstruction: observerStrategy
+                    ? `${observerStrategy} ${getPreferencesInstruction()}`
+                    : getPreferencesInstruction(),
+                }
+              : {}),
           });
 
           const reader = therapistResponse.body?.getReader();
@@ -643,6 +684,12 @@ export function Thread({
             message: lastMessage,
             userProfile: userProfileData,
             signal: abortController.signal,
+            // Pass conversation preferences
+            ...(getPreferencesInstruction()
+              ? {
+                  systemInstruction: getPreferencesInstruction(),
+                }
+              : {}),
           });
 
           const reader = impostorResponse.body?.getReader();
@@ -726,7 +773,10 @@ export function Thread({
       {/* Enhanced Header with subtle shadow */}
       <div className="hidden md:block relative z-10">
         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">
-          <ChatHeader />
+          <ChatHeader
+            preferences={conversationPreferences}
+            onPreferencesChange={setConversationPreferences}
+          />
         </div>
       </div>
 
@@ -783,7 +833,7 @@ export function Thread({
         showDevTools={showDevTools}
         onToggle={() => setShowDevTools(!showDevTools)}
       />
-
+ 
       {/* Dev Tools Sidebar with enhanced styling */}
       <DevToolsSidebar
         agentStrategy={agentStrategy}

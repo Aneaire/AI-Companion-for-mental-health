@@ -11,18 +11,11 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as RunATestImport } from './routes/run-a-test'
 import { Route as PodcastImport } from './routes/podcast'
 import { Route as ImpersonateImport } from './routes/impersonate'
 import { Route as IndexImport } from './routes/index'
 
 // Create/Update Routes
-
-const RunATestRoute = RunATestImport.update({
-  id: '/run-a-test',
-  path: '/run-a-test',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const PodcastRoute = PodcastImport.update({
   id: '/podcast',
@@ -67,13 +60,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PodcastImport
       parentRoute: typeof rootRoute
     }
-    '/run-a-test': {
-      id: '/run-a-test'
-      path: '/run-a-test'
-      fullPath: '/run-a-test'
-      preLoaderRoute: typeof RunATestImport
-      parentRoute: typeof rootRoute
-    }
   }
 }
 
@@ -83,14 +69,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
-  '/run-a-test': typeof RunATestRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
-  '/run-a-test': typeof RunATestRoute
 }
 
 export interface FileRoutesById {
@@ -98,15 +82,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
-  '/run-a-test': typeof RunATestRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/impersonate' | '/podcast' | '/run-a-test'
+  fullPaths: '/' | '/impersonate' | '/podcast'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/impersonate' | '/podcast' | '/run-a-test'
-  id: '__root__' | '/' | '/impersonate' | '/podcast' | '/run-a-test'
+  to: '/' | '/impersonate' | '/podcast'
+  id: '__root__' | '/' | '/impersonate' | '/podcast'
   fileRoutesById: FileRoutesById
 }
 
@@ -114,14 +97,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ImpersonateRoute: typeof ImpersonateRoute
   PodcastRoute: typeof PodcastRoute
-  RunATestRoute: typeof RunATestRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ImpersonateRoute: ImpersonateRoute,
   PodcastRoute: PodcastRoute,
-  RunATestRoute: RunATestRoute,
 }
 
 export const routeTree = rootRoute
@@ -136,8 +117,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/impersonate",
-        "/podcast",
-        "/run-a-test"
+        "/podcast"
       ]
     },
     "/": {
@@ -148,9 +128,6 @@ export const routeTree = rootRoute
     },
     "/podcast": {
       "filePath": "podcast.tsx"
-    },
-    "/run-a-test": {
-      "filePath": "run-a-test.tsx"
     }
   }
 }
