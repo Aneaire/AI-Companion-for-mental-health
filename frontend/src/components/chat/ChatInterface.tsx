@@ -2,7 +2,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Message } from "@/types/chat";
 import type { JSX } from "react";
 import MessageInput from "./MessageInput";
-import ImpersonateInput from "./ImpersonateInput";
 import { MessageList } from "./MessageList";
 
 interface ChatInterfaceProps {
@@ -33,20 +32,10 @@ export function ChatInterface({
       </ScrollArea>
       {inputVisible && (
         <div className="sticky bottom-0 bg-white p-4 border-t border-gray-200 z-10">
-          {isImpersonateMode ? (
-            <ImpersonateInput
-              disabled={loadingState !== "idle"}
-              onSendMessage={onSendMessage}
-              onStartImpersonation={onStartImpersonation || (() => {})}
-              onStopImpersonation={onStopImpersonation || (() => {})}
-              isImpersonating={isImpersonating}
-            />
-          ) : (
-            <MessageInput
-              disabled={loadingState !== "idle"}
-              onSendMessage={onSendMessage}
-            />
-          )}
+          <MessageInput
+            disabled={loadingState !== "idle"}
+            onSendMessage={onSendMessage}
+          />
         </div>
       )}
     </div>

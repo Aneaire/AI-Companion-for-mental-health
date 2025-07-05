@@ -1,36 +1,124 @@
 import { ImpersonateDialog } from "@/components/chat/ImpersonateDialog";
-import type { ImpersonateFormData } from "@/components/chat/ImpersonateForm";
+import { Sidebar } from "@/components/chat/Sidebar";
+import { Thread } from "@/components/chat/Thread";
+import { impostorApi, threadsApi } from "@/lib/client";
+import { useUserProfile } from "@/lib/queries/user";
+import { useChatStore } from "@/stores/chatStore";
+import { useThreadsStore } from "@/stores/threadsStore";
+import { useAuth } from "@clerk/clerk-react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useSidebarContext } from "./__root";
-
-export const Route = createFileRoute("/impersonate")({
-  component: Impersonate,
-});
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 function Impersonate() {
-  const { chatDialogOpen, setChatDialogOpen } = useSidebarContext();
+  // Mode: 'impersonate' (AI-AI) or 'chat' (user-AI)
+  const [mode, setMode] = useState<"impersonate" | "chat">("impersonate");
+  const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
+  const { personaThreads, addPersonaThread } = useThreadsStore();
+  const { userId: clerkId } = useAuth();
+  const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
+    clerkId || null
+  );
+  const { setInitialForm } = useChatStore();
 
-  // Stub handlers for now
-  const handleImpersonateSubmit = (
-    formData: ImpersonateFormData,
-    aiResponse: string,
-    sessionId: number
+  // Select the first thread on first render if available
+  useEffect(() => {
+    if (personaThreads.length > 0 && selectedThreadId == null) {
+      setSelectedThreadId(personaThreads[0].id);
+    }
+  }, [personaThreads, selectedThreadId]);
+
+  const handleSelectThread = (id: number) => {
+    setSelectedThreadId(id);
+    setIsSidebarOpen(false); // close on mobile
+    // Find the selected thread and set initial form
+    const thread = personaThreads.find((t) => t.id === id);
+    if (thread) {
+      setInitialForm({
+        preferredName: thread.preferredName || thread.sessionName || "",
+        reasonForVisit: thread.reasonForVisit || "",
+        // add other required fields if needed
+      });
+    }
+  };
+
+  const handleNewThread = () => {
+    setImpersonateDialogOpen(true);
+  };
+
+  const handleImpersonateSubmit = async (
+    formData: any,
+    aiResponse: any,
+    sessionId: any
   ) => {
-    // TODO: Implement actual impersonation logic
-    setChatDialogOpen(false);
+    // Use userId from formData or fallback to current user
+    const userId = userProfile?.id;
+    if (userId === undefined) {
+      toast.error("User ID is missing. Cannot create persona.");
+      return;
+    }
+    const payload = {
+      userId,
+      fullName: formData.fullName,
+      age: String(formData.age),
+      problemDescription: formData.problemDescription,
+      background: formData.background,
+      personality: formData.personality,
+    };
+    console.log("[impostorApi.upsertProfile] Sending data:", payload);
+    const persona = await impostorApi.upsertProfile(payload);
+    // 2. Create thread with personaId
+    const newThread = await threadsApi.create({
+      userId: payload.userId,
+      personaId: persona.id,
+      reasonForVisit: formData.problemDescription,
+      preferredName: formData.fullName,
+    });
+    addPersonaThread(newThread);
+    setSelectedThreadId(newThread.id);
+    setInitialForm({
+      preferredName: formData.fullName,
+      reasonForVisit: formData.problemDescription,
+      // add other required fields if needed
+    });
+    setImpersonateDialogOpen(false);
   };
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Impersonate Mode</h1>
-      <p>This is the impersonate page where AI will roleplay as a patient.</p>
-      <ImpersonateDialog
-        open={chatDialogOpen}
-        onOpenChange={setChatDialogOpen}
-        onSubmit={handleImpersonateSubmit}
+    <div className="flex h-screen w-full">
+      <Sidebar
+        threads={personaThreads.map((t) => ({
+          id: t.id,
+          title: t.sessionName || t.reasonForVisit || `Thread #${t.id}`,
+        }))}
+        onSelectThread={handleSelectThread}
+        onNewThread={handleNewThread}
+        selectedThreadId={selectedThreadId}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
+      <div className="flex-1 flex flex-col min-h-0">
+        <ImpersonateDialog
+          open={impersonateDialogOpen}
+          onOpenChange={setImpersonateDialogOpen}
+          onSubmit={handleImpersonateSubmit}
+        />
+
+        <div className="flex-1 min-h-0">
+          <Thread
+            selectedThreadId={selectedThreadId}
+            isImpersonateMode={mode === "impersonate"}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-export default Route.options.component;
+export default Impersonate;
+
+export const Route = createFileRoute("/impersonate")({
+  component: Impersonate,
+});

@@ -105,11 +105,13 @@ export function ImpersonateForm({ onSubmit }: ImpersonateFormProps) {
   const form = useForm<ImpersonateFormData>({
     resolver: zodResolver(impersonateSchema),
     defaultValues: {
-      fullName: "",
-      age: "",
-      problemDescription: "",
-      background: "",
-      personality: "",
+      fullName: "Angelo Santiago",
+      age: "21",
+      problemDescription:
+        "I'm feeling completely overwhelmed and burnt out by my final year capstone project. I'm constantly comparing my work to my classmates', especially this one guy, Marco, who seems effortlessly brilliant. It makes me feel inadequate and like my own efforts aren't good enough, no matter how much time I put in. I'm losing sleep, my motivation is plummeting, and I just can't shake this feeling of dread about it.",
+      background:
+        "I'm a final-year computer science student. I've generally been a good student, but never truly exceptional. My parents have always pushed me to excel, and I feel a lot of pressure to secure a good job after graduation, which heavily relies on this capstone project. This is my first major independent project where I feel this intense level of public scrutiny and direct comparison.",
+      personality: "Anxious, Perfectionist, Introverted, Ambitious, Cautious",
     },
     mode: "onChange",
   });

@@ -83,7 +83,7 @@ async function analyzeWithGemini(
   next_steps: string[];
 }> {
   const model = gemini.getGenerativeModel({
-    model: geminiConfig.model,
+    model: geminiConfig.twoPoint5FlashLite,
   });
 
   // Build context string from initial form

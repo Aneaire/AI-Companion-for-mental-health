@@ -3,13 +3,14 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import client, { chatApi, impostorApi, observerApi } from "@/lib/client";
-import { useUserProfile } from "@/lib/queries/user";
+import { useImpostorProfile, useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
 import { Brain, Lightbulb, Loader2, Settings, X } from "lucide-react";
-import { Suspense, useEffect, useRef, useState, type JSX } from "react";
+import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
+import { ImpersonateInput } from "./ImpersonateInput";
 import { patchMarkdown } from "./MessageList";
 
 interface ErrorResponse {
@@ -137,6 +138,8 @@ export function Thread({
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
     clerkId || null
   );
+  const { data: impostorProfile, isLoading: impostorProfileLoading } =
+    useImpostorProfile(userProfile?.id ? Number(userProfile.id) : null);
   const {
     currentContext,
     addMessage,
@@ -146,6 +149,8 @@ export function Thread({
     setInitialForm,
     loadingState,
     setLoadingState,
+    impersonateMaxExchanges,
+    setImpersonateMaxExchanges,
   } = useChatStore();
   const [showChat, setShowChat] = useState(currentContext.messages.length > 0);
   const [progressRecommendation, setProgressRecommendation] =
@@ -160,6 +165,11 @@ export function Thread({
   const [showDevTools, setShowDevTools] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
+  const isImpersonatingRef = useRef(isImpersonating);
+  const [mode, setMode] = useState<"impersonate" | "chat">(
+    isImpersonateMode ? "impersonate" : "chat"
+  );
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (selectedThreadId) {
@@ -304,6 +314,10 @@ export function Thread({
     setIsStreaming(true);
 
     try {
+      console.log(
+        "[Thread] Sending message with initialForm:",
+        currentContext.initialForm
+      );
       const response = await client.api.chat.$post({
         json: {
           message: message,
@@ -473,88 +487,239 @@ export function Thread({
     }
   }, [selectedThreadId]);
 
+  useEffect(() => {
+    isImpersonatingRef.current = isImpersonating;
+  }, [isImpersonating]);
+
   const handleStartImpersonation = async () => {
-    if (!userProfile?.id || !currentContext.sessionId) {
-      toast.error("Session not ready for impersonation");
+    if (!userProfile?.id) {
+      toast.error("User profile not loaded.");
       return;
     }
+    if (!currentContext.sessionId) {
+      toast.error("No session selected. Please select or create a thread.");
+      return;
+    }
+    if (!impostorProfile) {
+      toast.error("No persona profile found. Please create one first.");
+      return;
+    }
+
+    setImpersonateMaxExchanges(10); // Always reset exchanges at start
     setIsImpersonating(true);
+    isImpersonatingRef.current = true;
     setLoadingState("generating");
-    try {
-      // Get the impersonation profile
-      const userProfileData = await impostorApi.getProfile(userProfile.id);
-      if (!userProfileData) {
-        throw new Error("No impersonation profile found");
+
+    const checkShouldStop = () => {
+      if (!isImpersonatingRef.current) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+        throw new Error("Impersonation stopped");
       }
-      // Get initial response from impostor (patient)
-      const impostorData = await impostorApi.sendMessage({
-        sessionId: currentContext.sessionId,
-        message:
-          "Hello, I am here for therapy. I have been struggling with some issues.",
-        userProfile: userProfileData,
-      });
-      // Add the impostor message as user
-      addMessage({
-        sender: "user",
-        text: impostorData.response,
-        timestamp: new Date(),
-        contextId: "impersonate",
-      });
-      // Get therapist response (streaming)
-      const therapistResponse = await chatApi.sendMessage({
-        message: impostorData.response,
-        sessionId: currentContext.sessionId,
-        userId: String(userProfile.id),
-        sender: "impostor",
-      });
-      // Handle streaming response
-      const reader = therapistResponse.body?.getReader();
-      if (reader) {
-        const tempAiMessage = {
-          sender: "ai" as const,
-          text: "",
-          timestamp: new Date(),
-          tempId: Date.now(),
-          contextId: "impersonate" as const,
-        };
-        addMessage(tempAiMessage);
-        const decoder = new TextDecoder();
-        let fullResponse = "";
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value);
-          let lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const content = line.substring("data: ".length);
-              if (content.trim() === "" || /^\d+$/.test(content.trim()))
-                continue;
-              fullResponse += content + "\n";
+    };
+
+    try {
+      const userProfileData = impostorProfile;
+      let exchanges = 0;
+      let lastMessage = currentContext.messages.length
+        ? currentContext.messages[currentContext.messages.length - 1].text
+        : "Hello, I am here for therapy. I have been struggling with some issues.";
+      let lastSender = currentContext.messages.length
+        ? currentContext.messages[currentContext.messages.length - 1].sender
+        : null;
+
+      while (
+        exchanges < impersonateMaxExchanges &&
+        isImpersonatingRef.current
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        checkShouldStop();
+
+        if (lastSender === "user") {
+          setLoadingState("observer");
+          // Therapist's turn
+          // Get observer output before therapist responds
+          let observerStrategy = "";
+          let observerRationale = "";
+          let observerNextSteps: string[] = [];
+          let observerSentiment = "";
+          try {
+            const observerRes = await observerApi.getSuggestion({
+              messages: [
+                ...currentContext.messages
+                  .filter((msg) => msg.sender === "user" || msg.sender === "ai")
+                  .map((msg) => ({
+                    sender: msg.sender as "user" | "ai",
+                    text: msg.text,
+                  })),
+                { sender: "user", text: lastMessage },
+              ],
+              ...(currentContext.initialForm
+                ? { initialForm: currentContext.initialForm }
+                : {}),
+            });
+            observerStrategy = observerRes.strategy || "";
+            observerRationale = observerRes.rationale || "";
+            observerNextSteps = observerRes.next_steps || [];
+            observerSentiment = observerRes.sentiment || "";
+            setAgentStrategy(observerStrategy);
+            setAgentRationale(observerRationale);
+            setAgentNextSteps(observerNextSteps);
+          } catch (e) {
+            observerStrategy = "";
+            observerRationale = "";
+            observerNextSteps = [];
+            observerSentiment = "";
+          }
+          setLoadingState("idle");
+          const abortController = new AbortController();
+          abortControllerRef.current = abortController;
+          const therapistResponse = await chatApi.sendMessage({
+            message: lastMessage,
+            sessionId: currentContext.sessionId,
+            userId: String(userProfile.id),
+            sender: "impostor",
+            signal: abortController.signal,
+            ...(observerStrategy
+              ? { systemInstruction: observerStrategy }
+              : {}),
+            ...(observerRationale ? { observerRationale } : {}),
+            ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
+            ...(observerSentiment ? { sentiment: observerSentiment } : {}),
+          });
+
+          const reader = therapistResponse.body?.getReader();
+          let therapistFullResponse = "";
+
+          if (reader) {
+            const tempAiMessage = {
+              sender: "ai" as const,
+              text: "",
+              timestamp: new Date(),
+              tempId: Date.now(),
+              contextId: "impersonate" as const,
+            };
+            addMessage(tempAiMessage);
+
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              checkShouldStop();
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value);
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const content = line.substring("data: ".length);
+                  if (content.trim() === "" || /^\d+$/.test(content.trim()))
+                    continue;
+                  therapistFullResponse += content + "\n";
+                }
+              }
+              updateLastMessage(therapistFullResponse);
+            }
+
+            if (buffer) {
+              therapistFullResponse += buffer;
+              updateLastMessage(therapistFullResponse);
             }
           }
-          updateLastMessage(fullResponse);
+
+          lastMessage = therapistFullResponse.trim() || lastMessage;
+          lastSender = "ai";
+        } else {
+          // Impostor's turn
+          const abortController = new AbortController();
+          abortControllerRef.current = abortController;
+          const impostorResponse = await impostorApi.sendMessage({
+            sessionId: currentContext.sessionId,
+            message: lastMessage,
+            userProfile: userProfileData,
+            signal: abortController.signal,
+          });
+
+          const reader = impostorResponse.body?.getReader();
+          let impostorFullResponse = "";
+
+          if (reader) {
+            const tempUserMessage = {
+              sender: "user" as const,
+              text: "",
+              timestamp: new Date(),
+              tempId: Date.now(),
+              contextId: "impersonate" as const,
+            };
+            addMessage(tempUserMessage);
+
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              checkShouldStop();
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value);
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const content = line.substring("data: ".length);
+                  if (content.trim() === "" || /^\d+$/.test(content.trim()))
+                    continue;
+                  impostorFullResponse += content + "\n";
+                }
+              }
+              updateLastMessage(impostorFullResponse);
+            }
+
+            if (buffer) {
+              impostorFullResponse += buffer;
+              updateLastMessage(impostorFullResponse);
+            }
+          }
+
+          lastMessage = impostorFullResponse.trim() || lastMessage;
+          lastSender = "user";
         }
-        if (buffer) {
-          fullResponse += buffer;
-          updateLastMessage(fullResponse);
-        }
+
+        exchanges++;
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     } catch (error) {
-      console.error("Error starting impersonation:", error);
-      toast.error("Failed to start impersonation");
-      setIsImpersonating(false);
+      if ((error as Error).message !== "Impersonation stopped") {
+        console.error("Error during impersonation:", error);
+        toast.error("Failed to continue impersonation");
+      } else {
+        console.log("Impersonation loop exited cleanly.");
+      }
     } finally {
       setLoadingState("idle");
+      setIsImpersonating(false);
+      isImpersonatingRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     }
   };
 
   const handleStopImpersonation = async () => {
     setIsImpersonating(false);
-    toast.info("Impersonation stopped");
+    isImpersonatingRef.current = false;
   };
+
+  useEffect(() => {
+    setMode(isImpersonateMode ? "impersonate" : "chat");
+  }, [isImpersonateMode]);
 
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
@@ -569,11 +734,13 @@ export function Thread({
       <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">
         <Suspense fallback={<EnhancedLoadingFallback />}>
           {/* Chat Dialog */}
-          <ChatDialog
-            open={!showChat}
-            onOpenChange={setShowChat}
-            onSubmit={handleFormSubmit as (sessionId: number) => void}
-          />
+          {!isImpersonateMode && (
+            <ChatDialog
+              open={!showChat}
+              onOpenChange={setShowChat}
+              onSubmit={handleFormSubmit as (sessionId: number) => void}
+            />
+          )}
 
           {/* Enhanced Progress Recommendation */}
           {progressRecommendation && (
@@ -586,7 +753,7 @@ export function Thread({
               messages={currentContext.messages}
               onSendMessage={onSendMessage || handleSendMessage}
               loadingState={loadingState}
-              inputVisible={true}
+              inputVisible={false}
               isImpersonateMode={isImpersonateMode}
               onStartImpersonation={handleStartImpersonation}
               onStopImpersonation={handleStopImpersonation}
@@ -594,6 +761,21 @@ export function Thread({
             />
           </div>
         </Suspense>
+        {/* Custom input for impersonate/chat mode */}
+        <ImpersonateInput
+          mode={mode}
+          onModeChange={setMode}
+          isImpersonating={isImpersonating}
+          onStart={handleStartImpersonation}
+          onStop={handleStopImpersonation}
+          onSendMessage={handleSendMessage}
+          disabled={
+            mode !== "impersonate" &&
+            loadingState !== "idle" &&
+            loadingState !== "observer"
+          }
+          hideModeSwitch={!isImpersonateMode} // HIDE SWITCH ON MAIN PAGE
+        />
       </main>
 
       {/* Enhanced Dev Tools Toggle */}
@@ -628,4 +810,4 @@ export function Thread({
   );
 }
 
-export default Thread;
+export default memo(Thread);

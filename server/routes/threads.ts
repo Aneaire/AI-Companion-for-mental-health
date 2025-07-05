@@ -32,6 +32,7 @@ export const threadsRoute = new Hono()
     // Validation schema matching the form data
     const schema = z.object({
       userId: z.number(),
+      personaId: z.number().optional().nullable(),
       preferredName: z.string().optional(),
       currentEmotions: z.array(z.string()).optional(),
       reasonForVisit: z.string(),
@@ -52,6 +53,7 @@ export const threadsRoute = new Hono()
       .insert(chatSessions)
       .values({
         userId: parsed.data.userId,
+        personaId: parsed.data.personaId ?? null,
         preferredName: parsed.data.preferredName,
         currentEmotions: parsed.data.currentEmotions,
         reasonForVisit: parsed.data.reasonForVisit,

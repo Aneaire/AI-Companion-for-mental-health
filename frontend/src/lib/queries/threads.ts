@@ -16,12 +16,42 @@ export const useThreads = () => {
   });
 };
 
+export const usePersonaThreads = (enabled = true) => {
+  const { userId } = useAuth();
+  const { data: userProfile } = useUserProfile(userId || null);
+  return useQuery({
+    queryKey: ["personaThreads", userProfile?.id],
+    queryFn: async () => {
+      if (!userProfile?.id) throw new Error("User not authenticated");
+      const all = await threadsApi.list(userProfile.id);
+      return all.filter((t: any) => t.personaId);
+    },
+    enabled: !!userProfile?.id && enabled,
+  });
+};
+
+export const useNormalThreads = (enabled = true) => {
+  const { userId } = useAuth();
+  const { data: userProfile } = useUserProfile(userId || null);
+  return useQuery({
+    queryKey: ["normalThreads", userProfile?.id],
+    queryFn: async () => {
+      if (!userProfile?.id) throw new Error("User not authenticated");
+      const all = await threadsApi.list(userProfile.id);
+      return all.filter((t: any) => !t.personaId);
+    },
+    enabled: !!userProfile?.id && enabled,
+  });
+};
+
 export const useCreateThread = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: threadsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["threads"] });
+      queryClient.invalidateQueries({ queryKey: ["personaThreads"] });
+      queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
     },
   });
 };

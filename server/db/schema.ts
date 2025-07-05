@@ -43,6 +43,7 @@ export const chatSessions = pgTable("chat_sessions", {
     .notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  personaId: integer("persona_id").references(() => persona.id),
 });
 
 export const messages = pgTable("messages", {
@@ -57,7 +58,7 @@ export const messages = pgTable("messages", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
-export const impostorProfiles = pgTable("impostor_profiles", {
+export const persona = pgTable("persona", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()

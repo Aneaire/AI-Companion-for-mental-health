@@ -21,9 +21,15 @@ export const threadsApi = {
   },
   async create(data: {
     userId: number;
-    sessionName?: string;
+    personaId: number;
     preferredName?: string;
-    reasonForVisit?: string;
+    currentEmotions?: string[];
+    reasonForVisit: string;
+    supportType?: string[];
+    supportTypeOther?: string;
+    additionalContext?: string;
+    responseTone?: string;
+    imageResponse?: string;
     threadType?: "chat";
   }) {
     const res = await client.api.threads.$post({
@@ -100,8 +106,9 @@ export const impostorApi = {
     userId: number;
     fullName: string;
     age: string;
-    interests?: string;
+    problemDescription: string;
     background?: string;
+    personality?: string;
   }) {
     console.log("[impostorApi.upsertProfile] Sending data:", data);
     const res = await client.api.impostor.profile.$post({
@@ -118,16 +125,19 @@ export const impostorApi = {
     sessionId,
     message,
     userProfile,
+    signal,
   }: {
     sessionId: number;
     message: string;
     userProfile: any;
+    signal?: AbortSignal;
   }) {
     const res = await client.api.impostor.chat.$post({
       json: { sessionId, message, userProfile },
+      ...(signal ? { fetch: { signal } } : {}),
     });
     if (!res.ok) throw new Error("Failed to send impostor message");
-    return res.json();
+    return res; // Return the Response object for streaming
   },
 };
 
@@ -159,6 +169,7 @@ export const chatApi = {
     context,
     sender,
     initialForm,
+    signal,
     ...rest
   }: {
     message: string;
@@ -167,6 +178,7 @@ export const chatApi = {
     context?: any[];
     sender?: "user" | "ai" | "therapist" | "impostor";
     initialForm?: any;
+    signal?: AbortSignal;
     [key: string]: any;
   }) {
     const res = await client.api.chat.$post({
@@ -179,6 +191,7 @@ export const chatApi = {
         ...(initialForm ? { initialForm } : {}),
         ...rest,
       },
+      ...(signal ? { fetch: { signal } } : {}),
     });
     if (!res.ok) throw new Error("Failed to send chat message");
     return res;

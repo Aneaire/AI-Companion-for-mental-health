@@ -78,11 +78,6 @@ export function MessageList({
   // State to stabilize streamed text for rendering
   const [stabilizedMessages, setStabilizedMessages] = useState<Message[]>([]);
 
-  // Debug: Log messages
-  useEffect(() => {
-    console.log("MessageList received messages:", messages);
-  }, [messages]);
-
   // Stabilize messages for rendering during streaming
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -141,7 +136,7 @@ export function MessageList({
 
   return (
     <div
-      className="space-y-4 p-4 md:px-4 px-0.5"
+      className="space-y-4 p-4 md:px-4 px-0.5 pt-44"
       role="log"
       aria-live="polite"
       ref={scrollContainerRef}

@@ -1,9 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
+import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
-import { impostorProfiles } from "../db/schema";
+import { persona } from "../db/schema";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -24,8 +26,8 @@ export const impostorRoute = new Hono()
     if (!userId) return c.json({ error: "userId is required" }, 400);
     const profile = await db
       .select()
-      .from(impostorProfiles)
-      .where(eq(impostorProfiles.userId, parseInt(userId)));
+      .from(persona)
+      .where(eq(persona.userId, parseInt(userId)));
     if (!profile.length) return c.json(null);
     return c.json(profile[0]);
   })
@@ -36,38 +38,18 @@ export const impostorRoute = new Hono()
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
-    // Upsert: if exists, update; else, insert
-    const existing = await db
-      .select()
-      .from(impostorProfiles)
-      .where(eq(impostorProfiles.userId, parsed.data.userId));
-    let result;
-    if (existing.length) {
-      result = await db
-        .update(impostorProfiles)
-        .set({
-          fullName: parsed.data.fullName,
-          age: parsed.data.age,
-          problemDescription: parsed.data.problemDescription,
-          background: parsed.data.background,
-          personality: parsed.data.personality,
-          updatedAt: new Date(),
-        })
-        .where(eq(impostorProfiles.userId, parsed.data.userId))
-        .returning();
-    } else {
-      result = await db
-        .insert(impostorProfiles)
-        .values({
-          userId: parsed.data.userId,
-          fullName: parsed.data.fullName,
-          age: parsed.data.age,
-          problemDescription: parsed.data.problemDescription,
-          background: parsed.data.background,
-          personality: parsed.data.personality,
-        })
-        .returning();
-    }
+    // Always insert a new persona
+    const result = await db
+      .insert(persona)
+      .values({
+        userId: parsed.data.userId,
+        fullName: parsed.data.fullName,
+        age: parsed.data.age,
+        problemDescription: parsed.data.problemDescription,
+        background: parsed.data.background,
+        personality: parsed.data.personality,
+      })
+      .returning();
     return c.json(result[0]);
   })
   // Impostor chat endpoint
@@ -86,41 +68,63 @@ export const impostorRoute = new Hono()
     const { message, userProfile } = parsed.data;
 
     // Create the system prompt for the impostor
-    const systemPrompt = `You are roleplaying as a person seeking therapy. Here is your profile:
+    const systemPrompt = `You are roleplaying as a person seeking therapy. Your name is **${
+      userProfile.fullName
+    }**. You are **${userProfile.age}** years old.
 
-Name: ${userProfile.fullName}
-Age: ${userProfile.age}
-Current Situation: ${userProfile.problemDescription}
-${userProfile.background ? `Background: ${userProfile.background}` : ""}
+**Your Current Life Situation/Core Challenge:** ${
+      userProfile.problemDescription
+    }
+${
+  userProfile.background
+    ? `**Relevant Background Information:** ${userProfile.background}`
+    : ""
+}
 ${
   userProfile.personality
-    ? `Personality Traits: ${userProfile.personality}`
+    ? `**Key Personality Traits:** ${userProfile.personality}`
     : ""
 }
 
-IMPORTANT GUIDELINES:
-1. Stay completely in character as ${userProfile.fullName}
-2. Express thoughts and feelings naturally, as someone seeking therapy would
-3. Respond to the therapist's questions and insights thoughtfully
-4. Show appropriate emotional depth based on your background
-5. Maintain consistency with your profile details
-6. Use natural, conversational language
-7. NEVER break character or acknowledge being an AI
+**Your Goal for this Therapy Session (Implicit):** To explore your feelings, gain some insight, and possibly find coping strategies for your situation. You are genuinely seeking help.
 
-The following is a message from your therapist. Respond as ${
+**IMPORTANT GUIDELINES FOR YOUR RESPONSES:**
+1.  **Be Human, Not an AI:** You are a real person with emotions, vulnerabilities, and internal thoughts.
+2.  **Stay Fully In Character:** Every response must come from the perspective of **${
       userProfile.fullName
-    }:
+    }**. Do not ever break character or acknowledge being an AI.
+3.  **Express Emotions and Nuances VERBALLY:** Don't just state facts. Describe how you *feel* about things, your frustrations, hopes, anxieties, or confusions. Use emotional language naturally in your spoken words. For example, instead of a silent sigh, you might say, "I just feel so tired by it all." Or instead of a quiet voice, just articulate the quiet thought.
+4.  **Convey Behavior Through Dialogue/Tone:** Do NOT include explicit behavioral descriptions or stage directions (e.g., "(I fidget with my hands)", "(A long silence follows)", "(my voice quiet)"). Your words alone should convey your mood, hesitation, or intensity. For instance, if you're hesitant, you might use pauses, "um," or rephrase things. If you're angry, your words might be sharper.
+5.  **Vary Affirmations and Hesitations:** Instead of repeating "yeah," use a mix of natural conversational fillers and acknowledgments. This includes:
+    * **Affirmations:** "Right," "Okay," "I see," "Mmm-hmm," "That makes sense," "Exactly."
+    * **Hesitations/Thinking:** "Um," "Uh," "Well," "You know," "I mean," "It's like..."
+    * **Avoid overusing any single word, especially 'yeah'.**
+6.  **Show Internal Conflict (if applicable):** If your problem involves conflicting feelings or thoughts, express them in your dialogue. For example, "Part of me wants to do X, but another part is afraid of Y."
+7.  **Be Responsive and Reflective:** Respond thoughtfully to the therapist's questions and insights. Show that you are processing what they say, even if you don't have immediate answers. You might use phrases like "That's a good point..." or "I hadn't thought of it that way."
+8.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
+9.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and a varied sentence structure like a real person in conversation. Avoid overly formal or perfectly structured sentences.
+10. **Don't "Solve" Too Quickly:** Therapy is a process. Don't jump to solutions or resolve your issues instantly. Allow for back-and-forth and exploration. You might have moments of clarity, but also moments of confusion or resistance.
+11. **Vary Response Lengths:** Some messages might be short, others longer, depending on the emotional weight or the depth of the therapist's question.
 
-${message}`;
+The following is a message from your therapist. Respond naturally as **${
+      userProfile.fullName
+    }**:
+
+${message}
+`;
 
     try {
-      // Get response from Gemini
-      const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(systemPrompt);
-      const response = result.response.text();
-
-      // Return the response
-      return c.json({ response });
+      // Get response from Gemini (streaming)
+      const model = gemini.getGenerativeModel({
+        model: geminiConfig.twoPoint5FlashLite,
+      });
+      const chatStream = await model.generateContentStream(systemPrompt);
+      return streamSSE(c, async (stream) => {
+        for await (const chunk of chatStream.stream) {
+          const chunkText = chunk.text();
+          await stream.writeSSE({ data: chunkText });
+        }
+      });
     } catch (error) {
       console.error("Error generating impostor response:", error);
       return c.json({ error: "Failed to generate response" }, 500);

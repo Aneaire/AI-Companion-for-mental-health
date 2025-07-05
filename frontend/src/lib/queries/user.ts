@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import client from "../client";
+import client, { impostorApi } from "../client";
 
 export const useUserProfile = (clerkId: string | null) => {
   return useQuery({
@@ -17,3 +17,14 @@ export const useUserProfile = (clerkId: string | null) => {
     enabled: !!clerkId,
   });
 };
+
+export function useImpostorProfile(userId: number | null) {
+  return useQuery({
+    queryKey: ["impostorProfile", userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      return impostorApi.getProfile(userId);
+    },
+    enabled: !!userId,
+  });
+}

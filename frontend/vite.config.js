@@ -5,12 +5,16 @@ import { defineConfig } from "vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import { resolve } from "node:path";
 
+// const ReactCompilerConfig = {
+//   target: "19", // '17' | '18' | '19'
+// };
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     TanStackRouterVite({ autoCodeSplitting: true }),
     viteReact(),
     tailwindcss(),
+    // ["babel-plugin-react-compiler", ReactCompilerConfig],
   ],
   test: {
     globals: true,

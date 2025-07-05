@@ -27,6 +27,8 @@ interface ChatState {
     state: "idle" | "observer" | "generating" | "streaming"
   ) => void;
   setMessages: (messages: Message[]) => void;
+  impersonateMaxExchanges: number;
+  setImpersonateMaxExchanges: (val: number) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -127,6 +129,9 @@ export const useChatStore = create<ChatState>()(
           currentContext: { ...currentContext, messages },
         });
       },
+      impersonateMaxExchanges: 10,
+      setImpersonateMaxExchanges: (val: number) =>
+        set({ impersonateMaxExchanges: val }),
     }),
     {
       name: "chat-storage",
@@ -158,18 +163,9 @@ export const useChatStore = create<ChatState>()(
             ...value,
             state: {
               ...value.state,
-              contexts: Array.from(value.state.contexts.entries()),
               currentContext: {
-                ...value.state.currentContext,
-                messages: value.state.currentContext.messages.map(
-                  (msg: any) => ({
-                    ...msg,
-                    timestamp:
-                      msg.timestamp instanceof Date
-                        ? msg.timestamp.getTime()
-                        : msg.timestamp,
-                  })
-                ),
+                sessionId: value.state.currentContext.sessionId,
+                initialForm: value.state.currentContext.initialForm,
               },
             },
           });
@@ -178,30 +174,23 @@ export const useChatStore = create<ChatState>()(
         removeItem: (name) => localStorage.removeItem(name),
       },
       partialize: (state: ChatState) => ({
-        contexts: Array.from(state.contexts.entries()),
+        // Only persist minimal data, not messages or contexts
         currentContext: {
-          ...state.currentContext,
-          messages: state.currentContext.messages.map((msg) => ({
-            ...msg,
-            timestamp:
-              msg.timestamp instanceof Date
-                ? msg.timestamp.getTime()
-                : msg.timestamp,
-          })),
+          sessionId: state.currentContext.sessionId,
           initialForm: state.currentContext.initialForm,
         },
+        impersonateMaxExchanges: state.impersonateMaxExchanges,
       }),
       merge: (persistedState: any, currentState: ChatState) => {
-        const newContexts = new Map(persistedState.contexts);
+        // Only merge the minimal persisted state
         return {
           ...currentState,
-          contexts: newContexts as Map<string, ConversationContext>,
           currentContext: {
-            ...persistedState.currentContext,
-            messages: persistedState.currentContext.messages.map(
-              (msg: any) => ({ ...msg, timestamp: new Date(msg.timestamp) })
-            ),
+            ...currentState.currentContext,
+            sessionId: persistedState.currentContext?.sessionId ?? null,
+            initialForm: persistedState.currentContext?.initialForm,
           },
+          impersonateMaxExchanges: persistedState.impersonateMaxExchanges ?? 10,
         };
       },
     }

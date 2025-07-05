@@ -4,7 +4,7 @@ import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
 import type { JSX } from "react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import MessageQualityAnalyzer from "./MessageQualityAnalyzer";
 
 interface DevToolsSidebarProps {
@@ -18,7 +18,7 @@ interface DevToolsSidebarProps {
   onClose: () => void;
 }
 
-export function DevToolsSidebar({
+function DevToolsSidebar({
   agentStrategy,
   agentRationale,
   agentNextSteps,
@@ -34,7 +34,6 @@ export function DevToolsSidebar({
   );
   const { loadingState } = useChatStore();
   const [showQualityAnalysis, setShowQualityAnalysis] = useState(false);
-
   if (!isOpen) return <></>;
 
   return (
@@ -186,4 +185,4 @@ export function DevToolsSidebar({
   );
 }
 
-export default DevToolsSidebar;
+export default memo(DevToolsSidebar);
