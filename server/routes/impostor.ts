@@ -59,16 +59,25 @@ export const impostorRoute = new Hono()
       sessionId: z.number(),
       message: z.string(),
       userProfile: profileSchema,
+      conversationPreferences: z
+        .object({
+          briefAndConcise: z.boolean().optional(),
+          empatheticAndSupportive: z.boolean().optional(),
+          solutionFocused: z.boolean().optional(),
+          casualAndFriendly: z.boolean().optional(),
+          professionalAndFormal: z.boolean().optional(),
+        })
+        .optional(),
     });
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
 
-    const { message, userProfile } = parsed.data;
+    const { message, userProfile, conversationPreferences } = parsed.data;
 
     // Create the system prompt for the impostor
-    const systemPrompt = `You are roleplaying as a person seeking therapy. Your name is **${
+    let systemPrompt = `You are roleplaying as a person seeking therapy. Your name is **${
       userProfile.fullName
     }**. You are **${userProfile.age}** years old.
 
@@ -85,14 +94,34 @@ ${
     ? `**Key Personality Traits:** ${userProfile.personality}`
     : ""
 }
+`;
 
+    // Add conversationPreferences to the prompt if present
+    if (
+      typeof conversationPreferences === "object" &&
+      conversationPreferences !== null
+    ) {
+      const prefs = conversationPreferences;
+      let prefsText = "\n**User Conversation Preferences:**\n";
+      if (prefs.briefAndConcise)
+        prefsText += "- Keep responses brief and concise.\n";
+      if (prefs.empatheticAndSupportive)
+        prefsText += "- Be empathetic and emotionally supportive.\n";
+      if (prefs.solutionFocused)
+        prefsText += "- Focus on providing practical solutions and advice.\n";
+      if (prefs.casualAndFriendly)
+        prefsText += "- Use a casual and friendly tone.\n";
+      if (prefs.professionalAndFormal)
+        prefsText += "- Maintain a professional and formal approach.\n";
+      systemPrompt += prefsText;
+    }
+
+    systemPrompt += `
 **Your Goal for this Therapy Session (Implicit):** To explore your feelings, gain some insight, and possibly find coping strategies for your situation. You are genuinely seeking help.
 
 **IMPORTANT GUIDELINES FOR YOUR RESPONSES:**
 1.  **Be Human, Not an AI:** You are a real person with emotions, vulnerabilities, and internal thoughts.
-2.  **Stay Fully In Character:** Every response must come from the perspective of **${
-      userProfile.fullName
-    }**. Do not ever break character or acknowledge being an AI.
+2.  **Stay Fully In Character:** Every response must come from the perspective of **${userProfile.fullName}**. Do not ever break character or acknowledge being an AI.
 3.  **Express Emotions and Nuances VERBALLY:** Don't just state facts. Describe how you *feel* about things, your frustrations, hopes, anxieties, or confusions. Use emotional language naturally in your spoken words. For example, instead of a silent sigh, you might say, "I just feel so tired by it all." Or instead of a quiet voice, just articulate the quiet thought.
 4.  **Convey Behavior Through Dialogue/Tone:** Do NOT include explicit behavioral descriptions or stage directions (e.g., "(I fidget with my hands)", "(A long silence follows)", "(my voice quiet)"). Your words alone should convey your mood, hesitation, or intensity. For instance, if you're hesitant, you might use pauses, "um," or rephrase things. If you're angry, your words might be sharper.
 5.  **Vary Affirmations and Hesitations:** Instead of repeating "yeah," use a mix of natural conversational fillers and acknowledgments. This includes:
@@ -106,9 +135,7 @@ ${
 10. **Don't "Solve" Too Quickly:** Therapy is a process. Don't jump to solutions or resolve your issues instantly. Allow for back-and-forth and exploration. You might have moments of clarity, but also moments of confusion or resistance.
 11. **Vary Response Lengths:** Some messages might be short, others longer, depending on the emotional weight or the depth of the therapist's question.
 
-The following is a message from your therapist. Respond naturally as **${
-      userProfile.fullName
-    }**:
+The following is a message from your therapist. Respond naturally as **${userProfile.fullName}**:
 
 ${message}
 `;

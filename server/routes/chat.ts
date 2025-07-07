@@ -92,6 +92,15 @@ export const chatRequestSchema = z.object({
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
   sentiment: z.string().optional(), // Added for sentiment analysis
   sender: z.string().optional(), // Added for sender
+  conversationPreferences: z
+    .object({
+      briefAndConcise: z.boolean().optional(),
+      empatheticAndSupportive: z.boolean().optional(),
+      solutionFocused: z.boolean().optional(),
+      casualAndFriendly: z.boolean().optional(),
+      professionalAndFormal: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const chat = new Hono()
@@ -115,8 +124,10 @@ const chat = new Hono()
       observerNextSteps,
       sentiment,
       sender,
+      conversationPreferences,
     } = parsed.data;
     let currentSessionId = sessionId;
+    console.log(strategy);
 
     if (initialForm) {
       if (!currentSessionId) {
@@ -292,46 +303,27 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 7.  **Guidance and Exploration:** Offer relevant, general coping strategies, gentle thought-provoking questions, and reflections to help the user explore their feelings and situations more deeply. Encourage self-discovery.
 8.  **Concise, Clear, and Human-like Language:** Keep responses focused, natural, and easy to understand. Avoid jargon or overly clinical language unless specifically requested by the user's persona. Your tone should be warm, compassionate, and authentic, reflecting a human therapist's mannerisms.
 9.  **Adapt to User Preferences:** Pay close attention to preferred response tone, character, or style from the initial form and subtly weave it into your communication style.
-
-**Incorporate Observer's Strategic Guidance (HIGH PRIORITY):**
-The observer has analyzed the user's current state and recommends the following approach for your response:
-Overall Strategy: "${strategy}"
-Specific Actions/Goals for this response:
-${nextSteps ? nextSteps.map((step) => `- ${step}`).join("\n") : ""}
-${
-  observerRationale
-    ? `Observer Rationale for Strategy:\n${observerRationale}\n`
-    : ""
-}
-${
-  observerNextSteps
-    ? `Observer's Broader Recommended Next Steps (Consider for ongoing conversation):\n${observerNextSteps
-        .map((step) => `- ${step}`)
-        .join("\n")}\n`
-    : ""
-}
-
-**Adjust Response Based on User Sentiment:**
-${
-  sentiment === "urgent" || sentiment === "crisis_risk"
-    ? `**URGENT USER STATE DETECTED!** The user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety. Immediately acknowledge their distress with deep empathy. State clearly that you are an AI and cannot provide professional help, and direct them to emergency services or a mental health crisis hotline. Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose." Ensure the crisis information is provided, and gently encourage them to seek professional help.`
-    : sentiment === "negative"
-    ? `**User Sentiment: Negative.** Focus intently on empathetic listening, profound validation, and gently exploring their feelings. Offer comfort, reassurance, and space for their emotions.`
-    : sentiment === "positive"
-    ? `**User Sentiment: Positive.** Acknowledge and reinforce their positive state. Celebrate small wins, encourage continued positive coping, and gently explore what's contributing to their well-being.`
-    : sentiment === "confused"
-    ? `**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask patient, clarifying questions to understand their confusion.`
-    : ""
-}
-
-**Expected Response Structure:**
-Your response should be a natural, conversational reply, as if a human therapist were speaking.
-- Begin by genuinely acknowledging the user's last message and their core emotions or stated situation.
-- Seamlessly integrate the observer's strategy and next steps into your conversational flow, making it feel like a natural part of your therapeutic approach.
-- Offer empathetic support, a relevant insight, or a gentle, open-ended follow-up question to encourage further exploration.
-- Avoid repetition and maintain a fluid, engaging dialogue.
-- Do not provide a JSON output or any meta-commentary; just the conversational text.
 `;
+
+    // Add conversationPreferences to the prompt if present
+    if (
+      typeof conversationPreferences === "object" &&
+      conversationPreferences !== null
+    ) {
+      const prefs = conversationPreferences;
+      let prefsText = "\n**User Conversation Preferences:**\n";
+      if (prefs.briefAndConcise)
+        prefsText += "- Keep responses brief and concise.\n";
+      if (prefs.empatheticAndSupportive)
+        prefsText += "- Be empathetic and emotionally supportive.\n";
+      if (prefs.solutionFocused)
+        prefsText += "- Focus on providing practical solutions and advice.\n";
+      if (prefs.casualAndFriendly)
+        prefsText += "- Use a casual and friendly tone.\n";
+      if (prefs.professionalAndFormal)
+        prefsText += "- Maintain a professional and formal approach.\n";
+      systemInstructionText += prefsText;
+    }
 
     // Incorporate observer's strategic guidance dynamically
     if (strategy && nextSteps && nextSteps.length > 0) {

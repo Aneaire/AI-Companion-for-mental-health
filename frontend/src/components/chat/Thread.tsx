@@ -204,7 +204,7 @@ export function Thread({
     if (conversationPreferences.professionalAndFormal) {
       instructions.push("Maintain a professional and formal approach");
     }
-
+    console.log(instructions);
     return instructions.length > 0 ? instructions.join(". ") + "." : "";
   };
 
@@ -308,7 +308,6 @@ export function Thread({
     let observerRationale = "";
     let observerNextSteps: string[] = [];
     let observerSentiment = "";
-
     setLoadingState("observer");
     try {
       const observerRes = await observerApi.getSuggestion({
@@ -379,6 +378,7 @@ export function Thread({
           ...(userProfile?.id ? { userId: String(userProfile.id) } : {}),
           // Pass observer output as systemInstruction, observerRationale, observerNextSteps, sentiment
           ...(observerStrategy ? { systemInstruction: observerStrategy } : {}),
+          ...(observerStrategy ? { strategy: observerStrategy } : {}),
           ...(observerRationale ? { observerRationale } : {}),
           ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
           ...(observerSentiment ? { sentiment: observerSentiment } : {}),
@@ -390,6 +390,7 @@ export function Thread({
                   : getPreferencesInstruction(),
               }
             : {}),
+          ...(conversationPreferences ? { conversationPreferences } : {}),
         },
       });
 
@@ -647,6 +648,7 @@ export function Thread({
                     : getPreferencesInstruction(),
                 }
               : {}),
+            ...(conversationPreferences ? { conversationPreferences } : {}),
           });
 
           const reader = therapistResponse.body?.getReader();
@@ -710,6 +712,7 @@ export function Thread({
                   systemInstruction: getPreferencesInstruction(),
                 }
               : {}),
+            ...(conversationPreferences ? { conversationPreferences } : {}),
           });
 
           const reader = impostorResponse.body?.getReader();
