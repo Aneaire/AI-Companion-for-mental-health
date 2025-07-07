@@ -114,7 +114,11 @@ export function Sidebar({
             </Link>{" "}
             <Link
               to="/impersonate"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/impersonate"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
               onClick={() => onClose()}
             >
               {" "}

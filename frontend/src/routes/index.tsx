@@ -26,7 +26,9 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { conversationPreferences, setConversationPreferences } =
+    useChatStore();
 
   const { data: threadsApi, isLoading } = useNormalThreads(true);
   const { normalThreads, setNormalThreads, addNormalThread } =
@@ -92,6 +94,14 @@ function Index() {
 
   return (
     <div className="flex h-screen w-full">
+      {/* Mobile Topbar for mobile screens */}
+      <div className="md:hidden w-full fixed top-0 left-0 z-50">
+        <MobileTopbar
+          onMenuClick={() => setIsSidebarOpen(true)}
+          preferences={conversationPreferences}
+          onPreferencesChange={setConversationPreferences}
+        />
+      </div>
       <Sidebar
         threads={threadsWithoutPersona.map((t) => ({
           id: t.id,
@@ -104,7 +114,11 @@ function Index() {
         onClose={() => setIsSidebarOpen(false)}
       />
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <MobileTopbar onMenuClick={() => setIsSidebarOpen(true)} />
+        <MobileTopbar
+          onMenuClick={() => setIsSidebarOpen(true)}
+          preferences={conversationPreferences}
+          onPreferencesChange={setConversationPreferences}
+        />
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             Loading threads...

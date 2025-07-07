@@ -1,4 +1,5 @@
 import { ImpersonateDialog } from "@/components/chat/ImpersonateDialog";
+import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
 import { impostorApi, threadsApi } from "@/lib/client";
@@ -22,6 +23,8 @@ function Impersonate() {
     clerkId || null
   );
   const { setInitialForm } = useChatStore();
+  const { conversationPreferences, setConversationPreferences } =
+    useChatStore();
 
   // Select the first thread on first render if available
   useEffect(() => {
@@ -88,6 +91,14 @@ function Impersonate() {
 
   return (
     <div className="flex h-screen w-full">
+      {/* Mobile Topbar for mobile screens */}
+      <div className="md:hidden w-full fixed top-0 left-0 z-50">
+        <MobileTopbar
+          onMenuClick={() => setIsSidebarOpen(true)}
+          preferences={conversationPreferences}
+          onPreferencesChange={setConversationPreferences}
+        />
+      </div>
       <Sidebar
         threads={personaThreads.map((t) => ({
           id: t.id,

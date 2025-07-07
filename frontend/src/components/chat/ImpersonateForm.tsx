@@ -97,7 +97,10 @@ interface ImpersonateFormProps {
   onThreadCreated?: (session: any) => void;
 }
 
-export function ImpersonateForm({ onSubmit }: ImpersonateFormProps) {
+export function ImpersonateForm({
+  onSubmit,
+  onThreadCreated,
+}: ImpersonateFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTraits, setSelectedTraits] = useState<string[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);

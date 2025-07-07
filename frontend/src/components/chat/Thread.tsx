@@ -1,4 +1,3 @@
-import { ChatDialog } from "@/components/chat/ChatDialog";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
@@ -127,6 +126,19 @@ function DevToolsToggle({
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
     </button>
   );
+}
+
+// Utility to clean up temp/empty impersonate messages
+function cleanUpImpersonateTempMessages(
+  messages: Message[],
+  updateMessages: (msgs: Message[]) => void
+) {
+  const filtered = messages.filter(
+    (m) => !(m.contextId === "impersonate" && (!m.text || m.text.trim() === ""))
+  );
+  if (filtered.length !== messages.length) {
+    updateMessages(filtered);
+  }
 }
 
 export function Thread({
@@ -538,6 +550,12 @@ export function Thread({
       return;
     }
 
+    // Clean up temp/empty impersonate messages before starting
+    cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
+      clearMessages();
+      msgs.forEach((msg) => addMessage(msg));
+    });
+
     setImpersonateMaxExchanges(10); // Always reset exchanges at start
     setIsImpersonating(true);
     isImpersonatingRef.current = true;
@@ -556,12 +574,14 @@ export function Thread({
     try {
       const userProfileData = impostorProfile;
       let exchanges = 0;
-      let lastMessage = currentContext.messages.length
-        ? currentContext.messages[currentContext.messages.length - 1].text
+      // Find last valid message (non-empty)
+      const lastValidMessage = [...currentContext.messages]
+        .reverse()
+        .find((m) => m.text && m.text.trim() !== "");
+      let lastMessage = lastValidMessage
+        ? lastValidMessage.text
         : "Hello, I am here for therapy. I have been struggling with some issues.";
-      let lastSender = currentContext.messages.length
-        ? currentContext.messages[currentContext.messages.length - 1].sender
-        : null;
+      let lastSender = lastValidMessage ? lastValidMessage.sender : null;
 
       while (
         exchanges < impersonateMaxExchanges &&
@@ -573,7 +593,6 @@ export function Thread({
         if (lastSender === "user") {
           setLoadingState("observer");
           // Therapist's turn
-          // Get observer output before therapist responds
           let observerStrategy = "";
           let observerRationale = "";
           let observerNextSteps: string[] = [];
@@ -621,7 +640,6 @@ export function Thread({
             ...(observerRationale ? { observerRationale } : {}),
             ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
             ...(observerSentiment ? { sentiment: observerSentiment } : {}),
-            // Pass conversation preferences
             ...(getPreferencesInstruction()
               ? {
                   systemInstruction: observerStrategy
@@ -642,6 +660,7 @@ export function Thread({
               tempId: Date.now(),
               contextId: "impersonate" as const,
             };
+            if (!isImpersonatingRef.current) return;
             addMessage(tempAiMessage);
 
             const decoder = new TextDecoder();
@@ -664,11 +683,13 @@ export function Thread({
                   therapistFullResponse += content + "\n";
                 }
               }
+              if (!isImpersonatingRef.current) return;
               updateLastMessage(therapistFullResponse);
             }
 
             if (buffer) {
               therapistFullResponse += buffer;
+              if (!isImpersonatingRef.current) return;
               updateLastMessage(therapistFullResponse);
             }
           }
@@ -684,7 +705,6 @@ export function Thread({
             message: lastMessage,
             userProfile: userProfileData,
             signal: abortController.signal,
-            // Pass conversation preferences
             ...(getPreferencesInstruction()
               ? {
                   systemInstruction: getPreferencesInstruction(),
@@ -703,6 +723,7 @@ export function Thread({
               tempId: Date.now(),
               contextId: "impersonate" as const,
             };
+            if (!isImpersonatingRef.current) return;
             addMessage(tempUserMessage);
 
             const decoder = new TextDecoder();
@@ -725,11 +746,13 @@ export function Thread({
                   impostorFullResponse += content + "\n";
                 }
               }
+              if (!isImpersonatingRef.current) return;
               updateLastMessage(impostorFullResponse);
             }
 
             if (buffer) {
               impostorFullResponse += buffer;
+              if (!isImpersonatingRef.current) return;
               updateLastMessage(impostorFullResponse);
             }
           }
@@ -756,12 +779,22 @@ export function Thread({
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+      // Clean up temp/empty impersonate messages after stopping
+      cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
+        clearMessages();
+        msgs.forEach((msg) => addMessage(msg));
+      });
     }
   };
 
   const handleStopImpersonation = async () => {
     setIsImpersonating(false);
     isImpersonatingRef.current = false;
+    // Clean up temp/empty impersonate messages after stopping
+    cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
+      clearMessages();
+      msgs.forEach((msg) => addMessage(msg));
+    });
   };
 
   useEffect(() => {
@@ -784,13 +817,6 @@ export function Thread({
       <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">
         <Suspense fallback={<EnhancedLoadingFallback />}>
           {/* Chat Dialog */}
-          {!isImpersonateMode && (
-            <ChatDialog
-              open={!showChat}
-              onOpenChange={setShowChat}
-              onSubmit={handleFormSubmit as (sessionId: number) => void}
-            />
-          )}
 
           {/* Enhanced Progress Recommendation */}
           {progressRecommendation && (
@@ -829,11 +855,13 @@ export function Thread({
       </main>
 
       {/* Enhanced Dev Tools Toggle */}
-      <DevToolsToggle
-        showDevTools={showDevTools}
-        onToggle={() => setShowDevTools(!showDevTools)}
-      />
- 
+      <div className="hidden md:block">
+        <DevToolsToggle
+          showDevTools={showDevTools}
+          onToggle={() => setShowDevTools(!showDevTools)}
+        />
+      </div>
+
       {/* Dev Tools Sidebar with enhanced styling */}
       <DevToolsSidebar
         agentStrategy={agentStrategy}

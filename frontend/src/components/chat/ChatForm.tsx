@@ -120,7 +120,39 @@ const characterOptions = [
   { value: "deadpool", label: "Deadpool - Sarcastic & Funny" },
 ] as const;
 
-const ChatForm = (): JSX.Element => {
+const supportTypeOptions = [
+  {
+    value: "listen",
+    label: "Someone to listen",
+    desc: "A compassionate ear for your thoughts",
+  },
+  {
+    value: "copingTips",
+    label: "Coping strategies",
+    desc: "Practical techniques to help you feel better",
+  },
+  {
+    value: "encouragement",
+    label: "Encouragement",
+    desc: "Positive support and motivation",
+  },
+  {
+    value: "resources",
+    label: "Mental health resources",
+    desc: "Professional help and additional support",
+  },
+  { value: "other", label: "Something else", desc: "Tell me what you need" },
+] as const;
+
+interface ChatFormProps {
+  onSubmit: (formData: any, aiResponse: string, sessionId: number) => void;
+  onThreadCreated?: (session: any) => void;
+}
+
+const ChatForm = ({
+  onSubmit,
+  onThreadCreated,
+}: ChatFormProps): JSX.Element => {
   // Set initial step to "emotions" to prompt for required field first
   // This helps guide the user immediately to the mandatory field
   const [currentStep, setCurrentStep] = useState<string | null>("emotions");
@@ -505,38 +537,12 @@ const ChatForm = (): JSX.Element => {
                             </FormLabel>
                             <FormControl>
                               <div className="grid gap-2 sm:gap-3">
-                                {[
-                                  {
-                                    value: "listen",
-                                    label: "Someone to listen",
-                                    desc: "A compassionate ear for your thoughts",
-                                  },
-                                  {
-                                    value: "copingTips",
-                                    label: "Coping strategies",
-                                    desc: "Practical techniques to help you feel better",
-                                  },
-                                  {
-                                    value: "encouragement",
-                                    label: "Encouragement",
-                                    desc: "Positive support and motivation",
-                                  },
-                                  {
-                                    value: "resources",
-                                    label: "Mental health resources",
-                                    desc: "Professional help and additional support",
-                                  },
-                                  {
-                                    value: "other",
-                                    label: "Something else",
-                                    desc: "Tell me what you need",
-                                  },
-                                ].map((type) => (
+                                {supportTypeOptions.map((type) => (
                                   <div key={type.value} className="relative">
                                     <Checkbox
                                       id={type.value}
                                       checked={field.value?.includes(
-                                        type.value as SupportTypeEnum
+                                        type.value
                                       )}
                                       onCheckedChange={(checked) => {
                                         const currentSupportTypes =
@@ -546,12 +552,10 @@ const ChatForm = (): JSX.Element => {
                                           checked
                                             ? [
                                                 ...currentSupportTypes,
-                                                type.value as SupportTypeEnum,
+                                                type.value,
                                               ]
                                             : currentSupportTypes.filter(
-                                                (item) =>
-                                                  item !==
-                                                  (type.value as SupportTypeEnum)
+                                                (item) => item !== type.value
                                               )
                                         );
                                       }}
@@ -562,9 +566,7 @@ const ChatForm = (): JSX.Element => {
                                       className={`
                                         flex flex-col p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 cursor-pointer transition-all duration-200
                                         ${
-                                          field.value?.includes(
-                                            type.value as SupportTypeEnum
-                                          )
+                                          field.value?.includes(type.value)
                                             ? "bg-blue-50 border-blue-300 text-blue-800"
                                             : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                                         }
