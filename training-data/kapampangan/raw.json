@@ -1,0 +1,3870 @@
+[
+  {
+    "kapampangan": "Aldo",
+    "english": "Sun / Day"
+  },
+  {
+    "kapampangan": "Bengi",
+    "english": "Night"
+  },
+  {
+    "kapampangan": "Tau",
+    "english": "Person / Human"
+  },
+  {
+    "kapampangan": "Bapa",
+    "english": "Uncle"
+  },
+  {
+    "kapampangan": "Dara",
+    "english": "Aunt"
+  },
+  {
+    "kapampangan": "Wali",
+    "english": "Younger sibling"
+  },
+  {
+    "kapampangan": "Koya",
+    "english": "Elder brother"
+  },
+  {
+    "kapampangan": "Achi",
+    "english": "Elder sister"
+  },
+  {
+    "kapampangan": "Indu",
+    "english": "Mother"
+  },
+  {
+    "kapampangan": "Tata",
+    "english": "Father"
+  },
+  {
+    "kapampangan": "Babi",
+    "english": "Pig"
+  },
+  {
+    "kapampangan": "Asu",
+    "english": "Dog"
+  },
+  {
+    "kapampangan": "Pusa",
+    "english": "Cat"
+  },
+  {
+    "kapampangan": "Manuk",
+    "english": "Chicken"
+  },
+  {
+    "kapampangan": "Ibon",
+    "english": "Bird"
+  },
+  {
+    "kapampangan": "Gabun",
+    "english": "Soil / Earth"
+  },
+  {
+    "kapampangan": "Danum",
+    "english": "Water"
+  },
+  {
+    "kapampangan": "Api",
+    "english": "Fire"
+  },
+  {
+    "kapampangan": "Angin",
+    "english": "Wind"
+  },
+  {
+    "kapampangan": "Bakal",
+    "english": "Iron / Metal"
+  },
+  {
+    "kapampangan": "Salapi",
+    "english": "Money"
+  },
+  {
+    "kapampangan": "Balu",
+    "english": "Know"
+  },
+  {
+    "kapampangan": "Mangan",
+    "english": "Eat"
+  },
+  {
+    "kapampangan": "Minum",
+    "english": "Drink"
+  },
+  {
+    "kapampangan": "Lumakad",
+    "english": "Walk"
+  },
+  {
+    "kapampangan": "Tumud",
+    "english": "Sit"
+  },
+  {
+    "kapampangan": "Talakad",
+    "english": "Stand"
+  },
+  {
+    "kapampangan": "Manyawu",
+    "english": "Ask"
+  },
+  {
+    "kapampangan": "Maging",
+    "english": "To become"
+  },
+  {
+    "kapampangan": "Ibat",
+    "english": "From"
+  },
+  {
+    "kapampangan": "Kanini",
+    "english": "Now"
+  },
+  {
+    "kapampangan": "Bukas",
+    "english": "Tomorrow"
+  },
+  {
+    "kapampangan": "Napun",
+    "english": "Yesterday"
+  },
+  {
+    "kapampangan": "Banua",
+    "english": "Year / Sky"
+  },
+  {
+    "kapampangan": "Bulan",
+    "english": "Month / Moon"
+  },
+  {
+    "kapampangan": "Aldo (specific day)",
+    "english": "Day (e.g., Aldo Lingo = Sunday)"
+  },
+  {
+    "kapampangan": "Oras",
+    "english": "Hour / Time"
+  },
+  {
+    "kapampangan": "Maranun",
+    "english": "Early"
+  },
+  {
+    "kapampangan": "Gabian",
+    "english": "Late (in the evening)"
+  },
+  {
+    "kapampangan": "Mapali",
+    "english": "Hot (temperature)"
+  },
+  {
+    "kapampangan": "Marimla",
+    "english": "Cold (temperature)"
+  },
+  {
+    "kapampangan": "Maluat",
+    "english": "Long (time) / Slow"
+  },
+  {
+    "kapampangan": "Makaba",
+    "english": "Long (length)"
+  },
+  {
+    "kapampangan": "Makuyad",
+    "english": "Short (length)"
+  },
+  {
+    "kapampangan": "Malaut",
+    "english": "Far"
+  },
+  {
+    "kapampangan": "Malapit",
+    "english": "Near"
+  },
+  {
+    "kapampangan": "Masalese",
+    "english": "Good / Well / Fine"
+  },
+  {
+    "kapampangan": "Marok",
+    "english": "Bad"
+  },
+  {
+    "kapampangan": "Mayap",
+    "english": "Good (more general, often \"beautiful\" or \"nice\")"
+  },
+  {
+    "kapampangan": "Masaya",
+    "english": "Happy"
+  },
+  {
+    "kapampangan": "Malungkut",
+    "english": "Sad"
+  },
+  {
+    "kapampangan": "Mapagal",
+    "english": "Tired"
+  },
+  {
+    "kapampangan": "Masikan",
+    "english": "Strong"
+  },
+  {
+    "kapampangan": "Mabayat",
+    "english": "Heavy"
+  },
+  {
+    "kapampangan": "Maragul",
+    "english": "Big / Large"
+  },
+  {
+    "kapampangan": "Malati",
+    "english": "Small / Little"
+  },
+  {
+    "kapampangan": "Keni",
+    "english": "Here"
+  },
+  {
+    "kapampangan": "Karimlan",
+    "english": "Cold (noun) / Cold season"
+  },
+  {
+    "kapampangan": "Alus",
+    "english": "Almost"
+  },
+  {
+    "kapampangan": "Karin",
+    "english": "There (far)"
+  },
+  {
+    "kapampangan": "Keta",
+    "english": "There (near)"
+  },
+  {
+    "kapampangan": "Ini",
+    "english": "This"
+  },
+  {
+    "kapampangan": "Ita",
+    "english": "That (far)"
+  },
+  {
+    "kapampangan": "Iti",
+    "english": "This (more emphatic)"
+  },
+  {
+    "kapampangan": "Kanita",
+    "english": "That (near)"
+  },
+  {
+    "kapampangan": "Isikan",
+    "english": "Strength"
+  },
+  {
+    "kapampangan": "Buri",
+    "english": "Want / Like"
+  },
+  {
+    "kapampangan": "Akit",
+    "english": "See"
+  },
+  {
+    "kapampangan": "Deng",
+    "english": "The (plural marker)"
+  },
+  {
+    "kapampangan": "Ing",
+    "english": "The (singular marker)"
+  },
+  {
+    "kapampangan": "Atin",
+    "english": "To have / There is/are"
+  },
+  {
+    "kapampangan": "Ala",
+    "english": "None / There isn't/aren't"
+  },
+  {
+    "kapampangan": "Wa",
+    "english": "Yes"
+  },
+  {
+    "kapampangan": "Ali",
+    "english": "No"
+  },
+  {
+    "kapampangan": "E",
+    "english": "Not (negation for verbs)"
+  },
+  {
+    "kapampangan": "Ampat",
+    "english": "But"
+  },
+  {
+    "kapampangan": "Uling",
+    "english": "Because"
+  },
+  {
+    "kapampangan": "At",
+    "english": "And"
+  },
+  {
+    "kapampangan": "O",
+    "english": "Or"
+  },
+  {
+    "kapampangan": "Nanu",
+    "english": "What"
+  },
+  {
+    "kapampangan": "Ninu",
+    "english": "Who"
+  },
+  {
+    "kapampangan": "Nokarin",
+    "english": "Where"
+  },
+  {
+    "kapampangan": "Kapilan",
+    "english": "When"
+  },
+  {
+    "kapampangan": "Obanu",
+    "english": "Why"
+  },
+  {
+    "kapampangan": "Macanu",
+    "english": "How much / How many"
+  },
+  {
+    "kapampangan": "Macana",
+    "english": "How (manner)"
+  },
+  {
+    "kapampangan": "Sanu",
+    "english": "Which"
+  },
+  {
+    "kapampangan": "Ngan",
+    "english": "All"
+  },
+  {
+    "kapampangan": "Egana-gana",
+    "english": "Everything"
+  },
+  {
+    "kapampangan": "Pangalalu",
+    "english": "Left"
+  },
+  {
+    "kapampangan": "Wanan",
+    "english": "Right"
+  },
+  {
+    "kapampangan": "Maragul a salamat",
+    "english": "Thank you very much"
+  },
+  {
+    "kapampangan": "Mayap a gatpanapun",
+    "english": "Good afternoon"
+  },
+  {
+    "kapampangan": "Mayap a abak",
+    "english": "Good morning"
+  },
+  {
+    "kapampangan": "Mayap a bengi",
+    "english": "Good evening / night"
+  },
+  {
+    "kapampangan": "Kumusta ka?",
+    "english": "How are you?"
+  },
+  {
+    "kapampangan": "Masalese ku",
+    "english": "I am fine"
+  },
+  {
+    "kapampangan": "Ing lagyu ku...",
+    "english": "My name is..."
+  },
+  {
+    "kapampangan": "Nanung lagyu mu?",
+    "english": "What is your name?"
+  },
+  {
+    "kapampangan": "Nokarin ka ibat?",
+    "english": "Where are you from?"
+  },
+  {
+    "kapampangan": "Ibat ku...",
+    "english": "I am from..."
+  },
+  {
+    "kapampangan": "Kaluguran da ka",
+    "english": "I love you"
+  },
+  {
+    "kapampangan": "Pakyalam",
+    "english": "Excuse me / May I bother you?"
+  },
+  {
+    "kapampangan": "Dacal a salamat",
+    "english": "Thank you (a lot)"
+  },
+  {
+    "kapampangan": "Sige",
+    "english": "Okay / Go ahead / Sure"
+  },
+  {
+    "kapampangan": "Ay!",
+    "english": "Oh! / Ouch! (expression of surprise or pain)"
+  },
+  {
+    "kapampangan": "Ume",
+    "english": "Go"
+  },
+  {
+    "kapampangan": "Datang",
+    "english": "Come"
+  },
+  {
+    "kapampangan": "Manakit",
+    "english": "Pain / To hurt"
+  },
+  {
+    "kapampangan": "Sakit",
+    "english": "Sickness / Illness"
+  },
+  {
+    "kapampangan": "Malangi",
+    "english": "Dry"
+  },
+  {
+    "kapampangan": "Mabasa",
+    "english": "Wet"
+  },
+  {
+    "kapampangan": "Malinis",
+    "english": "Clean"
+  },
+  {
+    "kapampangan": "Marusing",
+    "english": "Dirty"
+  },
+  {
+    "kapampangan": "Maralas",
+    "english": "Often"
+  },
+  {
+    "kapampangan": "Kasan",
+    "english": "Rare / Seldom"
+  },
+  {
+    "kapampangan": "Magobra",
+    "english": "Work"
+  },
+  {
+    "kapampangan": "Istar",
+    "english": "Stop / Cease"
+  },
+  {
+    "kapampangan": "Bayu",
+    "english": "New"
+  },
+  {
+    "kapampangan": "Lumang",
+    "english": "Old (things)"
+  },
+  {
+    "kapampangan": "Matua",
+    "english": "Old (people)"
+  },
+  {
+    "kapampangan": "Matulid",
+    "english": "Straight / Correct"
+  },
+  {
+    "kapampangan": "Pakialam",
+    "english": "Care / Concern"
+  },
+  {
+    "kapampangan": "Bustan",
+    "english": "Let it be / Allow"
+  },
+  {
+    "kapampangan": "Kapanganakan",
+    "english": "Birthday"
+  },
+  {
+    "kapampangan": "Pagkaluban",
+    "english": "To give / Offer"
+  },
+  {
+    "kapampangan": "Ayup",
+    "english": "Bird (alternative to Ibon)"
+  },
+  {
+    "kapampangan": "Damulag",
+    "english": "Carabao (water buffalo)"
+  },
+  {
+    "kapampangan": "Salbat",
+    "english": "Answer"
+  },
+  {
+    "kapampangan": "Kutang",
+    "english": "Question"
+  },
+  {
+    "kapampangan": "Mamasa",
+    "english": "Read"
+  },
+  {
+    "kapampangan": "Magsulat",
+    "english": "Write"
+  },
+  {
+    "kapampangan": "Manakla",
+    "english": "Cry"
+  },
+  {
+    "kapampangan": "Mekeni",
+    "english": "Come here"
+  },
+  {
+    "kapampangan": "Katamtaman",
+    "english": "Moderate / Average"
+  },
+  {
+    "kapampangan": "Lugud",
+    "english": "Love / Compassion"
+  },
+  {
+    "kapampangan": "Pusu",
+    "english": "Heart"
+  },
+  {
+    "kapampangan": "Kaganaka",
+    "english": "Thought / Memory"
+  },
+  {
+    "kapampangan": "Malamlam",
+    "english": "Dull / Faint (light)"
+  },
+  {
+    "kapampangan": "Malino",
+    "english": "Clear"
+  },
+  {
+    "kapampangan": "Mamungkal",
+    "english": "To open"
+  },
+  {
+    "kapampangan": "Sarado",
+    "english": "Closed"
+  },
+  {
+    "kapampangan": "Mascup",
+    "english": "Tight / Narrow"
+  },
+  {
+    "kapampangan": "Malapad",
+    "english": "Wide"
+  },
+  {
+    "kapampangan": "Masikan",
+    "english": "Loud (sound)"
+  },
+  {
+    "kapampangan": "Masanting",
+    "english": "Beautiful / Pretty / Nice (often for things or general appearance)"
+  },
+  {
+    "kapampangan": "Malanam",
+    "english": "Sweet"
+  },
+  {
+    "kapampangan": "Maaslam",
+    "english": "Sour"
+  },
+  {
+    "kapampangan": "Mapait",
+    "english": "Bitter"
+  },
+  {
+    "kapampangan": "Maalat",
+    "english": "Salty"
+  },
+  {
+    "kapampangan": "Maparas",
+    "english": "Spicy"
+  },
+  {
+    "kapampangan": "Bitis",
+    "english": "Leg / Foot"
+  },
+  {
+    "kapampangan": "Bulu",
+    "english": "Hair (on body/animal)"
+  },
+  {
+    "kapampangan": "Bungangaldo",
+    "english": "Fruit"
+  },
+  {
+    "kapampangan": "Dalaga",
+    "english": "Young woman / Maiden"
+  },
+  {
+    "kapampangan": "Dalan",
+    "english": "Road / Way"
+  },
+  {
+    "kapampangan": "Dila",
+    "english": "Tongue"
+  },
+  {
+    "kapampangan": "Ding",
+    "english": "The (plural, for people, similar to Deng)"
+  },
+  {
+    "kapampangan": "Dutung",
+    "english": "Tree / Wood"
+  },
+  {
+    "kapampangan": "Gatpanapun",
+    "english": "Afternoon"
+  },
+  {
+    "kapampangan": "Ingkung",
+    "english": "Grandfather"
+  },
+  {
+    "kapampangan": "Ipu",
+    "english": "Grandmother"
+  },
+  {
+    "kapampangan": "Kakabsat",
+    "english": "Sibling (general term)"
+  },
+  {
+    "kapampangan": "Kalulu",
+    "english": "Poor (person) / Wretched"
+  },
+  {
+    "kapampangan": "Karas",
+    "english": "Arrival / To arrive"
+  },
+  {
+    "kapampangan": "Kayanakan",
+    "english": "Youth / Young people"
+  },
+  {
+    "kapampangan": "Kayanakan a lalaki",
+    "english": "Young man"
+  },
+  {
+    "kapampangan": "Lalaki",
+    "english": "Man / Male"
+  },
+  {
+    "kapampangan": "Libru",
+    "english": "Book"
+  },
+  {
+    "kapampangan": "Lulutuan",
+    "english": "Cooking / To cook"
+  },
+  {
+    "kapampangan": "Lupa",
+    "english": "Face"
+  },
+  {
+    "kapampangan": "Mamasa",
+    "english": "To read"
+  },
+  {
+    "kapampangan": "Manggawa",
+    "english": "To do / To make"
+  },
+  {
+    "kapampangan": "Mangutang",
+    "english": "To ask a question"
+  },
+  {
+    "kapampangan": "Mapatad",
+    "english": "To break / Broken"
+  },
+  {
+    "kapampangan": "Masaya",
+    "english": "Joyful / Merry"
+  },
+  {
+    "kapampangan": "Mate",
+    "english": "Dead / To die"
+  },
+  {
+    "kapampangan": "Matulad",
+    "english": "Similar / Alike"
+  },
+  {
+    "kapampangan": "Ninu (plural)",
+    "english": "Who (plural)"
+  },
+  {
+    "kapampangan": "Pagbalik",
+    "english": "Return / To return"
+  },
+  {
+    "kapampangan": "Pagkain",
+    "english": "Food (Tagalog loanword, `Pamangan` is native Kapampangan)"
+  },
+  {
+    "kapampangan": "Pamangan",
+    "english": "Food"
+  },
+  {
+    "kapampangan": "Pamantasan",
+    "english": "University"
+  },
+  {
+    "kapampangan": "Panu",
+    "english": "How (often for process or method)"
+  },
+  {
+    "kapampangan": "Pisamban",
+    "english": "Church"
+  },
+  {
+    "kapampangan": "Puntalan",
+    "english": "To go to / Destination"
+  },
+  {
+    "kapampangan": "Sisuan",
+    "english": "Breastfeed / Nursing"
+  },
+  {
+    "kapampangan": "Sulud",
+    "english": "Clothes / To wear"
+  },
+  {
+    "kapampangan": "Tanam",
+    "english": "Plant / To plant"
+  },
+  {
+    "kapampangan": "Tete",
+    "english": "Bridge"
+  },
+  {
+    "kapampangan": "Tulid",
+    "english": "Straight / Correct"
+  },
+  {
+    "kapampangan": "Ulaga",
+    "english": "Value / Importance"
+  },
+  {
+    "kapampangan": "Lugud",
+    "english": "Love / Compassion"
+  },
+  {
+    "kapampangan": "Alas sais",
+    "english": "Six o'clock"
+  },
+  {
+    "kapampangan": "Apulung dalan",
+    "english": "Hundred"
+  },
+  {
+    "kapampangan": "Metung",
+    "english": "One"
+  },
+  {
+    "kapampangan": "Adwa",
+    "english": "Two"
+  },
+  {
+    "kapampangan": "Atlu",
+    "english": "Three"
+  },
+  {
+    "kapampangan": "Apat",
+    "english": "Four"
+  },
+  {
+    "kapampangan": "Lima",
+    "english": "Five"
+  },
+  {
+    "kapampangan": "Anam",
+    "english": "Six"
+  },
+  {
+    "kapampangan": "Pitu",
+    "english": "Seven"
+  },
+  {
+    "kapampangan": "Walu",
+    "english": "Eight"
+  },
+  {
+    "kapampangan": "Siam",
+    "english": "Nine"
+  },
+  {
+    "kapampangan": "Apulu",
+    "english": "Ten"
+  },
+  {
+    "kapampangan": "Labing metung",
+    "english": "Eleven"
+  },
+  {
+    "kapampangan": "Adwampulu",
+    "english": "Twenty"
+  },
+  {
+    "kapampangan": "Dinalan",
+    "english": "Hundred"
+  },
+  {
+    "kapampangan": "Libu",
+    "english": "Thousand"
+  },
+  {
+    "kapampangan": "Milyon",
+    "english": "Million"
+  },
+  {
+    "kapampangan": "Kapilan ka?",
+    "english": "When is your (time of arrival/action)?"
+  },
+  {
+    "kapampangan": "Mangabang",
+    "english": "Tall"
+  },
+  {
+    "kapampangan": "Marakep",
+    "english": "To catch / Caught"
+  },
+  {
+    "kapampangan": "Masiba",
+    "english": "Full (from eating)"
+  },
+  {
+    "kapampangan": "Melele",
+    "english": "Cooked (food)"
+  },
+  {
+    "kapampangan": "Makitabi",
+    "english": "Excuse me (to pass by someone)"
+  },
+  {
+    "kapampangan": "Malapit na",
+    "english": "Almost near / Soon"
+  },
+  {
+    "kapampangan": "Malutu",
+    "english": "Red"
+  },
+  {
+    "kapampangan": "Dilaw",
+    "english": "Yellow"
+  },
+  {
+    "kapampangan": "Bale",
+    "english": "House"
+  },
+  {
+    "kapampangan": "Dalumdum",
+    "english": "Darkness"
+  },
+  {
+    "kapampangan": "Sipag",
+    "english": "Diligence / Hard work"
+  },
+  {
+    "kapampangan": "Pasensya na",
+    "english": "Sorry / Please be patient"
+  },
+  {
+    "kapampangan": "Saguli",
+    "english": "Wait a moment / Just a moment"
+  },
+  {
+    "kapampangan": "Daya",
+    "english": "Blood"
+  },
+  {
+    "kapampangan": "Mata",
+    "english": "Eye"
+  },
+  {
+    "kapampangan": "Balugbog",
+    "english": "Back (of body)"
+  },
+  {
+    "kapampangan": "Bituka",
+    "english": "Intestines"
+  },
+  {
+    "kapampangan": "Buntuk",
+    "english": "Head"
+  },
+  {
+    "kapampangan": "Takla",
+    "english": "Foot / To step on"
+  },
+  {
+    "kapampangan": "Sulud",
+    "english": "Inside"
+  },
+  {
+    "kapampangan": "Lual",
+    "english": "Outside"
+  },
+  {
+    "kapampangan": "Babaw",
+    "english": "Top / Surface"
+  },
+  {
+    "kapampangan": "Lalam",
+    "english": "Under / Below"
+  },
+  {
+    "kapampangan": "Sulu",
+    "english": "Light / Lamp"
+  },
+  {
+    "kapampangan": "Kalasangan",
+    "english": "Forest"
+  },
+  {
+    "kapampangan": "Pulilan",
+    "english": "Farm / Field"
+  },
+  {
+    "kapampangan": "Danay",
+    "english": "Flow (of water)"
+  },
+  {
+    "kapampangan": "Sabon",
+    "english": "Soap"
+  },
+  {
+    "kapampangan": "Pipitas",
+    "english": "To pick (fruit/flowers)"
+  },
+  {
+    "kapampangan": "Miyabe",
+    "english": "Together / To be with"
+  },
+  {
+    "kapampangan": "Kasiping",
+    "english": "Beside / Next to"
+  },
+  {
+    "kapampangan": "Pakalulu",
+    "english": "Mercy / Compassion"
+  },
+  {
+    "kapampangan": "Salita",
+    "english": "Word / Language / To speak"
+  },
+  {
+    "kapampangan": "Magaral",
+    "english": "To study / Student"
+  },
+  {
+    "kapampangan": "Pisusuan",
+    "english": "Milk / To be breastfed"
+  },
+  {
+    "kapampangan": "Malda",
+    "english": "Many / Crowd"
+  },
+  {
+    "kapampangan": "Pamana",
+    "english": "Inheritance"
+  },
+  {
+    "kapampangan": "Maglakad",
+    "english": "To walk"
+  },
+  {
+    "kapampangan": "Lumayag",
+    "english": "To sail / To travel by boat"
+  },
+  {
+    "kapampangan": "Pakiramdam",
+    "english": "Feeling / To feel (Tagalog loan, `Damdam` is native)"
+  },
+  {
+    "kapampangan": "Damdam",
+    "english": "Feeling / To feel"
+  },
+  {
+    "kapampangan": "Pag-asa",
+    "english": "Hope (Tagalog loan, `Panayan` is native for 'to expect')"
+  },
+  {
+    "kapampangan": "Pamanayu",
+    "english": "Opinion / Stand"
+  },
+  {
+    "kapampangan": "Alas dose",
+    "english": "Twelve o'clock"
+  },
+  {
+    "kapampangan": "Ambak",
+    "english": "Help / Contribution"
+  },
+  {
+    "kapampangan": "Bini",
+    "english": "Seed"
+  },
+  {
+    "kapampangan": "Bitin",
+    "english": "Hanging"
+  },
+  {
+    "kapampangan": "Dagul",
+    "english": "Size / Bigness"
+  },
+  {
+    "kapampangan": "Dalum",
+    "english": "Needle"
+  },
+  {
+    "kapampangan": "Ganaka",
+    "english": "Remember / To recall"
+  },
+  {
+    "kapampangan": "Ingat",
+    "english": "Careful / To be careful"
+  },
+  {
+    "kapampangan": "Kabilugan",
+    "english": "Roundness / Entirety"
+  },
+  {
+    "kapampangan": "Kakaluluan",
+    "english": "Poverty"
+  },
+  {
+    "kapampangan": "Kaluguran",
+    "english": "Friend / Beloved"
+  },
+  {
+    "kapampangan": "Kasalesayan",
+    "english": "History / Story"
+  },
+  {
+    "kapampangan": "Kimut",
+    "english": "Movement / To move"
+  },
+  {
+    "kapampangan": "Labuad",
+    "english": "Region / Land"
+  },
+  {
+    "kapampangan": "Langka",
+    "english": "Jackfruit"
+  },
+  {
+    "kapampangan": "Mamasa",
+    "english": "To read"
+  },
+  {
+    "kapampangan": "Manyalita",
+    "english": "To speak / To talk"
+  },
+  {
+    "kapampangan": "Maputla",
+    "english": "Pale"
+  },
+  {
+    "kapampangan": "Mayumu",
+    "english": "Sweet"
+  },
+  {
+    "kapampangan": "Obra",
+    "english": "Work / Job"
+  },
+  {
+    "kapampangan": "Pamagkaintuliran",
+    "english": "Justice"
+  },
+  {
+    "kapampangan": "Panaun",
+    "english": "Time / Season / Weather"
+  },
+  {
+    "kapampangan": "Panyulung",
+    "english": "Progress / Development"
+  },
+  {
+    "kapampangan": "Sisikan",
+    "english": "To strengthen"
+  },
+  {
+    "kapampangan": "Tabul",
+    "english": "Table"
+  },
+  {
+    "kapampangan": "Talino",
+    "english": "Intelligence / Wisdom"
+  },
+  {
+    "kapampangan": "Tanam",
+    "english": "Plant"
+  },
+  {
+    "kapampangan": "Ulam",
+    "english": "Viand / Dish (to go with rice)"
+  },
+  {
+    "kapampangan": "Lugad",
+    "english": "Place / Location"
+  },
+  {
+    "kapampangan": "Bunga",
+    "english": "Fruit / Result"
+  },
+  {
+    "kapampangan": "Kapirasu",
+    "english": "A piece / A part"
+  },
+  {
+    "kapampangan": "Sipit",
+    "english": "Tongs / Pliers"
+  },
+  {
+    "kapampangan": "Kulul",
+    "english": "Color"
+  },
+  {
+    "kapampangan": "Ispiritu",
+    "english": "Spirit"
+  },
+  {
+    "kapampangan": "Pamanuli",
+    "english": "Return / Homecoming"
+  },
+  {
+    "kapampangan": "Makiabe",
+    "english": "To join / Participate"
+  },
+  {
+    "kapampangan": "Kasangkapan",
+    "english": "Tool / Equipment"
+  },
+  {
+    "kapampangan": "Patian",
+    "english": "To extinguish / Put out"
+  },
+  {
+    "kapampangan": "Sulatan",
+    "english": "Paper / Writing material"
+  },
+  {
+    "kapampangan": "Lumbay",
+    "english": "Sadness / Melancholy"
+  },
+  {
+    "kapampangan": "Pagkabalisa",
+    "english": "Worry / Anxiety"
+  },
+  {
+    "kapampangan": "Sumangid",
+    "english": "Across / Opposite"
+  },
+  {
+    "kapampangan": "Tingala",
+    "english": "Look up / Gaze upwards"
+  },
+  {
+    "kapampangan": "Pagkalungkut",
+    "english": "Sadness / Grieve"
+  },
+  {
+    "kapampangan": "Pipagtuan",
+    "english": "Playground / Place for playing"
+  },
+  {
+    "kapampangan": "Laganap",
+    "english": "Widespread / Prevalent"
+  },
+  {
+    "kapampangan": "Tunggal",
+    "english": "Single / One (unit)"
+  },
+  {
+    "kapampangan": "Mibalik",
+    "english": "To return (oneself)"
+  },
+  {
+    "kapampangan": "Kabang",
+    "english": "While / During"
+  },
+  {
+    "kapampangan": "Karinan",
+    "english": "Place / Location"
+  },
+  {
+    "kapampangan": "Pamanikwa",
+    "english": "Success / Achievement"
+  },
+  {
+    "kapampangan": "Pagdarasal",
+    "english": "Prayer / To pray"
+  },
+  {
+    "kapampangan": "Pamanan",
+    "english": "To expect / Hope for"
+  },
+  {
+    "kapampangan": "Pagpakamatay",
+    "english": "Suicide / To kill oneself"
+  },
+  {
+    "kapampangan": "Sumala",
+    "english": "To shine / Illuminate"
+  },
+  {
+    "kapampangan": "Malagu",
+    "english": "Beautiful (often for people)"
+  },
+  {
+    "kapampangan": "Kasal",
+    "english": "Wedding"
+  },
+  {
+    "kapampangan": "Metung a aldo",
+    "english": "One day"
+  },
+  {
+    "kapampangan": "Alas kwatro",
+    "english": "Four o'clock"
+  },
+  {
+    "kapampangan": "Oras na",
+    "english": "It's time"
+  },
+  {
+    "kapampangan": "Uli na",
+    "english": "Because of"
+  },
+  {
+    "kapampangan": "Laban",
+    "english": "Fight / Against"
+  },
+  {
+    "kapampangan": "Saug",
+    "english": "River"
+  },
+  {
+    "kapampangan": "Dagat",
+    "english": "Sea"
+  },
+  {
+    "kapampangan": "Bulu",
+    "english": "Feather"
+  },
+  {
+    "kapampangan": "Panugali",
+    "english": "Behavior / Habit"
+  },
+  {
+    "kapampangan": "Pananda",
+    "english": "Sign / Marker"
+  },
+  {
+    "kapampangan": "Tugtug",
+    "english": "Music / To play music"
+  },
+  {
+    "kapampangan": "Mamasa",
+    "english": "To wait"
+  },
+  {
+    "kapampangan": "Magdalan",
+    "english": "To pass by / To go through"
+  },
+  {
+    "kapampangan": "Kasuwal",
+    "english": "Opposite"
+  },
+  {
+    "kapampangan": "Maintun",
+    "english": "To look for / To search"
+  },
+  {
+    "kapampangan": "Kalma",
+    "english": "Peace / Calm"
+  },
+  {
+    "kapampangan": "Malda",
+    "english": "Common / Ordinary / Many (people)"
+  },
+  {
+    "kapampangan": "Sane",
+    "english": "Tame / Trained"
+  },
+  {
+    "kapampangan": "Malumbat",
+    "english": "Slow / Lengthy"
+  },
+  {
+    "kapampangan": "Madalas",
+    "english": "Frequent / Often"
+  },
+  {
+    "kapampangan": "Magdamdam",
+    "english": "To feel / To sense"
+  },
+  {
+    "kapampangan": "Kapag",
+    "english": "When (conditional) / If"
+  },
+  {
+    "kapampangan": "Magkasakit",
+    "english": "To suffer / To have difficulty"
+  },
+  {
+    "kapampangan": "Pangaku",
+    "english": "Promise / To promise"
+  },
+  {
+    "kapampangan": "Pagkabusol",
+    "english": "Enemy / Adversary"
+  },
+  {
+    "kapampangan": "Manalig",
+    "english": "To believe / Trust"
+  },
+  {
+    "kapampangan": "Panu",
+    "english": "How (manner)"
+  },
+  {
+    "kapampangan": "Sipit",
+    "english": "Pinch / Clamp"
+  },
+  {
+    "kapampangan": "Pibuklatan",
+    "english": "Opening / Entryway"
+  },
+  {
+    "kapampangan": "Kasalukuyan",
+    "english": "Present (time) / Current"
+  },
+  {
+    "kapampangan": "Mararamdam",
+    "english": "Heard / Felt"
+  },
+  {
+    "kapampangan": "Panayan",
+    "english": "To wait for / To expect"
+  },
+  {
+    "kapampangan": "Mipamisan",
+    "english": "Sometimes / Occasionally"
+  },
+  {
+    "kapampangan": "Panglaw",
+    "english": "Yellow (alternative for objects/fruit)"
+  },
+  {
+    "kapampangan": "Salbag",
+    "english": "Throw / Scatter"
+  },
+  {
+    "kapampangan": "Balik",
+    "english": "Return (noun)"
+  },
+  {
+    "kapampangan": "Manimaho",
+    "english": "To smell (good/bad)"
+  },
+  {
+    "kapampangan": "Sapak",
+    "english": "Full / Complete"
+  },
+  {
+    "kapampangan": "Pangakung",
+    "english": "Promised"
+  },
+  {
+    "kapampangan": "Mamuklat",
+    "english": "To open"
+  },
+  {
+    "kapampangan": "Sisira",
+    "english": "To destroy / To ruin"
+  },
+  {
+    "kapampangan": "Mangobra",
+    "english": "To work"
+  },
+  {
+    "kapampangan": "Panugali",
+    "english": "Custom / Tradition"
+  },
+  {
+    "kapampangan": "Malagad",
+    "english": "Rare / Seldom"
+  },
+  {
+    "kapampangan": "Panyulung",
+    "english": "To progress / Develop"
+  },
+  {
+    "kapampangan": "Panungkit",
+    "english": "To pick/poke with a stick"
+  },
+  {
+    "kapampangan": "Kapatad",
+    "english": "Sibling (general)"
+  },
+  {
+    "kapampangan": "Anak",
+    "english": "Child / Son / Daughter"
+  },
+  {
+    "kapampangan": "Kayabe",
+    "english": "Companion / With"
+  },
+  {
+    "kapampangan": "Kalulu",
+    "english": "Soul / Spirit (also poor)"
+  },
+  {
+    "kapampangan": "Kabisera",
+    "english": "Capital (city)"
+  },
+  {
+    "kapampangan": "Langan",
+    "english": "Type / Kind"
+  },
+  {
+    "kapampangan": "Pamagsane",
+    "english": "Practice / Training"
+  },
+  {
+    "kapampangan": "Magingat",
+    "english": "To be careful"
+  },
+  {
+    "kapampangan": "Pagkaku",
+    "english": "My own / Mine"
+  },
+  {
+    "kapampangan": "Panakitan",
+    "english": "Income / Earnings"
+  },
+  {
+    "kapampangan": "Kuran",
+    "english": "Pot (for cooking rice)"
+  },
+  {
+    "kapampangan": "Sakit",
+    "english": "Pain (noun) / Sickness"
+  },
+  {
+    "kapampangan": "Sulu (torch)",
+    "english": "Torch"
+  },
+  {
+    "kapampangan": "Pasbul",
+    "english": "Door"
+  },
+  {
+    "kapampangan": "Awang",
+    "english": "Window"
+  },
+  {
+    "kapampangan": "Gabay",
+    "english": "Guide / To guide"
+  },
+  {
+    "kapampangan": "Mananap",
+    "english": "Animal"
+  },
+  {
+    "kapampangan": "Kayan",
+    "english": "To be able to / Can"
+  },
+  {
+    "kapampangan": "Pamaglacad",
+    "english": "Walking / A walk"
+  },
+  {
+    "kapampangan": "Kabilugan ning bulan",
+    "english": "Full moon"
+  },
+  {
+    "kapampangan": "Pagal",
+    "english": "Tiredness"
+  },
+  {
+    "kapampangan": "Kabaldugan",
+    "english": "Meaning / Significance"
+  },
+  {
+    "kapampangan": "Panugali",
+    "english": "Habit / Behavior"
+  },
+  {
+    "kapampangan": "Magtagumpay",
+    "english": "To succeed / Triumph"
+  },
+  {
+    "kapampangan": "Pagasa",
+    "english": "Hope (Tagalog loan, used by many)"
+  },
+  {
+    "kapampangan": "Kapayapaan",
+    "english": "Peace / Tranquility"
+  },
+  {
+    "kapampangan": "Panyapak",
+    "english": "Footwear / Shoe"
+  },
+  {
+    "kapampangan": "Lumabas",
+    "english": "To pass by / To go past"
+  },
+  {
+    "kapampangan": "Pipanyapakan",
+    "english": "Stepping stone / Footpath"
+  },
+  {
+    "kapampangan": "Pamanawa",
+    "english": "Forgiveness / To forgive"
+  },
+  {
+    "kapampangan": "Dalaga",
+    "english": "Single woman / Maiden"
+  },
+  {
+    "kapampangan": "Binata",
+    "english": "Single man / Bachelor"
+  },
+  {
+    "kapampangan": "Asawa",
+    "english": "Spouse / Husband / Wife"
+  },
+  {
+    "kapampangan": "Pamilya",
+    "english": "Family (Spanish loan)"
+  },
+  {
+    "kapampangan": "Kapamilya",
+    "english": "Family member"
+  },
+  {
+    "kapampangan": "Panganay",
+    "english": "Eldest child"
+  },
+  {
+    "kapampangan": "Bunsong",
+    "english": "Youngest child"
+  },
+  {
+    "kapampangan": "Pagkalamu",
+    "english": "Comfort / Relief"
+  },
+  {
+    "kapampangan": "Maglakad-lakad",
+    "english": "To stroll / Take a walk"
+  },
+  {
+    "kapampangan": "Panyulung",
+    "english": "Forward movement / Progress"
+  },
+  {
+    "kapampangan": "Mangutang (to question)",
+    "english": "To question"
+  },
+  {
+    "kapampangan": "Pamagsabi",
+    "english": "Saying / To tell"
+  },
+  {
+    "kapampangan": "Pipagmasdan",
+    "english": "Observation / To observe"
+  },
+  {
+    "kapampangan": "Pibibie",
+    "english": "Life / Livelihood"
+  },
+  {
+    "kapampangan": "Manakmul",
+    "english": "To bite"
+  },
+  {
+    "kapampangan": "Matudtud",
+    "english": "To sleep"
+  },
+  {
+    "kapampangan": "Magising",
+    "english": "To wake up"
+  },
+  {
+    "kapampangan": "Malinis",
+    "english": "Clean / Pure"
+  },
+  {
+    "kapampangan": "Malati mu",
+    "english": "Just a little"
+  },
+  {
+    "kapampangan": "Madalas",
+    "english": "Often / Frequently"
+  },
+  {
+    "kapampangan": "Mararamdaman",
+    "english": "Can be felt / Audible"
+  },
+  {
+    "kapampangan": "Pagkaluguran",
+    "english": "Affection / Love (noun)"
+  },
+  {
+    "kapampangan": "Pangakwan",
+    "english": "Promise (noun)"
+  },
+  {
+    "kapampangan": "Pagpakapainuman",
+    "english": "To let someone drink"
+  },
+  {
+    "kapampangan": "Magsasali",
+    "english": "To sell"
+  },
+  {
+    "kapampangan": "Mamili",
+    "english": "To buy / To choose"
+  },
+  {
+    "kapampangan": "Presyo",
+    "english": "Price (Spanish loan)"
+  },
+  {
+    "kapampangan": "Mahal",
+    "english": "Expensive / Dear (love)"
+  },
+  {
+    "kapampangan": "Mura",
+    "english": "Cheap"
+  },
+  {
+    "kapampangan": "Palengke",
+    "english": "Market (Spanish loan)"
+  },
+  {
+    "kapampangan": "Maglutu",
+    "english": "To cook"
+  },
+  {
+    "kapampangan": "Pamaglutu",
+    "english": "Cooking (noun)"
+  },
+  {
+    "kapampangan": "Kape",
+    "english": "Coffee (Spanish loan)"
+  },
+  {
+    "kapampangan": "Tsa",
+    "english": "Tea (Chinese loan)"
+  },
+  {
+    "kapampangan": "Gatas",
+    "english": "Milk"
+  },
+  {
+    "kapampangan": "Tinapay",
+    "english": "Bread"
+  },
+  {
+    "kapampangan": "Asukal",
+    "english": "Sugar"
+  },
+  {
+    "kapampangan": "Asin",
+    "english": "Salt"
+  },
+  {
+    "kapampangan": "Sibuyas",
+    "english": "Onion"
+  },
+  {
+    "kapampangan": "Bawang",
+    "english": "Garlic"
+  },
+  {
+    "kapampangan": "Sili",
+    "english": "Chili / Pepper"
+  },
+  {
+    "kapampangan": "Malutu",
+    "english": "Cooked / Ripe (fruit)"
+  },
+  {
+    "kapampangan": "Berdi",
+    "english": "Green (Spanish loan)"
+  },
+  {
+    "kapampangan": "Buru",
+    "english": "Blue (Spanish loan)"
+  },
+  {
+    "kapampangan": "Puti",
+    "english": "White"
+  },
+  {
+    "kapampangan": "Itim",
+    "english": "Black (Tagalog loan, `Matuling` is native)"
+  },
+  {
+    "kapampangan": "Matuling",
+    "english": "Black"
+  },
+  {
+    "kapampangan": "Lila",
+    "english": "Purple (Spanish loan)"
+  },
+  {
+    "kapampangan": "Kahel",
+    "english": "Orange (color, Spanish loan)"
+  },
+  {
+    "kapampangan": "Amanung Sisuan",
+    "english": "Mother Tongue / Native Language"
+  },
+  {
+    "kapampangan": "Pamibiebie",
+    "english": "Living / Way of life"
+  },
+  {
+    "kapampangan": "Pamuklat",
+    "english": "To open (door/lid)"
+  },
+  {
+    "kapampangan": "Manakop",
+    "english": "To conquer / Invade"
+  },
+  {
+    "kapampangan": "Aral",
+    "english": "Lesson / Teaching"
+  },
+  {
+    "kapampangan": "Pamagaral",
+    "english": "Studying / Education"
+  },
+  {
+    "kapampangan": "Bisa",
+    "english": "To like / To want"
+  },
+  {
+    "kapampangan": "Mipulung",
+    "english": "Meeting / To meet"
+  },
+  {
+    "kapampangan": "Pamamahayag",
+    "english": "Announcement / Declaration"
+  },
+  {
+    "kapampangan": "Sugat",
+    "english": "Wound"
+  },
+  {
+    "kapampangan": "Karasanan",
+    "english": "Experience"
+  },
+  {
+    "kapampangan": "Mangobra",
+    "english": "To work"
+  },
+  {
+    "kapampangan": "Palakad",
+    "english": "Procedure / Way of doing things"
+  },
+  {
+    "kapampangan": "Pananagutan",
+    "english": "Responsibility"
+  },
+  {
+    "kapampangan": "Katatagan",
+    "english": "Stability / Firmness"
+  },
+  {
+    "kapampangan": "Pakiramdaman",
+    "english": "To feel (something) / To sense"
+  },
+  {
+    "kapampangan": "Pamibule-bule",
+    "english": "Reflection / Contemplation"
+  },
+  {
+    "kapampangan": "Katutubu",
+    "english": "Indigenous / Native"
+  },
+  {
+    "kapampangan": "Pamaningas",
+    "english": "Igniting / Starting a fire"
+  },
+  {
+    "kapampangan": "Suglung",
+    "english": "Connection / Link"
+  },
+  {
+    "kapampangan": "Dalise",
+    "english": "Pure / Genuine"
+  },
+  {
+    "kapampangan": "Magarbo",
+    "english": "Luxurious / Flamboyant"
+  },
+  {
+    "kapampangan": "Malungkut",
+    "english": "Sad"
+  },
+  {
+    "kapampangan": "Galang",
+    "english": "Respect / Honor"
+  },
+  {
+    "kapampangan": "Pamangalalang",
+    "english": "Respecting / Honoring"
+  },
+  {
+    "kapampangan": "Kasalpantayanan",
+    "english": "Faith / Belief"
+  },
+  {
+    "kapampangan": "Sipang",
+    "english": "Kick"
+  },
+  {
+    "kapampangan": "Maglubas",
+    "english": "To undress / To take off clothes"
+  },
+  {
+    "kapampangan": "Manyumbung",
+    "english": "To complain"
+  },
+  {
+    "kapampangan": "Pamanantabe",
+    "english": "Guidance / Supervision"
+  },
+  {
+    "kapampangan": "Sumundu",
+    "english": "To follow / Come after"
+  },
+  {
+    "kapampangan": "Mamagkalulu",
+    "english": "To have mercy / To pity"
+  },
+  {
+    "kapampangan": "Pablasang",
+    "english": "Because (causal)"
+  },
+  {
+    "kapampangan": "Magkaintuliran",
+    "english": "To be just / Fair"
+  },
+  {
+    "kapampangan": "Kaganapan",
+    "english": "Fullness / Fulfillment"
+  },
+  {
+    "kapampangan": "Laman",
+    "english": "Content / Flesh"
+  },
+  {
+    "kapampangan": "Panandaman",
+    "english": "Emotion / Feeling (what is felt)"
+  },
+  {
+    "kapampangan": "Kayanakan",
+    "english": "Youth / Adolescence"
+  },
+  {
+    "kapampangan": "Panaw",
+    "english": "Season / Period"
+  },
+  {
+    "kapampangan": "Mangilag",
+    "english": "To avoid / Dodge"
+  },
+  {
+    "kapampangan": "Pagpaplano",
+    "english": "Planning (noun)"
+  },
+  {
+    "kapampangan": "Paningasan",
+    "english": "Kindling / Fuel"
+  },
+  {
+    "kapampangan": "Pipag-obrahan",
+    "english": "Workplace"
+  },
+  {
+    "kapampangan": "Lugud a tune",
+    "english": "True love"
+  },
+  {
+    "kapampangan": "Kapayapaan",
+    "english": "Peace"
+  },
+  {
+    "kapampangan": "Kasi",
+    "english": "Because (informal)"
+  },
+  {
+    "kapampangan": "Balik-balik",
+    "english": "Repeatedly / Back and forth"
+  },
+  {
+    "kapampangan": "Manigtu",
+    "english": "To think / Ponder"
+  },
+  {
+    "kapampangan": "Tuknang",
+    "english": "To stop / Halt"
+  },
+  {
+    "kapampangan": "Magumpisa",
+    "english": "To start / Begin"
+  },
+  {
+    "kapampangan": "Bandang",
+    "english": "Towards / In the direction of"
+  },
+  {
+    "kapampangan": "Alas-otso",
+    "english": "Eight o'clock"
+  },
+  {
+    "kapampangan": "Kapirasung tela",
+    "english": "A piece of cloth"
+  },
+  {
+    "kapampangan": "Katatagan",
+    "english": "Steadfastness / Firmness"
+  },
+  {
+    "kapampangan": "Pangayagan",
+    "english": "Agreement / Consent"
+  },
+  {
+    "kapampangan": "Kabilugan",
+    "english": "Wholeness / Entirety"
+  },
+  {
+    "kapampangan": "Mabuti",
+    "english": "Good (Tagalog loan, also used)"
+  },
+  {
+    "kapampangan": "Magaling",
+    "english": "Good / Skilled (Tagalog loan, also used)"
+  },
+  {
+    "kapampangan": "Panu ya?",
+    "english": "How is he/she?"
+  },
+  {
+    "kapampangan": "Nanu ya?",
+    "english": "What is it?"
+  },
+  {
+    "kapampangan": "Ninu la?",
+    "english": "Who are they?"
+  },
+  {
+    "kapampangan": "Nokarin ya?",
+    "english": "Where is he/she/it?"
+  },
+  {
+    "kapampangan": "Obanu ya?",
+    "english": "Why is it/he/she?"
+  },
+  {
+    "kapampangan": "Dakal",
+    "english": "Many / Much"
+  },
+  {
+    "kapampangan": "Ditak",
+    "english": "Few / Little (amount)"
+  },
+  {
+    "kapampangan": "Laganap ya",
+    "english": "It is widespread"
+  },
+  {
+    "kapampangan": "Magdaramdam",
+    "english": "To feel (emotion/pain)"
+  },
+  {
+    "kapampangan": "Pagbalikan",
+    "english": "To return to (a place)"
+  },
+  {
+    "kapampangan": "Kaba",
+    "english": "Length"
+  },
+  {
+    "kapampangan": "Bigat",
+    "english": "Weight"
+  },
+  {
+    "kapampangan": "Dagul",
+    "english": "Size / Bigness"
+  },
+  {
+    "kapampangan": "Katni",
+    "english": "Sound / Noise"
+  },
+  {
+    "kapampangan": "Kalingkingan",
+    "english": "Pinky finger"
+  },
+  {
+    "kapampangan": "Pangadi",
+    "english": "Prayer (noun)"
+  },
+  {
+    "kapampangan": "Manalangin",
+    "english": "To pray"
+  },
+  {
+    "kapampangan": "Pisara",
+    "english": "Blackboard / Whiteboard"
+  },
+  {
+    "kapampangan": "Kupit",
+    "english": "Pocket"
+  },
+  {
+    "kapampangan": "Basa",
+    "english": "Wet / To read (different verb forms)"
+  },
+  {
+    "kapampangan": "Magbasa",
+    "english": "To read"
+  },
+  {
+    "kapampangan": "Magbasa (to get wet)",
+    "english": "To get wet"
+  },
+  {
+    "kapampangan": "Gawa",
+    "english": "Work / Act / Deed"
+  },
+  {
+    "kapampangan": "Kapamahalan",
+    "english": "Government"
+  },
+  {
+    "kapampangan": "Bansa",
+    "english": "Country / Nation"
+  },
+  {
+    "kapampangan": "Lalawigan",
+    "english": "Province"
+  },
+  {
+    "kapampangan": "Bayan",
+    "english": "Town / Municipality"
+  },
+  {
+    "kapampangan": "Barangay",
+    "english": "Village / Smallest administrative division"
+  },
+  {
+    "kapampangan": "Ilog",
+    "english": "River (Tagalog loan, `Saug` is native)"
+  },
+  {
+    "kapampangan": "Bunduk",
+    "english": "Mountain"
+  },
+  {
+    "kapampangan": "Kapatagan",
+    "english": "Plain (landform)"
+  },
+  {
+    "kapampangan": "Bakulud",
+    "english": "Hill"
+  },
+  {
+    "kapampangan": "Danum",
+    "english": "Water / Liquid"
+  },
+  {
+    "kapampangan": "Pulang",
+    "english": "Red (adj.)"
+  },
+  {
+    "kapampangan": "Asul",
+    "english": "Blue (Spanish loan, also `Buru`)"
+  },
+  {
+    "kapampangan": "Berde",
+    "english": "Green (Spanish loan, also `Berdi`)"
+  },
+  {
+    "kapampangan": "Kulul gintu",
+    "english": "Gold color"
+  },
+  {
+    "kapampangan": "Kulul pilak",
+    "english": "Silver color"
+  },
+  {
+    "kapampangan": "Balat",
+    "english": "Skin / Leather"
+  },
+  {
+    "kapampangan": "Butul",
+    "english": "Bone / Seed"
+  },
+  {
+    "kapampangan": "Pangalipusan",
+    "english": "Responsibility / Duty"
+  },
+  {
+    "kapampangan": "Katimawan",
+    "english": "Freedom / Liberty"
+  },
+  {
+    "kapampangan": "Pagkaba",
+    "english": "Length / Duration"
+  },
+  {
+    "kapampangan": "Magsilbi",
+    "english": "To serve"
+  },
+  {
+    "kapampangan": "Pamanimunu",
+    "english": "Leadership"
+  },
+  {
+    "kapampangan": "Kasangkapan (tool)",
+    "english": "Tool"
+  },
+  {
+    "kapampangan": "Panabing",
+    "english": "Fence / Barrier"
+  },
+  {
+    "kapampangan": "Matas",
+    "english": "High / Tall"
+  },
+  {
+    "kapampangan": "Mababa",
+    "english": "Low / Short (height)"
+  },
+  {
+    "kapampangan": "Matulid",
+    "english": "Correct / Straight"
+  },
+  {
+    "kapampangan": "Kapad",
+    "english": "Width"
+  },
+  {
+    "kapampangan": "Katni",
+    "english": "Loudness / Noise"
+  },
+  {
+    "kapampangan": "Karamdam",
+    "english": "Emotion / Feeling"
+  },
+  {
+    "kapampangan": "Pagkababa",
+    "english": "Lowness / Humility"
+  },
+  {
+    "kapampangan": "Pamanulu",
+    "english": "Healing / Treatment"
+  },
+  {
+    "kapampangan": "Malambing",
+    "english": "Affectionate / Tender"
+  },
+  {
+    "kapampangan": "Palad",
+    "english": "Palm (of hand) / Fate"
+  },
+  {
+    "kapampangan": "Kamay",
+    "english": "Hand (Tagalog loan, `Gamat` is native)"
+  },
+  {
+    "kapampangan": "Gamat",
+    "english": "Hand"
+  },
+  {
+    "kapampangan": "Sipit",
+    "english": "Pincer / Clip"
+  },
+  {
+    "kapampangan": "Malyari",
+    "english": "Possible / Can be done"
+  },
+  {
+    "kapampangan": "Ali malyari",
+    "english": "Impossible / Cannot be done"
+  },
+  {
+    "kapampangan": "Kalasangan",
+    "english": "Wilderness / Jungle"
+  },
+  {
+    "kapampangan": "Kapaligiran",
+    "english": "Environment / Surroundings"
+  },
+  {
+    "kapampangan": "Kasalungsungan",
+    "english": "Current / Present (adj)"
+  },
+  {
+    "kapampangan": "Pagkalinisan",
+    "english": "Cleanliness"
+  },
+  {
+    "kapampangan": "Panandit",
+    "english": "Moment / Instant"
+  },
+  {
+    "kapampangan": "Miyaliwa",
+    "english": "Different / Various"
+  },
+  {
+    "kapampangan": "Kasalungat",
+    "english": "Opposite / Contrary"
+  },
+  {
+    "kapampangan": "Kagap",
+    "english": "Just now / A moment ago"
+  },
+  {
+    "kapampangan": "Kaibat",
+    "english": "After"
+  },
+  {
+    "kapampangan": "Bayu",
+    "english": "Before / New"
+  },
+  {
+    "kapampangan": "Agad",
+    "english": "Immediately / At once"
+  },
+  {
+    "kapampangan": "Lagyu",
+    "english": "Name"
+  },
+  {
+    "kapampangan": "Buri ku",
+    "english": "I like / I want"
+  },
+  {
+    "kapampangan": "E ku balu",
+    "english": "I don't know"
+  },
+  {
+    "kapampangan": "Wa, syempre",
+    "english": "Yes, of course"
+  },
+  {
+    "kapampangan": "Ali, salamat",
+    "english": "No, thank you"
+  },
+  {
+    "kapampangan": "Pasensya na pu",
+    "english": "Excuse me / I'm sorry (formal)"
+  },
+  {
+    "kapampangan": "Sige na",
+    "english": "Go on / Please continue"
+  },
+  {
+    "kapampangan": "Kapampangnan",
+    "english": "Pampanga (the province)"
+  },
+  {
+    "kapampangan": "Manibat",
+    "english": "Starting from / Originating from"
+  },
+  {
+    "kapampangan": "Kapilanman",
+    "english": "Never / Whenever"
+  },
+  {
+    "kapampangan": "Nanuman",
+    "english": "Whatever"
+  },
+  {
+    "kapampangan": "Ninuman",
+    "english": "Whoever"
+  },
+  {
+    "kapampangan": "Nokarinman",
+    "english": "Wherever"
+  },
+  {
+    "kapampangan": "Obanuman",
+    "english": "Whyever (rarely used)"
+  },
+  {
+    "kapampangan": "Kanitaman",
+    "english": "Whenever (temporal)"
+  },
+  {
+    "kapampangan": "Kapal",
+    "english": "Thickness"
+  },
+  {
+    "kapampangan": "Nipis",
+    "english": "Thinness"
+  },
+  {
+    "kapampangan": "Laru",
+    "english": "Mud / Dirt"
+  },
+  {
+    "kapampangan": "Pangalutu",
+    "english": "Redness / Ripe (for fruit)"
+  },
+  {
+    "kapampangan": "Pangadilaw",
+    "english": "Yellowness"
+  },
+  {
+    "kapampangan": "Panakawan",
+    "english": "Thief / To steal"
+  },
+  {
+    "kapampangan": "Kamatayan",
+    "english": "Death"
+  },
+  {
+    "kapampangan": "Pangabayu",
+    "english": "Newness / Innovation"
+  },
+  {
+    "kapampangan": "Pangamatua",
+    "english": "Old age"
+  },
+  {
+    "kapampangan": "Pipag-aralan",
+    "english": "Subject of study / What is being studied"
+  },
+  {
+    "kapampangan": "Pamanuru",
+    "english": "Teaching / Instruction"
+  },
+  {
+    "kapampangan": "Pipanyungitan",
+    "english": "Ladder / Staircase"
+  },
+  {
+    "kapampangan": "Sulatanan",
+    "english": "Writing desk / Board for writing"
+  },
+  {
+    "kapampangan": "Pagkaulaga",
+    "english": "Importance / Value"
+  },
+  {
+    "kapampangan": "Pagkamatulid",
+    "english": "Correctness / Straightness"
+  },
+  {
+    "kapampangan": "Pipamangan",
+    "english": "Dining area / Place for eating"
+  },
+  {
+    "kapampangan": "Panaun a paynawa",
+    "english": "Rest period / Vacation"
+  },
+  {
+    "kapampangan": "Magbayu",
+    "english": "To change / To renew"
+  },
+  {
+    "kapampangan": "Mamagobra",
+    "english": "To make someone work"
+  },
+  {
+    "kapampangan": "Pagkalugud",
+    "english": "Love (abstract noun)"
+  },
+  {
+    "kapampangan": "Kapampangan ku",
+    "english": "I am Kapampangan"
+  },
+  {
+    "kapampangan": "Bengi na",
+    "english": "It's night already"
+  },
+  {
+    "kapampangan": "Mangan ta na!",
+    "english": "Let's eat!"
+  },
+  {
+    "kapampangan": "Minum ka!",
+    "english": "Drink!"
+  },
+  {
+    "kapampangan": "Tuknang ka!",
+    "english": "Stop!"
+  },
+  {
+    "kapampangan": "Ume ka keni!",
+    "english": "Come here!"
+  },
+  {
+    "kapampangan": "Lakad na!",
+    "english": "Go now!"
+  },
+  {
+    "kapampangan": "Kapilan ka miratang?",
+    "english": "When will you arrive?"
+  },
+  {
+    "kapampangan": "Nanu ya ini?",
+    "english": "What is this?"
+  },
+  {
+    "kapampangan": "Ninu ing tata mu?",
+    "english": "Who is your father?"
+  },
+  {
+    "kapampangan": "Nokarin ya ing bale mu?",
+    "english": "Where is your house?"
+  },
+  {
+    "kapampangan": "Obanu e ka mipalabas?",
+    "english": "Why didn't you pass by?"
+  },
+  {
+    "kapampangan": "Masalese ing aldo",
+    "english": "The day is good"
+  },
+  {
+    "kapampangan": "Masaya ku",
+    "english": "I am happy"
+  },
+  {
+    "kapampangan": "Ala kang aldo",
+    "english": "You have no day (You are wrong/out of luck)"
+  },
+  {
+    "kapampangan": "Atin kang balu?",
+    "english": "Do you know anything?"
+  },
+  {
+    "kapampangan": "Dacal a danum",
+    "english": "Lots of water"
+  },
+  {
+    "kapampangan": "Ditak a salapi",
+    "english": "Little money"
+  },
+  {
+    "kapampangan": "Maragul a babi",
+    "english": "Big pig"
+  },
+  {
+    "kapampangan": "Malating pusa",
+    "english": "Small cat"
+  },
+  {
+    "kapampangan": "Matua nang indung",
+    "english": "Old mother"
+  },
+  {
+    "kapampangan": "Bayung sulud",
+    "english": "New clothes"
+  },
+  {
+    "kapampangan": "Malwat mung manayan",
+    "english": "You've been waiting for a long time"
+  },
+  {
+    "kapampangan": "Makaba ing dalan",
+    "english": "The road is long"
+  },
+  {
+    "kapampangan": "Malapit la keni",
+    "english": "They are near here"
+  },
+  {
+    "kapampangan": "Magdalan la",
+    "english": "They are passing by"
+  },
+  {
+    "kapampangan": "Ala king karinan",
+    "english": "Not in the place"
+  },
+  {
+    "kapampangan": "Atin kang buri?",
+    "english": "Do you like anything? / Do you want anything?"
+  },
+  {
+    "kapampangan": "Ngan ding tau",
+    "english": "All the people"
+  },
+  {
+    "kapampangan": "Egana-gana ya",
+    "english": "It's everything"
+  },
+  {
+    "kapampangan": "Ampat...",
+    "english": "But..."
+  },
+  {
+    "kapampangan": "Uling ali ku...",
+    "english": "Because I don't..."
+  },
+  {
+    "kapampangan": "At ikami",
+    "english": "And us"
+  },
+  {
+    "kapampangan": "O kaya",
+    "english": "Or else"
+  },
+  {
+    "kapampangan": "Makitabi ku po",
+    "english": "Excuse me, sir/madam (polite)"
+  },
+  {
+    "kapampangan": "Lumakad ta na",
+    "english": "Let's go now"
+  },
+  {
+    "kapampangan": "Manakit ku",
+    "english": "I feel pain / I am hurt"
+  },
+  {
+    "kapampangan": "Ala yang sakit",
+    "english": "He/she has no sickness / It's not painful"
+  },
+  {
+    "kapampangan": "Malinis ya ing bale",
+    "english": "The house is clean"
+  },
+  {
+    "kapampangan": "Marusing ya ing sulud na",
+    "english": "His/her clothes are dirty"
+  },
+  {
+    "kapampangan": "Maralas ing ulan",
+    "english": "Rain is often"
+  },
+  {
+    "kapampangan": "Kasan mung akakit",
+    "english": "You rarely see it"
+  },
+  {
+    "kapampangan": "Magobra ya",
+    "english": "He/she is working"
+  },
+  {
+    "kapampangan": "Istar ka na",
+    "english": "Stop now"
+  },
+  {
+    "kapampangan": "Matua neng tau",
+    "english": "He/she is an old person"
+  },
+  {
+    "kapampangan": "Matulid ing dalan",
+    "english": "The path is straight"
+  },
+  {
+    "kapampangan": "Paki-alman mu",
+    "english": "Please take care of it"
+  },
+  {
+    "kapampangan": "Bustan mu ne",
+    "english": "Just let it be"
+  },
+  {
+    "kapampangan": "Mayap a Kapanganakan",
+    "english": "Happy Birthday"
+  },
+  {
+    "kapampangan": "Pagkaluban mu ku",
+    "english": "Please give me"
+  },
+  {
+    "kapampangan": "Manuk ya ing bubulung",
+    "english": "It's a chicken crowing"
+  },
+  {
+    "kapampangan": "Kutang mu ne",
+    "english": "Just ask him/her"
+  },
+  {
+    "kapampangan": "Magsulat ka?",
+    "english": "Are you writing?"
+  },
+  {
+    "kapampangan": "Manakla ya ing anak",
+    "english": "The child is crying"
+  },
+  {
+    "kapampangan": "Malamlam ing sulu",
+    "english": "The light is dim"
+  },
+  {
+    "kapampangan": "Malino ya ing danum",
+    "english": "The water is clear"
+  },
+  {
+    "kapampangan": "Mamungkal ya",
+    "english": "He/she is opening"
+  },
+  {
+    "kapampangan": "Sarado ya ing pinto",
+    "english": "The door is closed"
+  },
+  {
+    "kapampangan": "Mascup ing bitis na",
+    "english": "His/her leg is tight/narrow"
+  },
+  {
+    "kapampangan": "Malapad ya ing lugad",
+    "english": "The place is wide"
+  },
+  {
+    "kapampangan": "Masikan ing tugtug",
+    "english": "The music is loud"
+  },
+  {
+    "kapampangan": "Masanting ya ing pusa",
+    "english": "The cat is pretty"
+  },
+  {
+    "kapampangan": "Malanam ya ing mangga",
+    "english": "The mango is sweet"
+  },
+  {
+    "kapampangan": "Maaslam ya ing suha",
+    "english": "The pomelo is sour"
+  },
+  {
+    "kapampangan": "Mapait ya ing ampalaya",
+    "english": "The bitter gourd is bitter"
+  },
+  {
+    "kapampangan": "Maalat ya ing toyu",
+    "english": "The soy sauce is salty"
+  },
+  {
+    "kapampangan": "Maparas ya ing sili",
+    "english": "The chili is spicy"
+  },
+  {
+    "kapampangan": "Kanaku",
+    "english": "To me / Mine (personal possessive)"
+  },
+  {
+    "kapampangan": "Keka",
+    "english": "To you / Yours"
+  },
+  {
+    "kapampangan": "Kaya",
+    "english": "To him/her / His/Hers"
+  },
+  {
+    "kapampangan": "Kekatamu",
+    "english": "To us (inclusive) / Ours"
+  },
+  {
+    "kapampangan": "Kekami",
+    "english": "To us (exclusive) / Ours"
+  },
+  {
+    "kapampangan": "Kekayu",
+    "english": "To you (plural/polite) / Yours"
+  },
+  {
+    "kapampangan": "Kekana",
+    "english": "To them / Theirs"
+  },
+  {
+    "kapampangan": "Alas-singko",
+    "english": "Five o'clock"
+  },
+  {
+    "kapampangan": "Alas-syam",
+    "english": "Nine o'clock"
+  },
+  {
+    "kapampangan": "Abak",
+    "english": "Morning"
+  },
+  {
+    "kapampangan": "Pun",
+    "english": "Tree trunk / Main / Head"
+  },
+  {
+    "kapampangan": "Bulaklak",
+    "english": "Flower"
+  },
+  {
+    "kapampangan": "Dahon",
+    "english": "Leaf"
+  },
+  {
+    "kapampangan": "Ugat",
+    "english": "Root"
+  },
+  {
+    "kapampangan": "Kasangkapan a lutuan",
+    "english": "Cooking utensil"
+  },
+  {
+    "kapampangan": "Basu",
+    "english": "Glass (for drinking)"
+  },
+  {
+    "kapampangan": "Platu",
+    "english": "Plate"
+  },
+  {
+    "kapampangan": "Kutsara",
+    "english": "Spoon"
+  },
+  {
+    "kapampangan": "Tinidor",
+    "english": "Fork"
+  },
+  {
+    "kapampangan": "Kutsilyu",
+    "english": "Knife"
+  },
+  {
+    "kapampangan": "Paglinis",
+    "english": "To clean (verb)"
+  },
+  {
+    "kapampangan": "Pagkaba",
+    "english": "Length (noun)"
+  },
+  {
+    "kapampangan": "Pagkadagul",
+    "english": "Bigness (noun)"
+  },
+  {
+    "kapampangan": "Pagkalati",
+    "english": "Smallness (noun)"
+  },
+  {
+    "kapampangan": "Kasaupan",
+    "english": "Help / Aid"
+  },
+  {
+    "kapampangan": "Pipanyawan",
+    "english": "Request / Asking (noun)"
+  },
+  {
+    "kapampangan": "Panugali (behavior)",
+    "english": "Behavior / Mannerism"
+  },
+  {
+    "kapampangan": "Kalung",
+    "english": "Necklace"
+  },
+  {
+    "kapampangan": "Singsing",
+    "english": "Ring"
+  },
+  {
+    "kapampangan": "Panyapu",
+    "english": "Bracelet"
+  },
+  {
+    "kapampangan": "Earrings",
+    "english": "Sikla"
+  },
+  {
+    "kapampangan": "Sapatos",
+    "english": "Shoes (Spanish loan)"
+  },
+  {
+    "kapampangan": "Tsinelas",
+    "english": "Slippers"
+  },
+  {
+    "kapampangan": "Baru",
+    "english": "Shirt / Dress"
+  },
+  {
+    "kapampangan": "Salwal",
+    "english": "Pants / Trousers"
+  },
+  {
+    "kapampangan": "Damit",
+    "english": "Clothes (general)"
+  },
+  {
+    "kapampangan": "Panu ya kalwal?",
+    "english": "How is it outside?"
+  },
+  {
+    "kapampangan": "Marimla ya king lual",
+    "english": "It's cold outside"
+  },
+  {
+    "kapampangan": "Mapali ya king lual",
+    "english": "It's hot outside"
+  },
+  {
+    "kapampangan": "Gabun a basa",
+    "english": "Wet soil"
+  },
+  {
+    "kapampangan": "Danum a malino",
+    "english": "Clear water"
+  },
+  {
+    "kapampangan": "Panagkat",
+    "english": "To invite / Invitation"
+  },
+  {
+    "kapampangan": "Pamanakit",
+    "english": "Seeing / Discovering (noun)"
+  },
+  {
+    "kapampangan": "Pamamili",
+    "english": "Shopping / Buying (noun)"
+  },
+  {
+    "kapampangan": "Pangaku",
+    "english": "Promise (verb)"
+  },
+  {
+    "kapampangan": "Mamagkalulu",
+    "english": "Merciful / Compassionate"
+  },
+  {
+    "kapampangan": "Pamagmal",
+    "english": "Celebration / Festival"
+  },
+  {
+    "kapampangan": "Pamakasipag",
+    "english": "Diligence / Industry"
+  },
+  {
+    "kapampangan": "Kabayanihan",
+    "english": "Heroism / Bravery"
+  },
+  {
+    "kapampangan": "Kasiping bale",
+    "english": "Neighbor (house beside)"
+  },
+  {
+    "kapampangan": "Kakampi",
+    "english": "Ally / Supporter"
+  },
+  {
+    "kapampangan": "Kalaban",
+    "english": "Enemy / Opponent"
+  },
+  {
+    "kapampangan": "Panukala",
+    "english": "Proposal / Plan"
+  },
+  {
+    "kapampangan": "Pamantini",
+    "english": "Maintenance / Upkeep"
+  },
+  {
+    "kapampangan": "Manaya",
+    "english": "To wait"
+  },
+  {
+    "kapampangan": "Ligtas",
+    "english": "Safe / Secure"
+  },
+  {
+    "kapampangan": "Kapiguan",
+    "english": "Danger"
+  },
+  {
+    "kapampangan": "Pamanaral",
+    "english": "Learning / Studying"
+  },
+  {
+    "kapampangan": "Pamanialita",
+    "english": "Speaking / Utterance"
+  },
+  {
+    "kapampangan": "Pipanyulung",
+    "english": "Tool/means for progress"
+  },
+  {
+    "kapampangan": "Dalaga (unmarried woman)",
+    "english": "Unmarried woman"
+  },
+  {
+    "kapampangan": "Mag-asawa",
+    "english": "To marry / Married couple"
+  },
+  {
+    "kapampangan": "Balik ing panyapak",
+    "english": "Return the footwear"
+  },
+  {
+    "kapampangan": "Mangan kaniti",
+    "english": "Eat this"
+  },
+  {
+    "kapampangan": "Minum ka karin",
+    "english": "Drink there"
+  },
+  {
+    "kapampangan": "Lumakad ya king dalan",
+    "english": "He/she walks on the road"
+  },
+  {
+    "kapampangan": "Tumud ka keni",
+    "english": "Sit here"
+  },
+  {
+    "kapampangan": "Talakad ka!",
+    "english": "Stand up!"
+  },
+  {
+    "kapampangan": "Nanu ya ing kulul na?",
+    "english": "What is its color?"
+  },
+  {
+    "kapampangan": "Puti ya ing kulul",
+    "english": "The color is white"
+  },
+  {
+    "kapampangan": "Amanung Kapampangan",
+    "english": "Kapampangan Language"
+  },
+  {
+    "kapampangan": "Masiba naku",
+    "english": "I am full (from eating)"
+  },
+  {
+    "kapampangan": "Malutu ya ing ulam",
+    "english": "The dish is cooked"
+  },
+  {
+    "kapampangan": "Makitabi po, drayber",
+    "english": "Excuse me, driver (polite)"
+  },
+  {
+    "kapampangan": "Saguli mu",
+    "english": "Just a moment"
+  },
+  {
+    "kapampangan": "Balugbog ku ing masakit",
+    "english": "My back is hurting"
+  },
+  {
+    "kapampangan": "Atin kang balu kanini?",
+    "english": "Do you know anything about this?"
+  },
+  {
+    "kapampangan": "Pipili ya",
+    "english": "He/she is choosing"
+  },
+  {
+    "kapampangan": "Maglutu ya pamangan",
+    "english": "He/she is cooking food"
+  },
+  {
+    "kapampangan": "Panu ya makabayung sasakyan?",
+    "english": "How is the new vehicle?"
+  },
+  {
+    "kapampangan": "Tugtug na!",
+    "english": "Play the music!"
+  },
+  {
+    "kapampangan": "Panu mu bini?",
+    "english": "How do you plant seeds?"
+  },
+  {
+    "kapampangan": "Manimaho ya ing bunga",
+    "english": "The fruit smells"
+  },
+  {
+    "kapampangan": "Matulid ing kawatasan",
+    "english": "The poem is correct"
+  },
+  {
+    "kapampangan": "Kasiping ku ya",
+    "english": "He/she is beside me"
+  },
+  {
+    "kapampangan": "Pamagbasa",
+    "english": "Reading (noun)"
+  },
+  {
+    "kapampangan": "Pamagsulat",
+    "english": "Writing (noun)"
+  },
+  {
+    "kapampangan": "Kailangan",
+    "english": "Need / Necessary"
+  },
+  {
+    "kapampangan": "Magsalita",
+    "english": "To speak"
+  },
+  {
+    "kapampangan": "Para",
+    "english": "For / Stop (jeepney, loan)"
+  },
+  {
+    "kapampangan": "Lugud ku keka",
+    "english": "My love for you"
+  },
+  {
+    "kapampangan": "Mayap a balita",
+    "english": "Good news"
+  },
+  {
+    "kapampangan": "Pangawala",
+    "english": "Loss / Losing"
+  },
+  {
+    "kapampangan": "Panimuna",
+    "english": "Beginning / Start"
+  },
+  {
+    "kapampangan": "Makaragul",
+    "english": "To make big / Enlarge"
+  },
+  {
+    "kapampangan": "Makalati",
+    "english": "To make small / Decrease"
+  },
+  {
+    "kapampangan": "Manaliwa",
+    "english": "To change / Transform"
+  },
+  {
+    "kapampangan": "Mipate",
+    "english": "To fight with each other"
+  },
+  {
+    "kapampangan": "Pamagbabo",
+    "english": "Upper part / Being on top"
+  },
+  {
+    "kapampangan": "Pamaglalam",
+    "english": "Lower part / Being underneath"
+  },
+  {
+    "kapampangan": "Pamanigtu",
+    "english": "Thinking / Contemplation"
+  },
+  {
+    "kapampangan": "Katni ning lugud",
+    "english": "Sound of love (metaphorical)"
+  },
+  {
+    "kapampangan": "Magdamdam ing pusu ku",
+    "english": "My heart feels (it)"
+  },
+  {
+    "kapampangan": "Kabang ing panaun",
+    "english": "During the time"
+  },
+  {
+    "kapampangan": "Karinan a mayap",
+    "english": "A good place"
+  },
+  {
+    "kapampangan": "Sumundu ka kanaku",
+    "english": "Follow me"
+  },
+  {
+    "kapampangan": "Mangilag ka king sakit",
+    "english": "Avoid sickness"
+  },
+  {
+    "kapampangan": "Panayan da ka",
+    "english": "I will wait for you"
+  },
+  {
+    "kapampangan": "Mipamisan, lumagad ku",
+    "english": "Sometimes, I walk"
+  },
+  {
+    "kapampangan": "Manimaho ya ing basura",
+    "english": "The trash smells bad"
+  },
+  {
+    "kapampangan": "Pangaku na ing datang ya",
+    "english": "He/she promised to come"
+  },
+  {
+    "kapampangan": "Pipagdasan",
+    "english": "To pray (a specific prayer)"
+  },
+  {
+    "kapampangan": "Kapayapan",
+    "english": "Peacefulness"
+  },
+  {
+    "kapampangan": "Kaladua",
+    "english": "Soul"
+  },
+  {
+    "kapampangan": "Bie",
+    "english": "Life"
+  },
+  {
+    "kapampangan": "Kaisipan",
+    "english": "Thought / Idea"
+  },
+  {
+    "kapampangan": "Pamituknang",
+    "english": "Cessation / Stop (noun)"
+  },
+  {
+    "kapampangan": "Pamanu",
+    "english": "Word / Utterance (alt for Salita)"
+  },
+  {
+    "kapampangan": "Pamagumpisa",
+    "english": "Beginning / Initiation"
+  },
+  {
+    "kapampangan": "Pangabuti",
+    "english": "Goodness (Tagalog loan variant)"
+  },
+  {
+    "kapampangan": "Pangakaw",
+    "english": "Stealing (noun)"
+  },
+  {
+    "kapampangan": "Kamtan",
+    "english": "To attain / Achieve"
+  },
+  {
+    "kapampangan": "Manakit",
+    "english": "To see / perceive"
+  },
+  {
+    "kapampangan": "Pagkabuutan",
+    "english": "Will / Desire"
+  },
+  {
+    "kapampangan": "Panyatang",
+    "english": "Arrival"
+  },
+  {
+    "kapampangan": "Pagkalungkutan",
+    "english": "Sadness (noun)"
+  },
+  {
+    "kapampangan": "Mamagkasakit",
+    "english": "To make someone suffer"
+  },
+  {
+    "kapampangan": "Panalangin",
+    "english": "Prayer (act of)"
+  },
+  {
+    "kapampangan": "Pangawanan",
+    "english": "Right side"
+  },
+  {
+    "kapampangan": "Pangaliwalwa",
+    "english": "Difference / Change (noun)"
+  },
+  {
+    "kapampangan": "Kapag-aralan",
+    "english": "Studying / Subject to study"
+  },
+  {
+    "kapampangan": "Sipag a tune",
+    "english": "True diligence"
+  },
+  {
+    "kapampangan": "Malalam",
+    "english": "Deep"
+  },
+  {
+    "kapampangan": "Mababaw",
+    "english": "Shallow"
+  },
+  {
+    "kapampangan": "Pagkalalam",
+    "english": "Depth"
+  },
+  {
+    "kapampangan": "Pagkababaw",
+    "english": "Shallowness"
+  },
+  {
+    "kapampangan": "Buntut",
+    "english": "Tail"
+  },
+  {
+    "kapampangan": "Pakpak",
+    "english": "Wing"
+  },
+  {
+    "kapampangan": "Galis",
+    "english": "Scratch / Itch"
+  },
+  {
+    "kapampangan": "Ngingi",
+    "english": "Gums"
+  },
+  {
+    "kapampangan": "Labi",
+    "english": "Lip"
+  },
+  {
+    "kapampangan": "Dila",
+    "english": "Tongue"
+  },
+  {
+    "kapampangan": "Lauas",
+    "english": "Body"
+  },
+  {
+    "kapampangan": "Pusu",
+    "english": "Heart"
+  },
+  {
+    "kapampangan": "Bituka",
+    "english": "Intestines"
+  },
+  {
+    "kapampangan": "Laman",
+    "english": "Flesh / Meat"
+  },
+  {
+    "kapampangan": "Balungusan",
+    "english": "Nose (of animal) / Snout"
+  },
+  {
+    "kapampangan": "Sulud-balat",
+    "english": "Skin-deep"
+  },
+  {
+    "kapampangan": "Kalamnan",
+    "english": "Muscles"
+  },
+  {
+    "kapampangan": "Kaslagan",
+    "english": "Brightness / Radiance"
+  },
+  {
+    "kapampangan": "Kapalung",
+    "english": "Thickness (of fabric/paper)"
+  },
+  {
+    "kapampangan": "Kasalungsungan a oras",
+    "english": "Current time"
+  },
+  {
+    "kapampangan": "Panugali ning lugud",
+    "english": "Habit of love / Loving habit"
+  },
+  {
+    "kapampangan": "Manakmul ya ing asu",
+    "english": "The dog bites"
+  },
+  {
+    "kapampangan": "Matudtud ya ing pusa",
+    "english": "The cat is sleeping"
+  },
+  {
+    "kapampangan": "Magising ka na!",
+    "english": "Wake up now!"
+  },
+  {
+    "kapampangan": "Malati mu ing bini",
+    "english": "The seed is very small"
+  },
+  {
+    "kapampangan": "Maputla ya ing balat na",
+    "english": "His/her skin is pale"
+  },
+  {
+    "kapampangan": "Mamasa ku libru",
+    "english": "I am reading a book"
+  },
+  {
+    "kapampangan": "Manimaho ya ing kape",
+    "english": "The coffee smells (good)"
+  },
+  {
+    "kapampangan": "Sisira ya ing bale",
+    "english": "The house is destroying / getting ruined"
+  },
+  {
+    "kapampangan": "Kailangan ku tulung",
+    "english": "I need help"
+  },
+  {
+    "kapampangan": "Magobra ka keni",
+    "english": "You work here"
+  },
+  {
+    "kapampangan": "Ali ku balu ing presyo",
+    "english": "I don't know the price"
+  },
+  {
+    "kapampangan": "Mahal ya ing kape",
+    "english": "Coffee is expensive"
+  },
+  {
+    "kapampangan": "Mura ya ing tinapay",
+    "english": "The bread is cheap"
+  },
+  {
+    "kapampangan": "Mamili ya king palengke",
+    "english": "He/she is buying in the market"
+  },
+  {
+    "kapampangan": "Maglutu lang ulam",
+    "english": "They are cooking viand"
+  },
+  {
+    "kapampangan": "Gatas ning baka",
+    "english": "Cow's milk"
+  },
+  {
+    "kapampangan": "Asukal a maputi",
+    "english": "White sugar"
+  },
+  {
+    "kapampangan": "Asin a malinamnam",
+    "english": "Flavorful salt"
+  },
+  {
+    "kapampangan": "Bawang at sibuyas",
+    "english": "Garlic and onion"
+  },
+  {
+    "kapampangan": "Pulang sili",
+    "english": "Red chili"
+  },
+  {
+    "kapampangan": "Berding balat",
+    "english": "Green skin/leaf"
+  },
+  {
+    "kapampangan": "Buru ya ing banua",
+    "english": "The sky is blue"
+  },
+  {
+    "kapampangan": "Putung danum",
+    "english": "White water (foam)"
+  },
+  {
+    "kapampangan": "Matuling a pusa",
+    "english": "Black cat"
+  },
+  {
+    "kapampangan": "Kahel a bunga",
+    "english": "Orange fruit"
+  },
+  {
+    "kapampangan": "Pamagaral king amanung sisuan",
+    "english": "Study of native language"
+  },
+  {
+    "kapampangan": "Mipulung la",
+    "english": "They met"
+  },
+  {
+    "kapampangan": "Atin kang sugat?",
+    "english": "Do you have a wound?"
+  },
+  {
+    "kapampangan": "Karasanan ya ing bie",
+    "english": "Life is an experience"
+  },
+  {
+    "kapampangan": "Magarbo ya ing bale",
+    "english": "The house is luxurious"
+  },
+  {
+    "kapampangan": "Pamangalalang king matua",
+    "english": "Respecting the elders"
+  },
+  {
+    "kapampangan": "Kasalpantayanan ku keka",
+    "english": "My faith in you"
+  },
+  {
+    "kapampangan": "Maglubas ya",
+    "english": "He/she is undressing"
+  },
+  {
+    "kapampangan": "Manyumbung ya ing bata",
+    "english": "The child is complaining"
+  },
+  {
+    "kapampangan": "Pablasang ulan",
+    "english": "Because it's raining"
+  },
+  {
+    "kapampangan": "Magkaintuliran ya ing ari",
+    "english": "The king is just"
+  },
+  {
+    "kapampangan": "Katatagan ning pusu",
+    "english": "Firmness of heart"
+  },
+  {
+    "kapampangan": "Pangaku ko",
+    "english": "My promise (emphatic)"
+  },
+  {
+    "kapampangan": "Kanita",
+    "english": "Then / At that time"
+  },
+  {
+    "kapampangan": "Kanini",
+    "english": "Now / At this time"
+  },
+  {
+    "kapampangan": "Kasawpan",
+    "english": "Assistant / Helper"
+  },
+  {
+    "kapampangan": "Pipag-inuman",
+    "english": "Drinking place / Bar"
+  },
+  {
+    "kapampangan": "Pagkalumbay",
+    "english": "Sadness (noun form of Malungkut)"
+  },
+  {
+    "kapampangan": "Maglaban",
+    "english": "To fight / To struggle"
+  },
+  {
+    "kapampangan": "Tagumpay",
+    "english": "Victory / Success"
+  },
+  {
+    "kapampangan": "Pangamate",
+    "english": "Dying / Death (act of)"
+  },
+  {
+    "kapampangan": "Panyulat",
+    "english": "Pen / Writing instrument"
+  },
+  {
+    "kapampangan": "Pamagumpisa",
+    "english": "Beginning / Commencement"
+  },
+  {
+    "kapampangan": "Kalabasan",
+    "english": "Result / Outcome"
+  },
+  {
+    "kapampangan": "Pamanimanman",
+    "english": "Watching / Observing (noun)"
+  },
+  {
+    "kapampangan": "Panyuglung",
+    "english": "Addition / Continuation"
+  },
+  {
+    "kapampangan": "Pagkalala",
+    "english": "Masculinity / Being male"
+  },
+  {
+    "kapampangan": "Pagkabae",
+    "english": "Femininity / Being female"
+  },
+  {
+    "kapampangan": "Pipagkasakit",
+    "english": "Place of suffering / Ordeal"
+  },
+  {
+    "kapampangan": "Kasangkapan (material)",
+    "english": "Material / Ingredient"
+  },
+  {
+    "kapampangan": "Managkal",
+    "english": "To close / Shut"
+  },
+  {
+    "kapampangan": "Magdamdam",
+    "english": "To feel (e.g., pain, emotion)"
+  },
+  {
+    "kapampangan": "Kapigilan",
+    "english": "Control / Restraint"
+  },
+  {
+    "kapampangan": "Pagkabalik",
+    "english": "Returning (noun)"
+  },
+  {
+    "kapampangan": "Panabing a dutung",
+    "english": "Wooden fence"
+  },
+  {
+    "kapampangan": "Matulid a kaisipan",
+    "english": "Correct thinking"
+  },
+  {
+    "kapampangan": "Mabayat a obra",
+    "english": "Heavy work / Difficult task"
+  },
+  {
+    "kapampangan": "Malambing a salita",
+    "english": "Tender words"
+  },
+  {
+    "kapampangan": "Kaladua ning lugud",
+    "english": "Soul of love"
+  },
+  {
+    "kapampangan": "Balik-balikan",
+    "english": "To repeatedly return to"
+  },
+  {
+    "kapampangan": "Pamatudtud",
+    "english": "Lullaby / Something to induce sleep"
+  },
+  {
+    "kapampangan": "Magising ka! (imperative)",
+    "english": "Wake up!"
+  },
+  {
+    "kapampangan": "Kailangan da ka",
+    "english": "I need you"
+  },
+  {
+    "kapampangan": "Magsalita ka Kapampangan?",
+    "english": "Do you speak Kapampangan?"
+  },
+  {
+    "kapampangan": "Pamamahayag na",
+    "english": "His/her announcement"
+  },
+  {
+    "kapampangan": "Panandit mu",
+    "english": "Just a moment"
+  },
+  {
+    "kapampangan": "Kaganapan ning panaun",
+    "english": "Fullness of time"
+  },
+  {
+    "kapampangan": "Laman ning pusu",
+    "english": "Content of the heart"
+  },
+  {
+    "kapampangan": "Pamamie",
+    "english": "Giving / Distribution"
+  },
+  {
+    "kapampangan": "Pamanyawu",
+    "english": "Asking / Request (noun)"
+  },
+  {
+    "kapampangan": "Pipagdalanan",
+    "english": "Passageway / Path taken"
+  },
+  {
+    "kapampangan": "Panalig",
+    "english": "Trust / Faith (noun)"
+  },
+  {
+    "kapampangan": "Mipali",
+    "english": "To get hot"
+  },
+  {
+    "kapampangan": "Mirimla",
+    "english": "To get cold"
+  },
+  {
+    "kapampangan": "Pangakuyad",
+    "english": "Shortness"
+  },
+  {
+    "kapampangan": "Pamagbayu",
+    "english": "Change / Renewal (noun)"
+  },
+  {
+    "kapampangan": "Panambing",
+    "english": "To weigh / Balance"
+  },
+  {
+    "kapampangan": "Pagkasane",
+    "english": "Training / Familiarity"
+  },
+  {
+    "kapampangan": "Pamitumpak",
+    "english": "Collision / Impact"
+  },
+  {
+    "kapampangan": "Kasabihan",
+    "english": "Proverb / Saying"
+  },
+  {
+    "kapampangan": "Pamiyugne",
+    "english": "Relationship / Connection"
+  },
+  {
+    "kapampangan": "Pagkalalu",
+    "english": "Left-handedness / Being on the left"
+  },
+  {
+    "kapampangan": "Pagkahanan",
+    "english": "Being located / Position"
+  },
+  {
+    "kapampangan": "Malinis a pusu",
+    "english": "Clean heart / Pure heart"
+  },
+  {
+    "kapampangan": "Maaslam a lupa",
+    "english": "Sour face / Frowning"
+  },
+  {
+    "kapampangan": "Mapait a karanasan",
+    "english": "Bitter experience"
+  },
+  {
+    "kapampangan": "Masaya ya ing aldo",
+    "english": "The day is happy"
+  },
+  {
+    "kapampangan": "Marok ya ing angin",
+    "english": "The wind is bad"
+  },
+  {
+    "kapampangan": "Magsilbi ya king Dios",
+    "english": "He/she serves God"
+  },
+  {
+    "kapampangan": "Panu ya gawan ini?",
+    "english": "How is this done?"
+  },
+  {
+    "kapampangan": "Kasalungsungan a problema",
+    "english": "Current problem"
+  },
+  {
+    "kapampangan": "Magdaramdam ku lugud",
+    "english": "I feel love"
+  },
+  {
+    "kapampangan": "Panayan mu ku",
+    "english": "Wait for me"
+  },
+  {
+    "kapampangan": "Pagkapanganakan",
+    "english": "Birth (event)"
+  },
+  {
+    "kapampangan": "Kamay mu",
+    "english": "Your hand"
+  },
+  {
+    "kapampangan": "Pibuklatan ning pinto",
+    "english": "Opening of the door"
+  },
+  {
+    "kapampangan": "Bayan nang Balibago",
+    "english": "Town of Balibago"
+  },
+  {
+    "kapampangan": "Pulang labi",
+    "english": "Red lips"
+  },
+  {
+    "kapampangan": "Matas a bunduk",
+    "english": "Tall mountain"
+  },
+  {
+    "kapampangan": "Mababa ing pituan",
+    "english": "The seat is low"
+  },
+  {
+    "kapampangan": "Nanu pang kasangkapan?",
+    "english": "What other tools?"
+  },
+  {
+    "kapampangan": "Kapatad ku",
+    "english": "My sibling"
+  },
+  {
+    "kapampangan": "Anak ku yan",
+    "english": "That is my child"
+  },
+  {
+    "kapampangan": "Kayabe ku la",
+    "english": "They are with me"
+  },
+  {
+    "kapampangan": "Ing Kalulu na",
+    "english": "His/her soul"
+  },
+  {
+    "kapampangan": "Pagkasane ning tau",
+    "english": "Training of a person"
+  },
+  {
+    "kapampangan": "Panakitan nang maragul",
+    "english": "Big earnings"
+  },
+  {
+    "kapampangan": "Kuran na ning pamangan",
+    "english": "Pot for the food"
+  },
+  {
+    "kapampangan": "Sulu ning aldo",
+    "english": "Light of the sun"
+  },
+  {
+    "kapampangan": "Pasbul ning bale",
+    "english": "Door of the house"
+  },
+  {
+    "kapampangan": "Gabay ning panginoon",
+    "english": "Guidance of the Lord"
+  },
+  {
+    "kapampangan": "Mananap ya ing asu",
+    "english": "The dog is an animal"
+  },
+  {
+    "kapampangan": "Ali ku kayan",
+    "english": "I cannot"
+  },
+  {
+    "kapampangan": "Kabaldugan ning bie",
+    "english": "Meaning of life"
+  },
+  {
+    "kapampangan": "Pagasa king bukas",
+    "english": "Hope for tomorrow"
+  },
+  {
+    "kapampangan": "Lumabas ya keni",
+    "english": "He/she passed by here"
+  },
+  {
+    "kapampangan": "Pamanawa na",
+    "english": "His/her forgiveness"
+  },
+  {
+    "kapampangan": "Dalaga pa",
+    "english": "Still unmarried (female)"
+  },
+  {
+    "kapampangan": "Binata pa",
+    "english": "Still unmarried (male)"
+  },
+  {
+    "kapampangan": "Asawa ku yan",
+    "english": "That is my spouse"
+  },
+  {
+    "kapampangan": "Panganay nang anak",
+    "english": "His/her eldest child"
+  },
+  {
+    "kapampangan": "Bunsong kapatad",
+    "english": "Youngest sibling"
+  },
+  {
+    "kapampangan": "Pagkalamu ning Dios",
+    "english": "Comfort of God"
+  },
+  {
+    "kapampangan": "Maglakad-lakad la",
+    "english": "They are strolling"
+  },
+  {
+    "kapampangan": "Panyulung ning bansa",
+    "english": "Progress of the country"
+  },
+  {
+    "kapampangan": "Manyumbung ku keka",
+    "english": "I complain to you"
+  },
+  {
+    "kapampangan": "Pamanantabe mu",
+    "english": "Your guidance"
+  },
+  {
+    "kapampangan": "Mamagkalulu ya",
+    "english": "He/she is merciful"
+  },
+  {
+    "kapampangan": "Kapag oras na",
+    "english": "When it's time"
+  },
+  {
+    "kapampangan": "Manalig ka?",
+    "english": "Do you believe?"
+  },
+  {
+    "kapampangan": "Kasalukuyan nang gagawan",
+    "english": "Currently being done"
+  },
+  {
+    "kapampangan": "Panayan mu ku keni",
+    "english": "Wait for me here"
+  },
+  {
+    "kapampangan": "Mipamisan, mapagal ku",
+    "english": "Sometimes, I'm tired"
+  },
+  {
+    "kapampangan": "Panglaw ya ing sulu",
+    "english": "The light is yellow"
+  },
+  {
+    "kapampangan": "Balik ya ing aldo",
+    "english": "The sun returned / It's daytime again"
+  },
+  {
+    "kapampangan": "Mamuklat ya king aklat",
+    "english": "He/she is opening the book"
+  },
+  {
+    "kapampangan": "Sisira ya ing gamit",
+    "english": "The equipment is breaking down"
+  },
+  {
+    "kapampangan": "Panugali nang Kapampangan",
+    "english": "Kapampangan custom"
+  },
+  {
+    "kapampangan": "Malagad ya ing bulaklak",
+    "english": "The flower is rare"
+  },
+  {
+    "kapampangan": "Panyulung ning pusu",
+    "english": "Progress of the heart"
+  }
+]
