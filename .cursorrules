@@ -16,7 +16,6 @@
 - Structure:
   - `routes/`: API endpoints.
   - `db/`: Drizzle ORM schema and queries.
-  - `services/`: Business logic and integrations.
   - `types/`: TypeScript types.
 
 ### Frontend

@@ -197,6 +197,8 @@ const ChatForm = ({
             additionalContext: data.additionalContext,
             responseTone: data.responseTone,
             imageResponse: data.imageResponse,
+            responseCharacter: data.responseCharacter,
+            responseDescription: data.responseDescription,
           },
         });
 

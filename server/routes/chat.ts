@@ -1,7 +1,7 @@
 // chat.ts (AI Response Agent)
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { zValidator } from "@hono/zod-validator";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -9,7 +9,7 @@ import path from "path";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
-import { chatSessions, messages } from "../db/schema";
+import { messages, threads } from "../db/schema";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -92,6 +92,7 @@ export const chatRequestSchema = z.object({
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
   sentiment: z.string().optional(), // Added for sentiment analysis
   sender: z.string().optional(), // Added for sender
+  threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
   conversationPreferences: z
     .object({
       briefAndConcise: z.boolean().optional(),
@@ -124,6 +125,7 @@ const chat = new Hono()
       observerNextSteps,
       sentiment,
       sender,
+      threadType,
       conversationPreferences,
     } = parsed.data;
     let currentSessionId = sessionId;
@@ -139,8 +141,8 @@ const chat = new Hono()
 
       const session = await db
         .select()
-        .from(chatSessions)
-        .where(eq(chatSessions.id, currentSessionId))
+        .from(threads)
+        .where(eq(threads.id, currentSessionId))
         .limit(1);
 
       if (
@@ -221,15 +223,16 @@ const chat = new Hono()
           : "user";
         await db.insert(messages).values({
           sessionId: currentSessionId,
+          threadType: threadType || "main",
           sender: safeSender,
           text: message,
           timestamp: new Date(),
         });
         // Update chat session's updated_at
         await db
-          .update(chatSessions)
+          .update(threads)
           .set({ updatedAt: new Date() })
-          .where(eq(chatSessions.id, currentSessionId));
+          .where(eq(threads.id, currentSessionId));
       } catch (error) {
         console.error("Error saving user message:", error);
       }
@@ -237,7 +240,12 @@ const chat = new Hono()
       const msgCountRes = await db
         .select({ count: count() })
         .from(messages)
-        .where(eq(messages.sessionId, currentSessionId));
+        .where(
+          and(
+            eq(messages.sessionId, currentSessionId),
+            eq(messages.threadType, threadType || "main")
+          )
+        );
       const msgCount = msgCountRes[0]?.count || 0;
       if (msgCount > 0 && msgCount % 10 === 0) {
         try {
@@ -256,9 +264,9 @@ const chat = new Hono()
             summaryResult.response.candidates?.[0]?.content?.parts?.[0]?.text ||
             "";
           await db
-            .update(chatSessions)
+            .update(threads)
             .set({ summaryContext: summaryText })
-            .where(eq(chatSessions.id, currentSessionId));
+            .where(eq(threads.id, currentSessionId));
         } catch (err) {
           console.error("Error generating or saving summary:", err);
         }
@@ -280,9 +288,9 @@ const chat = new Hono()
           summaryResult.response.candidates?.[0]?.content?.parts?.[0]?.text ||
           "";
         await db
-          .update(chatSessions)
+          .update(threads)
           .set({ summaryContext: summaryText })
-          .where(eq(chatSessions.id, currentSessionId));
+          .where(eq(threads.id, currentSessionId));
       } catch (err) {
         console.error("Error generating or saving initial summary:", err);
       }
@@ -404,15 +412,16 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           let aiSender: SenderType = "ai";
           await db.insert(messages).values({
             sessionId: currentSessionId,
+            threadType: threadType || "main",
             sender: aiSender,
             text: aiResponseText,
             timestamp: new Date(),
           });
           // Update chat session's updated_at
           await db
-            .update(chatSessions)
+            .update(threads)
             .set({ updatedAt: new Date() })
-            .where(eq(chatSessions.id, currentSessionId));
+            .where(eq(threads.id, currentSessionId));
 
           await saveConversationToFile(
             currentSessionId,
@@ -445,7 +454,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         const existingMessages = await db
           .select()
           .from(messages)
-          .where(eq(messages.sessionId, sessionId))
+          .where(
+            and(
+              eq(messages.sessionId, sessionId),
+              eq(messages.threadType, "main")
+            )
+          )
           .orderBy(messages.timestamp);
 
         return c.json(

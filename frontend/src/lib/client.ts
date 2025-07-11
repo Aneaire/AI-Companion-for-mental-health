@@ -121,6 +121,26 @@ export const impostorApi = {
     }
     return res.json();
   },
+  async listThreads(userId: number) {
+    const res = await client.api.impostor.threads.$get({
+      query: { userId: userId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch impersonate threads");
+    return res.json();
+  },
+  async createThread(data: {
+    userId: number;
+    personaId?: number;
+    sessionName?: string;
+    preferredName?: string;
+    reasonForVisit: string;
+  }) {
+    const res = await client.api.impostor.threads.$post({
+      json: data,
+    });
+    if (!res.ok) throw new Error("Failed to create impersonate thread");
+    return res.json();
+  },
   async sendMessage({
     sessionId,
     message,
@@ -138,6 +158,32 @@ export const impostorApi = {
     });
     if (!res.ok) throw new Error("Failed to send impostor message");
     return res; // Return the Response object for streaming
+  },
+  async getMessages(
+    sessionId: number,
+    threadType: "impersonate" = "impersonate"
+  ) {
+    const res = await fetch(
+      `http://localhost:4000/api/impostor/messages?sessionId=${sessionId}&threadType=${threadType}`
+    );
+    if (!res.ok) throw new Error("Failed to fetch impersonate messages");
+    return res.json();
+  },
+  async postMessage(data: {
+    sessionId: number;
+    threadType: "impersonate";
+    sender: "user" | "ai" | "therapist" | "impostor";
+    text: string;
+  }) {
+    const res = await fetch(`http://localhost:4000/api/impostor/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to post impersonate message");
+    return res.json();
   },
 };
 

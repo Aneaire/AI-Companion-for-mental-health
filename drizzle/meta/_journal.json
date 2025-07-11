@@ -113,6 +113,13 @@
       "when": 1751508013340,
       "tag": "0015_odd_bloodscream",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1752205994430,
+      "tag": "0016_mighty_cloak",
+      "breakpoints": true
     }
   ]
 }

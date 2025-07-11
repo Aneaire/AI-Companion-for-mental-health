@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/clerk-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { threadsApi } from "../client";
+import { impostorApi, threadsApi } from "../client";
 import { useUserProfile } from "./user";
 
 export const useThreads = () => {
@@ -23,8 +23,7 @@ export const usePersonaThreads = (enabled = true) => {
     queryKey: ["personaThreads", userProfile?.id],
     queryFn: async () => {
       if (!userProfile?.id) throw new Error("User not authenticated");
-      const all = await threadsApi.list(userProfile.id);
-      return all.filter((t: any) => t.personaId);
+      return impostorApi.listThreads(userProfile.id);
     },
     enabled: !!userProfile?.id && enabled,
   });
@@ -37,8 +36,7 @@ export const useNormalThreads = (enabled = true) => {
     queryKey: ["normalThreads", userProfile?.id],
     queryFn: async () => {
       if (!userProfile?.id) throw new Error("User not authenticated");
-      const all = await threadsApi.list(userProfile.id);
-      return all.filter((t: any) => !t.personaId);
+      return threadsApi.list(userProfile.id);
     },
     enabled: !!userProfile?.id && enabled,
   });

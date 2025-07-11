@@ -214,12 +214,20 @@ export function Thread({
       const fetchMessages = async () => {
         try {
           setLoadingHistory(true);
-          const response = await client.api.chat[":sessionId"].$get({
-            param: { sessionId: String(selectedThreadId) },
-          });
-          if (!response.ok)
-            throw new Error("Failed to fetch previous messages");
-          const rawMessages = await response.json();
+          let rawMessages: any[];
+          if (isImpersonateMode) {
+            rawMessages = await impostorApi.getMessages(
+              selectedThreadId,
+              "impersonate"
+            );
+          } else {
+            const response = await client.api.chat[":sessionId"].$get({
+              param: { sessionId: String(selectedThreadId) },
+            });
+            if (!response.ok)
+              throw new Error("Failed to fetch previous messages");
+            rawMessages = await response.json();
+          }
           const fetchedMessages: FetchedMessage[] = rawMessages.map(
             (msg: any) => ({
               role: msg.sender === "ai" ? "model" : "user",
@@ -228,18 +236,18 @@ export function Thread({
             })
           );
           clearMessages();
-          // Remove any temp/streaming messages from the store before adding loaded messages
-          // (Assumes clearMessages resets messages, but if not, filter here)
           setProgressRecommendation("");
           lastSuggestionRef.current = "";
-          fetchedMessages.forEach((msg) =>
-            addMessage({
-              sender: msg.role === "model" ? "ai" : "user",
+          // Sort messages by timestamp to ensure correct order
+          const sortedMessages = fetchedMessages
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .map((msg) => ({
+              sender: (msg.role === "model" ? "ai" : "user") as "user" | "ai",
               text: msg.text,
               timestamp: new Date(msg.timestamp),
-              contextId: "default",
-            })
-          );
+              contextId: isImpersonateMode ? "impersonate" : "default",
+            }));
+          sortedMessages.forEach((msg) => addMessage(msg));
           setShowChat(true);
         } catch (error) {
           console.error("Error fetching previous messages:", error);
@@ -256,33 +264,42 @@ export function Thread({
     updateLastMessage,
     setSessionId,
     clearMessages,
+    isImpersonateMode,
   ]);
 
   const handleFormSubmit = async (sessionId: number) => {
     setSessionId(sessionId);
     setShowChat(true);
-    const response = await client.api.chat[":sessionId"].$get({
-      param: { sessionId: String(sessionId) },
-    });
-    if (response.ok) {
-      const rawMessages = await response.json();
-      const fetchedMessages: FetchedMessage[] = rawMessages.map((msg: any) => ({
-        role: msg.sender === "ai" ? "model" : "user",
-        text: msg.text,
-        timestamp: msg.timestamp,
-      }));
-      clearMessages();
-      setProgressRecommendation("");
-      lastSuggestionRef.current = "";
-      fetchedMessages.forEach((msg) =>
-        addMessage({
-          sender: msg.role === "model" ? "ai" : "user",
-          text: msg.text,
-          timestamp: new Date(msg.timestamp),
-          contextId: "default",
-        })
-      );
+    let rawMessages: any[];
+    if (isImpersonateMode) {
+      rawMessages = await impostorApi.getMessages(sessionId, "impersonate");
+    } else {
+      const response = await client.api.chat[":sessionId"].$get({
+        param: { sessionId: String(sessionId) },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch messages");
+      }
+      rawMessages = await response.json();
     }
+    const fetchedMessages: FetchedMessage[] = rawMessages.map((msg: any) => ({
+      role: msg.sender === "ai" ? "model" : "user",
+      text: msg.text,
+      timestamp: msg.timestamp,
+    }));
+    clearMessages();
+    setProgressRecommendation("");
+    lastSuggestionRef.current = "";
+    // Sort messages by timestamp to ensure correct order
+    const sortedMessages = fetchedMessages
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((msg) => ({
+        sender: (msg.role === "model" ? "ai" : "user") as "user" | "ai",
+        text: msg.text,
+        timestamp: new Date(msg.timestamp),
+        contextId: isImpersonateMode ? "impersonate" : "default",
+      }));
+    sortedMessages.forEach((msg) => addMessage(msg));
   };
 
   const handleSendMessage = async (message: string): Promise<void> => {
@@ -296,7 +313,7 @@ export function Thread({
       sender: "user",
       text: message,
       timestamp: new Date(),
-      contextId: "default",
+      contextId: (mode as string) === "impersonate" ? "impersonate" : "default",
     };
 
     if (message.trim()) {
@@ -354,45 +371,64 @@ export function Thread({
         "[Thread] Sending message with initialForm:",
         currentContext.initialForm
       );
-      const response = await client.api.chat.$post({
-        json: {
-          message: message,
-          context: currentContext.messages.map((msg) => ({
-            role: msg.sender === "ai" ? "model" : "user",
-            text: msg.text,
-            timestamp: msg.timestamp.getTime(),
-            ...(msg.contextId ? { contextId: msg.contextId } : {}),
-          })),
-          ...(currentContext.sessionId
-            ? { sessionId: currentContext.sessionId }
-            : {}),
-          ...(currentContext.initialForm
-            ? { initialForm: currentContext.initialForm }
-            : {}),
-          ...(message.trim() === "" && !currentContext.messages.length
-            ? { initialForm: undefined }
-            : {}),
-          ...(progressRecommendation
-            ? { systemInstruction: progressRecommendation }
-            : {}),
-          ...(userProfile?.id ? { userId: String(userProfile.id) } : {}),
-          // Pass observer output as systemInstruction, observerRationale, observerNextSteps, sentiment
-          ...(observerStrategy ? { systemInstruction: observerStrategy } : {}),
-          ...(observerStrategy ? { strategy: observerStrategy } : {}),
-          ...(observerRationale ? { observerRationale } : {}),
-          ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
-          ...(observerSentiment ? { sentiment: observerSentiment } : {}),
-          // Pass conversation preferences
-          ...(getPreferencesInstruction()
-            ? {
-                systemInstruction: observerStrategy
-                  ? `${observerStrategy} ${getPreferencesInstruction()}`
-                  : getPreferencesInstruction(),
-              }
-            : {}),
-          ...(conversationPreferences ? { conversationPreferences } : {}),
-        },
-      });
+      let response;
+      if (mode === "impersonate") {
+        if (!currentContext.sessionId) {
+          throw new Error("No session ID available");
+        }
+        await impostorApi.postMessage({
+          sessionId: currentContext.sessionId,
+          threadType: "impersonate",
+          sender: "user",
+          text: message,
+        });
+        // For impersonate mode, we don't get a streaming response, so we're done
+        return;
+      } else {
+        response = await client.api.chat.$post({
+          json: {
+            message: message,
+            context: currentContext.messages.map((msg) => ({
+              role: msg.sender === "ai" ? "model" : "user",
+              text: msg.text,
+              timestamp: msg.timestamp.getTime(),
+              ...(msg.contextId ? { contextId: msg.contextId } : {}),
+            })),
+            ...(currentContext.sessionId
+              ? { sessionId: currentContext.sessionId }
+              : {}),
+            ...(currentContext.initialForm
+              ? { initialForm: currentContext.initialForm }
+              : {}),
+            ...(message.trim() === "" && !currentContext.messages.length
+              ? { initialForm: undefined }
+              : {}),
+            ...(progressRecommendation
+              ? { systemInstruction: progressRecommendation }
+              : {}),
+            ...(userProfile?.id ? { userId: String(userProfile.id) } : {}),
+            // Pass observer output as systemInstruction, observerRationale, observerNextSteps, sentiment
+            ...(observerStrategy
+              ? { systemInstruction: observerStrategy }
+              : {}),
+            ...(observerStrategy ? { strategy: observerStrategy } : {}),
+            ...(observerRationale ? { observerRationale } : {}),
+            ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
+            ...(observerSentiment ? { sentiment: observerSentiment } : {}),
+            // Pass conversation preferences
+            ...(getPreferencesInstruction()
+              ? {
+                  systemInstruction: observerStrategy
+                    ? `${observerStrategy} ${getPreferencesInstruction()}`
+                    : getPreferencesInstruction(),
+                }
+              : {}),
+            ...(conversationPreferences ? { conversationPreferences } : {}),
+            // Pass threadType based on which page we're on, not the mode switch
+            threadType: isImpersonateMode ? "impersonate" : "main",
+          },
+        });
+      }
 
       if (!response.ok) {
         const errorData = (await response.json()) as ErrorResponse;
@@ -412,7 +448,8 @@ export function Thread({
           text: "",
           timestamp: new Date(),
           tempId,
-          contextId: "default",
+          contextId:
+            (mode as string) === "impersonate" ? "impersonate" : "default",
         };
         addMessage(aiMessage);
       }
@@ -487,7 +524,8 @@ export function Thread({
             ? error.message
             : "I apologize, but I encountered an error. Please try again.",
         timestamp: new Date(),
-        contextId: "default",
+        contextId:
+          (mode as string) === "impersonate" ? "impersonate" : "default",
       };
       addMessage(errorMessage);
     } finally {
@@ -635,6 +673,7 @@ export function Thread({
             userId: String(userProfile.id),
             sender: "impostor",
             signal: abortController.signal,
+            threadType: "impersonate",
             ...(observerStrategy
               ? { systemInstruction: observerStrategy }
               : {}),

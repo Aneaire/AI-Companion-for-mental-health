@@ -2,7 +2,7 @@ import { ImpersonateDialog } from "@/components/chat/ImpersonateDialog";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
-import { impostorApi, threadsApi } from "@/lib/client";
+import { impostorApi } from "@/lib/client";
 import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
@@ -73,7 +73,7 @@ function Impersonate() {
     console.log("[impostorApi.upsertProfile] Sending data:", payload);
     const persona = await impostorApi.upsertProfile(payload);
     // 2. Create thread with personaId
-    const newThread = await threadsApi.create({
+    const newThread = await impostorApi.createThread({
       userId: payload.userId,
       personaId: persona.id,
       reasonForVisit: formData.problemDescription,
