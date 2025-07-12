@@ -211,8 +211,8 @@ const ChatForm = ({
         // Invalidate threads query so sidebar refreshes
         await queryClient.invalidateQueries({ queryKey: ["threads"] });
 
-        // Store form data in chat context
-        setInitialForm(data);
+        // Store form data in chat context with the session ID
+        setInitialForm(data, session.id);
 
         // Then get the AI's initial response
         const chatResponse = await client.api.chat.$post({

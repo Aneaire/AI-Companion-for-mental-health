@@ -167,6 +167,24 @@ ${message}
       .where(eq(impersonateThread.userId, parseInt(userId)));
     return c.json(threads);
   })
+  .get("/threads/:threadId", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    const thread = await db
+      .select()
+      .from(impersonateThread)
+      .where(eq(impersonateThread.id, parseInt(threadId)))
+      .limit(1);
+
+    if (!thread.length) {
+      return c.json({ error: "Thread not found" }, 404);
+    }
+
+    return c.json(thread[0]);
+  })
   .post("/threads", async (c) => {
     const body = await c.req.json();
     const schema = z.object({

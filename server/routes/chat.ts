@@ -5,7 +5,6 @@ import { and, count, eq } from "drizzle-orm";
 import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import path from "path";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
@@ -22,36 +21,29 @@ const saveConversationToFile = async (
   systemInstructions: string,
   conversationHistory: Content[]
 ) => {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const fileName = `chat_session_${sessionId}_${timestamp}.txt`;
-  const filePath = path.join(process.cwd(), "chat_logs", fileName);
+  try {
+    const fileName = `chat_logs/conversation_${sessionId}_${Date.now()}.md`;
+    const content = `# Chat Conversation - Session ${sessionId}
 
-  if (!fs.existsSync(path.join(process.cwd(), "chat_logs"))) {
-    fs.mkdirSync(path.join(process.cwd(), "chat_logs"));
-  }
-
-  const content = `Session ID: ${sessionId}
-Timestamp: ${timestamp}
-
-System Instructions:
+## System Instructions
 ${systemInstructions}
 
-Conversation History:
+## Conversation History
 ${conversationHistory
-  .map((msg) => `${msg.role.toUpperCase()}: ${msg.parts[0].text}`)
+  .map((msg) => `**${msg.role}:** ${msg.parts[0].text}`)
   .join("\n\n")}
 
-User Prompt:
+## User Message
 ${prompt}
 
-AI Response:
+## AI Response
 ${response}
-----------------------------------------
+
+---
+*Generated at ${new Date().toISOString()}*
 `;
 
-  try {
-    await fs.promises.writeFile(filePath, content, "utf8");
-    console.log(`Conversation saved to ${fileName}`);
+    await fs.promises.writeFile(fileName, content, "utf8");
   } catch (error) {
     console.error("Error saving conversation to file:", error);
   }
@@ -129,7 +121,6 @@ const chat = new Hono()
       conversationPreferences,
     } = parsed.data;
     let currentSessionId = sessionId;
-    console.log(strategy);
 
     if (initialForm) {
       if (!currentSessionId) {
@@ -362,7 +353,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
     // Crisis protocol: stream a crisis message before the AI response if needed
     if (sentiment === "urgent" || sentiment === "crisis_risk") {
-      console.log("Crisis protocol triggered: streaming crisis message");
       const crisisMessage = `\nIt sounds like you're going through an incredibly difficult time, and I want you to know that support is available. I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please reach out to trained professionals:\n\n* **National Suicide Prevention Lifeline:** Call or text 988 (US and Canada)\n* **Crisis Text Line:** Text HOME to 741741 (US)\n* **Emergency Services:** Call your local emergency number (e.g., 911 in the US, 999 in UK, 112 in EU, etc.)\n\nPlease reach out to one of these resources. They are there to help you.\n`;
       return streamSSE(c, async (stream) => {
         await stream.writeSSE({ event: "crisis", data: crisisMessage });

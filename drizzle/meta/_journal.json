@@ -120,6 +120,13 @@
       "when": 1752205994430,
       "tag": "0016_mighty_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1752300997016,
+      "tag": "0017_awesome_sleeper",
+      "breakpoints": true
     }
   ]
 }

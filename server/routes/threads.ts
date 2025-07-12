@@ -18,6 +18,24 @@ export const threadsRoute = new Hono()
       .orderBy(desc(threads.updatedAt));
     return c.json(sessions);
   })
+  .get("/:threadId", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    const thread = await db
+      .select()
+      .from(threads)
+      .where(eq(threads.id, parseInt(threadId)))
+      .limit(1);
+
+    if (!thread.length) {
+      return c.json({ error: "Thread not found" }, 404);
+    }
+
+    return c.json(thread[0]);
+  })
   .post("/", async (c) => {
     const body = await c.req.json();
     // Validation schema matching the form data

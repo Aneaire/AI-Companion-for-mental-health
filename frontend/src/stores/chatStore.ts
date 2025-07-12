@@ -22,6 +22,8 @@ interface ConversationContext {
 interface ChatState {
   currentContext: ConversationContext;
   contexts: Map<string, ConversationContext>;
+  // Store initial forms per session ID
+  sessionInitialForms: Map<number, FormData>;
   loadingState: "idle" | "observer" | "generating" | "streaming";
   conversationPreferences: ConversationPreferences;
   setCurrentContext: (contextId: string) => void;
@@ -31,7 +33,8 @@ interface ChatState {
   updateLastMessage: (newText: string) => void;
   setSessionId: (sessionId: number | null) => void;
   clearMessages: () => void;
-  setInitialForm: (form: FormData) => void;
+  setInitialForm: (form: FormData, sessionId?: number) => void;
+  getInitialForm: (sessionId: number) => FormData | undefined;
   setLoadingState: (
     state: "idle" | "observer" | "generating" | "streaming"
   ) => void;
@@ -50,6 +53,7 @@ export const useChatStore = create<ChatState>()(
         sessionId: null,
       },
       contexts: new Map(),
+      sessionInitialForms: new Map(),
       loadingState: "idle",
       conversationPreferences: {
         briefAndConcise: false,
@@ -129,11 +133,38 @@ export const useChatStore = create<ChatState>()(
           currentContext: { ...currentContext, messages: [] },
         });
       },
-      setInitialForm: (form: FormData) => {
-        const { currentContext } = get();
-        set({
-          currentContext: { ...currentContext, initialForm: form },
-        });
+      setInitialForm: (form: FormData, sessionId?: number) => {
+        const { currentContext, sessionInitialForms } = get();
+        const targetSessionId = sessionId || currentContext.sessionId;
+
+        if (targetSessionId) {
+          // Store form per session
+          const updatedForms = new Map(sessionInitialForms);
+          updatedForms.set(targetSessionId, form);
+
+          set({
+            sessionInitialForms: updatedForms,
+            // Also update current context if this is the current session
+            currentContext:
+              targetSessionId === currentContext.sessionId
+                ? { ...currentContext, initialForm: form }
+                : currentContext,
+          });
+        } else {
+          // Fallback to current context (for backward compatibility)
+          set({
+            currentContext: { ...currentContext, initialForm: form },
+          });
+        }
+      },
+      getInitialForm: (sessionId: number) => {
+        const { sessionInitialForms, currentContext } = get();
+        return (
+          sessionInitialForms.get(sessionId) ||
+          (currentContext.sessionId === sessionId
+            ? currentContext.initialForm
+            : undefined)
+        );
       },
       setLoadingState: (
         state: "idle" | "observer" | "generating" | "streaming"
@@ -163,6 +194,11 @@ export const useChatStore = create<ChatState>()(
           if (parsed.state && parsed.state.contexts) {
             parsed.state.contexts = new Map(parsed.state.contexts);
           }
+          if (parsed.state && parsed.state.sessionInitialForms) {
+            parsed.state.sessionInitialForms = new Map(
+              parsed.state.sessionInitialForms
+            );
+          }
           if (
             parsed.state &&
             parsed.state.currentContext &&
@@ -186,6 +222,9 @@ export const useChatStore = create<ChatState>()(
                 sessionId: value.state.currentContext.sessionId,
                 initialForm: value.state.currentContext.initialForm,
               },
+              sessionInitialForms: Array.from(
+                value.state.sessionInitialForms.entries()
+              ),
             },
           });
           localStorage.setItem(name, serializedValue);
@@ -198,6 +237,7 @@ export const useChatStore = create<ChatState>()(
           sessionId: state.currentContext.sessionId,
           initialForm: state.currentContext.initialForm,
         },
+        sessionInitialForms: Array.from(state.sessionInitialForms.entries()),
         impersonateMaxExchanges: state.impersonateMaxExchanges,
         conversationPreferences: state.conversationPreferences,
       }),
@@ -210,6 +250,9 @@ export const useChatStore = create<ChatState>()(
             sessionId: persistedState.currentContext?.sessionId ?? null,
             initialForm: persistedState.currentContext?.initialForm,
           },
+          sessionInitialForms: new Map(
+            persistedState.sessionInitialForms || []
+          ),
           impersonateMaxExchanges: persistedState.impersonateMaxExchanges ?? 10,
           conversationPreferences: persistedState.conversationPreferences ?? {
             briefAndConcise: false,

@@ -159,6 +159,7 @@ export function Thread({
     setSessionId,
     clearMessages,
     setInitialForm,
+    getInitialForm,
     loadingState,
     setLoadingState,
     impersonateMaxExchanges,
@@ -208,6 +209,69 @@ export function Thread({
     return instructions.length > 0 ? instructions.join(". ") + "." : "";
   };
 
+  // Helper function to fetch thread initial form data
+  const fetchThreadInitialForm = async (
+    threadId: number,
+    isImpersonate: boolean
+  ) => {
+    try {
+      if (isImpersonate) {
+        // For impersonate threads, fetch from impostor API
+        const response = await fetch(
+          `http://localhost:4000/api/impostor/threads/${threadId}`
+        );
+        if (response.ok) {
+          const threadData = await response.json();
+          // Convert impersonate thread data to FormData format
+          const formData: import("@/lib/client").FormData = {
+            preferredName: threadData.preferredName || "",
+            reasonForVisit: threadData.reasonForVisit || "",
+            // Add other fields as needed for impersonate threads
+          };
+          setInitialForm(formData, threadId);
+          return formData;
+        }
+      } else {
+        // For main threads, fetch from main API
+        const response = await client.api.threads[":threadId"].$get({
+          param: { threadId: String(threadId) },
+        });
+        if (response.ok) {
+          const threadData = await response.json();
+          // Convert main thread data to FormData format
+          const formData: import("@/lib/client").FormData = {
+            preferredName: threadData.preferredName || "",
+            currentEmotions: threadData.currentEmotions || [],
+            reasonForVisit: threadData.reasonForVisit || "",
+            supportType: (threadData.supportType || []) as (
+              | "listen"
+              | "copingTips"
+              | "encouragement"
+              | "resources"
+              | "other"
+            )[],
+            supportTypeOther: threadData.supportTypeOther || "",
+            additionalContext: threadData.additionalContext || "",
+            responseTone: (threadData.responseTone || undefined) as
+              | "empathetic"
+              | "practical"
+              | "encouraging"
+              | "concise"
+              | undefined,
+            imageResponse: threadData.imageResponse || "",
+            responseCharacter: threadData.responseCharacter || "",
+            responseDescription: threadData.responseDescription || "",
+          };
+          setInitialForm(formData, threadId);
+          return formData;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching thread initial form:", error);
+    }
+    return undefined;
+  };
+
   useEffect(() => {
     if (selectedThreadId) {
       setSessionId(selectedThreadId);
@@ -249,6 +313,9 @@ export function Thread({
             }));
           sortedMessages.forEach((msg) => addMessage(msg));
           setShowChat(true);
+
+          // Fetch and set the correct initial form for this thread
+          await fetchThreadInitialForm(selectedThreadId, isImpersonateMode);
         } catch (error) {
           console.error("Error fetching previous messages:", error);
           setSessionId(null);
@@ -265,6 +332,7 @@ export function Thread({
     setSessionId,
     clearMessages,
     isImpersonateMode,
+    setInitialForm,
   ]);
 
   const handleFormSubmit = async (sessionId: number) => {
@@ -300,6 +368,9 @@ export function Thread({
         contextId: isImpersonateMode ? "impersonate" : "default",
       }));
     sortedMessages.forEach((msg) => addMessage(msg));
+
+    // Fetch and set the correct initial form for this thread
+    await fetchThreadInitialForm(sessionId, isImpersonateMode);
   };
 
   const handleSendMessage = async (message: string): Promise<void> => {
@@ -320,6 +391,11 @@ export function Thread({
       addMessage(userMessage);
     }
 
+    // Get the correct initial form for this session
+    const sessionInitialForm = currentContext.sessionId
+      ? getInitialForm(currentContext.sessionId)
+      : currentContext.initialForm;
+
     // 1. Get observer output (strategy, rationale, next_steps)
     let observerStrategy = "";
     let observerRationale = "";
@@ -327,19 +403,20 @@ export function Thread({
     let observerSentiment = "";
     setLoadingState("observer");
     try {
+      // Build the most up-to-date messages array for the observer
+      const messagesForObserver: { sender: "user" | "ai"; text: string }[] = [
+        ...currentContext.messages
+          .filter((msg) => msg.sender === "user" || msg.sender === "ai")
+          .map((msg) => ({
+            sender: (msg.sender === "user" ? "user" : "ai") as "user" | "ai",
+            text: msg.text,
+          })),
+        ...(message ? [{ sender: "user" as "user", text: message }] : []),
+      ];
+
       const observerRes = await observerApi.getSuggestion({
-        messages: [
-          ...currentContext.messages
-            .filter((msg) => msg.sender === "user" || msg.sender === "ai")
-            .map((msg) => ({
-              sender: msg.sender as "user" | "ai",
-              text: msg.text,
-            })),
-          ...(message ? [{ sender: "user" as "user", text: message }] : []),
-        ],
-        ...(currentContext.initialForm
-          ? { initialForm: currentContext.initialForm }
-          : {}),
+        messages: messagesForObserver,
+        ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
       });
       observerStrategy = observerRes.strategy || "";
       observerRationale = observerRes.rationale || "";
@@ -369,7 +446,7 @@ export function Thread({
     try {
       console.log(
         "[Thread] Sending message with initialForm:",
-        currentContext.initialForm
+        sessionInitialForm
       );
       let response;
       if (mode === "impersonate") {
@@ -397,9 +474,7 @@ export function Thread({
             ...(currentContext.sessionId
               ? { sessionId: currentContext.sessionId }
               : {}),
-            ...(currentContext.initialForm
-              ? { initialForm: currentContext.initialForm }
-              : {}),
+            ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
             ...(message.trim() === "" && !currentContext.messages.length
               ? { initialForm: undefined }
               : {}),
@@ -535,40 +610,49 @@ export function Thread({
   };
 
   // Run agent when selectedThreadId changes (only for initial load)
+  // Removed this useEffect to prevent multiple observer calls
+  // The observer is now only called in handleSendMessage when needed
+
+  // Call observer once when thread is loaded to populate DevTools
   useEffect(() => {
     if (
       selectedThreadId &&
       currentContext.messages.some((msg) => msg.sender === "user") &&
       !isStreaming &&
-      !loadingHistory
+      !loadingHistory &&
+      agentStrategy === "" // Only if we don't already have strategy data
     ) {
       (async () => {
         try {
+          // Get the correct initial form for this session
+          const sessionInitialForm = getInitialForm(selectedThreadId);
+
           const res = await observerApi.getSuggestion({
             messages: currentContext.messages
               .filter((msg) => msg.sender === "user" || msg.sender === "ai")
               .map((msg) => ({
-                sender: msg.sender as "user" | "ai",
+                sender: (msg.sender === "user" ? "user" : "ai") as
+                  | "user"
+                  | "ai",
                 text: msg.text,
               })),
-            ...(currentContext.initialForm
-              ? { initialForm: currentContext.initialForm }
-              : {}),
+            ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
           });
           setAgentStrategy(res.strategy || "");
           setAgentRationale(res.rationale || "");
           setAgentNextSteps(res.next_steps || []);
         } catch (error) {
           console.error("Error getting observer suggestion:", error);
-        } finally {
-          setLoadingState("idle");
         }
       })();
-    } else if (!currentContext.messages.some((msg) => msg.sender === "user")) {
-      setAgentStrategy("");
-      setAgentRationale("");
-      setAgentNextSteps([]);
     }
+  }, [selectedThreadId, loadingHistory, getInitialForm]); // Only depend on thread change and loading state
+
+  // Clear agent strategy when switching threads
+  useEffect(() => {
+    setAgentStrategy("");
+    setAgentRationale("");
+    setAgentNextSteps([]);
   }, [selectedThreadId]);
 
   useEffect(() => {
@@ -622,6 +706,11 @@ export function Thread({
         : "Hello, I am here for therapy. I have been struggling with some issues.";
       let lastSender = lastValidMessage ? lastValidMessage.sender : null;
 
+      // Get the correct initial form for this session
+      const sessionInitialForm = currentContext.sessionId
+        ? getInitialForm(currentContext.sessionId)
+        : currentContext.initialForm;
+
       while (
         exchanges < impersonateMaxExchanges &&
         isImpersonatingRef.current
@@ -637,18 +726,26 @@ export function Thread({
           let observerNextSteps: string[] = [];
           let observerSentiment = "";
           try {
+            // Build the most up-to-date messages array for the observer
+            const messagesForObserver: {
+              sender: "user" | "ai";
+              text: string;
+            }[] = [
+              ...currentContext.messages
+                .filter((msg) => msg.sender === "user" || msg.sender === "ai")
+                .map((msg) => ({
+                  sender: (msg.sender === "user" ? "user" : "ai") as
+                    | "user"
+                    | "ai",
+                  text: msg.text,
+                })),
+              { sender: "user", text: lastMessage },
+            ];
+
             const observerRes = await observerApi.getSuggestion({
-              messages: [
-                ...currentContext.messages
-                  .filter((msg) => msg.sender === "user" || msg.sender === "ai")
-                  .map((msg) => ({
-                    sender: msg.sender as "user" | "ai",
-                    text: msg.text,
-                  })),
-                { sender: "user", text: lastMessage },
-              ],
-              ...(currentContext.initialForm
-                ? { initialForm: currentContext.initialForm }
+              messages: messagesForObserver,
+              ...(sessionInitialForm
+                ? { initialForm: sessionInitialForm }
                 : {}),
             });
             observerStrategy = observerRes.strategy || "";
@@ -843,6 +940,11 @@ export function Thread({
     setMode(isImpersonateMode ? "impersonate" : "chat");
   }, [isImpersonateMode]);
 
+  // Get the correct initial form for the current session
+  const currentSessionInitialForm = currentContext.sessionId
+    ? getInitialForm(currentContext.sessionId)
+    : currentContext.initialForm;
+
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
       {/* Enhanced Header with subtle shadow */}
@@ -911,7 +1013,7 @@ export function Thread({
         agentNextSteps={agentNextSteps}
         messageCount={currentContext.messages.length}
         messages={currentContext.messages}
-        initialForm={currentContext.initialForm}
+        initialForm={currentSessionInitialForm}
         isOpen={showDevTools}
         onClose={() => setShowDevTools(false)}
       />

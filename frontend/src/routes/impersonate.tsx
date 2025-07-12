@@ -39,11 +39,14 @@ function Impersonate() {
     // Find the selected thread and set initial form
     const thread = personaThreads.find((t) => t.id === id);
     if (thread) {
-      setInitialForm({
-        preferredName: thread.preferredName || thread.sessionName || "",
-        reasonForVisit: thread.reasonForVisit || "",
-        // add other required fields if needed
-      });
+      setInitialForm(
+        {
+          preferredName: thread.preferredName || thread.sessionName || "",
+          reasonForVisit: thread.reasonForVisit || "",
+          // add other required fields if needed
+        },
+        id
+      );
     }
   };
 
@@ -81,11 +84,14 @@ function Impersonate() {
     });
     addPersonaThread(newThread);
     setSelectedThreadId(newThread.id);
-    setInitialForm({
-      preferredName: formData.fullName,
-      reasonForVisit: formData.problemDescription,
-      // add other required fields if needed
-    });
+    setInitialForm(
+      {
+        preferredName: formData.fullName,
+        reasonForVisit: formData.problemDescription,
+        // add other required fields if needed
+      },
+      newThread.id
+    );
     setImpersonateDialogOpen(false);
   };
 
