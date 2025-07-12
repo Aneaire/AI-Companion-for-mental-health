@@ -8,7 +8,7 @@ import { streamSSE } from "hono/streaming";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
-import { messages, threads } from "../db/schema";
+import { messages, sessions, threads } from "../db/schema";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -77,7 +77,7 @@ export const chatRequestSchema = z.object({
     .optional(),
   message: z.string(), // The actual new message from the user
   userId: z.string().optional(), // Now accepts string userId
-  sessionId: z.number().optional(), // Existing session ID for ongoing chats
+  sessionId: z.number().optional(), // Session ID for ongoing chats
   strategy: z.string().optional(), // Added for strategy from the agent
   nextSteps: z.array(z.string()).optional(), // Added for next steps from the agent
   observerRationale: z.string().optional(), // Added for observer rationale
@@ -130,23 +130,62 @@ const chat = new Hono()
         );
       }
 
-      const session = await db
-        .select()
-        .from(threads)
-        .where(eq(threads.id, currentSessionId))
+      // Validate session exists, user has access, and session is active
+      const sessionData = await db
+        .select({
+          session: sessions,
+          thread: threads,
+        })
+        .from(sessions)
+        .innerJoin(threads, eq(sessions.threadId, threads.id))
+        .where(eq(sessions.id, currentSessionId))
         .limit(1);
 
       if (
-        session.length === 0 ||
-        String(session[0].userId) !== String(userId)
+        sessionData.length === 0 ||
+        String(sessionData[0].thread.userId) !== String(userId)
       ) {
         return c.json({ error: "Invalid session or unauthorized" }, 403);
+      }
+
+      // Check if session is finished
+      if (sessionData[0].session.status === "finished") {
+        return c.json(
+          { error: "This session has been finished and is no longer active" },
+          400
+        );
       }
     } else if (!currentSessionId) {
       return c.json(
         { error: "Session ID is required for ongoing chats." },
         400
       );
+    } else {
+      // For ongoing chats, validate session exists, user has access, and session is active
+      const sessionData = await db
+        .select({
+          session: sessions,
+          thread: threads,
+        })
+        .from(sessions)
+        .innerJoin(threads, eq(sessions.threadId, threads.id))
+        .where(eq(sessions.id, currentSessionId))
+        .limit(1);
+
+      if (
+        sessionData.length === 0 ||
+        String(sessionData[0].thread.userId) !== String(userId)
+      ) {
+        return c.json({ error: "Invalid session or unauthorized" }, 403);
+      }
+
+      // Check if session is finished
+      if (sessionData[0].session.status === "finished") {
+        return c.json(
+          { error: "This session has been finished and is no longer active" },
+          400
+        );
+      }
     }
 
     const conversationHistory: Content[] = [];
@@ -202,7 +241,7 @@ const chat = new Hono()
     conversationHistory.push({ role: "user", parts: [{ text: message }] });
 
     // Always save the user message if there is a message and a session
-    if (message && currentSessionId) {
+    if (message && currentSessionId && threadType !== "impersonate") {
       try {
         // Ensure sender is a valid enum value
         const allowedSenders = ["user", "ai", "therapist", "impostor"] as const;
@@ -219,11 +258,11 @@ const chat = new Hono()
           text: message,
           timestamp: new Date(),
         });
-        // Update chat session's updated_at
+        // Update session's updated_at
         await db
-          .update(threads)
+          .update(sessions)
           .set({ updatedAt: new Date() })
-          .where(eq(threads.id, currentSessionId));
+          .where(eq(sessions.id, currentSessionId));
       } catch (error) {
         console.error("Error saving user message:", error);
       }
@@ -255,9 +294,9 @@ const chat = new Hono()
             summaryResult.response.candidates?.[0]?.content?.parts?.[0]?.text ||
             "";
           await db
-            .update(threads)
-            .set({ summaryContext: summaryText })
-            .where(eq(threads.id, currentSessionId));
+            .update(sessions)
+            .set({ summary: summaryText })
+            .where(eq(sessions.id, currentSessionId));
         } catch (err) {
           console.error("Error generating or saving summary:", err);
         }
@@ -279,9 +318,9 @@ const chat = new Hono()
           summaryResult.response.candidates?.[0]?.content?.parts?.[0]?.text ||
           "";
         await db
-          .update(threads)
-          .set({ summaryContext: summaryText })
-          .where(eq(threads.id, currentSessionId));
+          .update(sessions)
+          .set({ summary: summaryText })
+          .where(eq(sessions.id, currentSessionId));
       } catch (err) {
         console.error("Error generating or saving initial summary:", err);
       }
@@ -390,7 +429,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           aiResponseText += chunkText;
           await stream.writeSSE({ data: chunkText });
         }
-        if (currentSessionId) {
+        if (currentSessionId && threadType !== "impersonate") {
           // Alternate sender for AI-to-AI loop
           const allowedSenders = [
             "user",
@@ -407,11 +446,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             text: aiResponseText,
             timestamp: new Date(),
           });
-          // Update chat session's updated_at
+          // Update session's updated_at
           await db
-            .update(threads)
+            .update(sessions)
             .set({ updatedAt: new Date() })
-            .where(eq(threads.id, currentSessionId));
+            .where(eq(sessions.id, currentSessionId));
 
           await saveConversationToFile(
             currentSessionId,

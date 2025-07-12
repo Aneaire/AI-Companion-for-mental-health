@@ -127,6 +127,13 @@
       "when": 1752300997016,
       "tag": "0017_awesome_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1752310789827,
+      "tag": "0018_slow_onslaught",
+      "breakpoints": true
     }
   ]
 }

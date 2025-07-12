@@ -1,13 +1,15 @@
 import { ChatDialog } from "@/components/chat/ChatDialog";
 import type { FormData } from "@/components/chat/ChatForm";
 import MobileTopbar from "@/components/chat/MobileTopbar";
-import { Sidebar } from "@/components/chat/Sidebar";
+import { Sidebar, type Thread as ThreadType } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
+import { threadsApi } from "@/lib/client";
 import { useCreateThread, useNormalThreads } from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 function getThreadTitle(thread: any) {
   if (thread.sessionName) return thread.sessionName;
@@ -25,31 +27,173 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
+    null
+  );
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { conversationPreferences, setConversationPreferences } =
-    useChatStore();
+  const {
+    conversationPreferences,
+    setConversationPreferences,
+    setThreadSessions,
+    getThreadSessions,
+    getInitialForm,
+    setInitialForm,
+  } = useChatStore();
 
-  const { data: threadsApi, isLoading } = useNormalThreads(true);
+  const { data: threadsData, isLoading } = useNormalThreads(true);
   const { normalThreads, setNormalThreads, addNormalThread } =
     useThreadsStore();
+
+  // Clear chat state when main page loads
   useEffect(() => {
-    if (!isLoading && Array.isArray(threadsApi)) {
-      setNormalThreads(threadsApi);
+    const { clearMessages, setSessionId, setThreadId } =
+      useChatStore.getState();
+    clearMessages();
+    setSessionId(null);
+    setThreadId(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && Array.isArray(threadsData)) {
+      setNormalThreads(threadsData);
     }
-  }, [isLoading, threadsApi, setNormalThreads]);
+  }, [isLoading, threadsData, setNormalThreads]);
+
   const threadsWithoutPersona = normalThreads;
   const createThread = useCreateThread();
   const { addMessage, setSessionId, clearMessages } = useChatStore();
 
-  const handleSelectThread = (id: number) => {
+  // Fetch sessions for threads
+  useEffect(() => {
+    const fetchSessionsForThreads = async () => {
+      for (const thread of threadsWithoutPersona) {
+        try {
+          const sessions = await threadsApi.getSessions(thread.id);
+          setThreadSessions(thread.id, sessions);
+        } catch (error) {
+          console.error(
+            `Error fetching sessions for thread ${thread.id}:`,
+            error
+          );
+        }
+      }
+    };
+
+    if (threadsWithoutPersona.length > 0) {
+      fetchSessionsForThreads();
+    }
+  }, [threadsWithoutPersona, setThreadSessions]);
+
+  const handleSelectThread = async (id: number) => {
     if (threadsWithoutPersona.some((t) => t.id === id)) {
       setSelectedThreadId(id);
+      setSelectedSessionId(null); // Clear session selection when selecting thread
+
+      // Check session status and get the latest active session
+      try {
+        const sessionCheck = await threadsApi.checkSession(id);
+
+        // Update sessions for this thread
+        const sessions = await threadsApi.getSessions(id);
+        setThreadSessions(id, sessions);
+
+        // Select the latest active session
+        if (sessionCheck.latestSession) {
+          setSelectedSessionId(sessionCheck.latestSession.id);
+        }
+      } catch (error) {
+        console.error("Error checking session status:", error);
+      }
     }
+  };
+
+  const handleSelectSession = (sessionId: number) => {
+    setSelectedSessionId(sessionId);
   };
 
   const handleNewThread = () => {
     setChatDialogOpen(true);
+  };
+
+  const handleNewSession = async (threadId: number) => {
+    try {
+      const newSession = await threadsApi.createSession(threadId, {
+        sessionName: `Session ${(getThreadSessions(threadId)?.length || 0) + 1}`,
+      });
+
+      // Update sessions for this thread
+      const currentSessions = getThreadSessions(threadId) || [];
+      setThreadSessions(threadId, [...currentSessions, newSession]);
+
+      // Select the new session
+      setSelectedSessionId(newSession.id);
+
+      toast.success("New session created!");
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast.error("Failed to create new session");
+    }
+  };
+
+  const handleExpireSession = async (threadId: number) => {
+    try {
+      // Get current sessions for this thread
+      const currentSessions = getThreadSessions(threadId) || [];
+      const activeSession = currentSessions.find(
+        (session) => session.status === "active"
+      );
+
+      if (!activeSession) {
+        toast.error("No active session found to expire");
+        return;
+      }
+
+      // Get the initial form from the current session before expiring it
+      const currentInitialForm = getInitialForm(activeSession.id);
+
+      // Call API to mark session as finished
+      const response = await fetch(
+        `http://localhost:4000/api/threads/${threadId}/expire-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ sessionId: activeSession.id }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to expire session");
+      }
+
+      const result = await response.json();
+
+      // Refresh sessions for this thread
+      const updatedSessions = await threadsApi.getSessions(threadId);
+      setThreadSessions(threadId, updatedSessions);
+
+      // If the expired session was selected, select the new active session
+      if (selectedSessionId === activeSession.id) {
+        const newActiveSession = updatedSessions.find(
+          (session) => session.status === "active"
+        );
+        if (newActiveSession) {
+          setSelectedSessionId(newActiveSession.id);
+
+          // Copy the initial form to the new session
+          if (currentInitialForm) {
+            setInitialForm(currentInitialForm, newActiveSession.id);
+          }
+        }
+      }
+
+      toast.success("Session expired! New session created.");
+    } catch (error) {
+      console.error("Error expiring session:", error);
+      toast.error("Failed to expire session");
+    }
   };
 
   const handleChatFormSubmit = (
@@ -58,7 +202,8 @@ function Index() {
     sessionId: number,
     newThread?: any
   ) => {
-    setSessionId(sessionId);
+    // Don't set session ID here - let the Thread component handle it
+    // The session ID will be set when the thread is selected
     clearMessages();
     const cleanAIResponse = aiResponse.replace(/^[0-9]+/, "").trim();
     addMessage({
@@ -92,6 +237,13 @@ function Index() {
     }
   }, [isLoading, threadsWithoutPersona, selectedThreadId]);
 
+  // Prepare threads with sessions for sidebar
+  const threadsWithSessions: ThreadType[] = threadsWithoutPersona.map((t) => ({
+    id: t.id,
+    title: getThreadTitle(t),
+    sessions: getThreadSessions(t.id),
+  }));
+
   return (
     <div className="flex h-screen w-full">
       {/* Mobile Topbar for mobile screens */}
@@ -103,13 +255,14 @@ function Index() {
         />
       </div>
       <Sidebar
-        threads={threadsWithoutPersona.map((t) => ({
-          id: t.id,
-          title: getThreadTitle(t),
-        }))}
+        threads={threadsWithSessions}
         onSelectThread={handleSelectThread}
+        onSelectSession={handleSelectSession}
         onNewThread={handleNewThread}
+        onNewSession={handleNewSession}
+        onExpireSession={handleExpireSession}
         selectedThreadId={selectedThreadId}
+        selectedSessionId={selectedSessionId}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -136,15 +289,42 @@ function Index() {
             </button>
           </div>
         ) : (
-          <Thread selectedThreadId={selectedThreadId} />
+          <Thread
+            selectedThreadId={selectedThreadId}
+            selectedSessionId={selectedSessionId}
+          />
         )}
         <ChatDialog
           open={chatDialogOpen}
           onOpenChange={setChatDialogOpen}
           onSubmit={handleChatFormSubmit}
-          onThreadCreated={(session) => {
-            setSelectedThreadId(session.id);
+          onThreadCreated={async (session) => {
+            // Close the dialog first
             setChatDialogOpen(false);
+
+            // Select the new thread (session contains both thread data and sessionId)
+            setSelectedThreadId(session.id);
+
+            // Add a small delay to ensure the thread is properly created
+            setTimeout(async () => {
+              // Fetch sessions for the new thread and select the first session
+              try {
+                const sessions = await threadsApi.getSessions(session.id);
+                setThreadSessions(session.id, sessions);
+
+                // Select the first session (Session 1) or use the sessionId from the response
+                if (sessions.length > 0) {
+                  setSelectedSessionId(sessions[0].id);
+                } else if (session.sessionId) {
+                  // If no sessions found but we have a sessionId from the response, use it
+                  setSelectedSessionId(session.sessionId);
+                }
+              } catch (error) {
+                console.error("Error fetching sessions for new thread:", error);
+                // If we can't fetch sessions, still try to select the thread
+                // The Thread component will handle creating a session if needed
+              }
+            }, 100);
           }}
         />
       </div>

@@ -7,6 +7,7 @@ import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
 import { useAuth } from "@clerk/clerk-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -22,9 +23,18 @@ function Impersonate() {
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
     clerkId || null
   );
-  const { setInitialForm } = useChatStore();
+  const { setInitialForm, clearMessages, setSessionId, setThreadId } =
+    useChatStore();
   const { conversationPreferences, setConversationPreferences } =
     useChatStore();
+  const queryClient = useQueryClient();
+
+  // Clear chat state when impersonate page loads
+  useEffect(() => {
+    clearMessages();
+    setSessionId(null);
+    setThreadId(null);
+  }, [clearMessages, setSessionId, setThreadId]);
 
   // Select the first thread on first render if available
   useEffect(() => {
@@ -75,6 +85,12 @@ function Impersonate() {
     };
     console.log("[impostorApi.upsertProfile] Sending data:", payload);
     const persona = await impostorApi.upsertProfile(payload);
+
+    // Invalidate the impostor profile query to fetch the newly created profile
+    await queryClient.invalidateQueries({
+      queryKey: ["impostorProfile", userId],
+    });
+
     // 2. Create thread with personaId
     const newThread = await impostorApi.createThread({
       userId: payload.userId,
@@ -111,8 +127,11 @@ function Impersonate() {
           title: t.sessionName || t.reasonForVisit || `Thread #${t.id}`,
         }))}
         onSelectThread={handleSelectThread}
+        onSelectSession={() => {}} // No session management for impersonate
         onNewThread={handleNewThread}
+        onNewSession={() => {}} // No session creation for impersonate
         selectedThreadId={selectedThreadId}
+        selectedSessionId={null} // No session selection for impersonate
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />

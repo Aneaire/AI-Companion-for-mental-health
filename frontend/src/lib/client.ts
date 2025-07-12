@@ -14,7 +14,7 @@ export default client;
 export const threadsApi = {
   async list(userId: number, threadType: "chat" = "chat") {
     const res = await client.api.threads.$get({
-      query: { userId: userId.toString(), threadType },
+      query: { userId: userId.toString() },
     });
     if (!res.ok) throw new Error("Failed to fetch threads");
     return res.json();
@@ -36,6 +36,47 @@ export const threadsApi = {
       json: data,
     });
     if (!res.ok) throw new Error("Failed to create thread");
+    return res.json();
+  },
+  async get(threadId: number) {
+    const res = await client.api.threads[":threadId"].$get({
+      param: { threadId: threadId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch thread");
+    return res.json();
+  },
+  async getSessions(threadId: number) {
+    const res = await client.api.threads[":threadId"].sessions.$get({
+      param: { threadId: threadId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch thread sessions");
+    return res.json();
+  },
+  async createSession(threadId: number, data: { sessionName?: string }) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/${threadId}/sessions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to create session");
+    return res.json();
+  },
+  async checkSession(threadId: number) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/${threadId}/check-session`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (!res.ok) throw new Error("Failed to check session status");
     return res.json();
   },
 };

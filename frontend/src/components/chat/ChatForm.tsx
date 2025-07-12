@@ -212,7 +212,7 @@ const ChatForm = ({
         await queryClient.invalidateQueries({ queryKey: ["threads"] });
 
         // Store form data in chat context with the session ID
-        setInitialForm(data, session.id);
+        setInitialForm(data, session.sessionId || session.id);
 
         // Then get the AI's initial response
         const chatResponse = await client.api.chat.$post({
@@ -220,7 +220,7 @@ const ChatForm = ({
             message: "",
             initialForm: data,
             userId: String(userProfile.id),
-            sessionId: session.id,
+            sessionId: session.sessionId || session.id,
           },
         });
 
@@ -302,6 +302,22 @@ const ChatForm = ({
     },
     onSuccess: (response) => {
       console.log("Thread created and AI responded:", response);
+
+      // Call the onSubmit callback with the form data and AI response
+      if (onSubmit) {
+        onSubmit(
+          response.session,
+          response.response,
+          response.session.sessionId || response.session.id
+        );
+      }
+
+      // Call the onThreadCreated callback to handle thread selection
+      // The response.session contains both thread data and sessionId
+      if (onThreadCreated) {
+        onThreadCreated(response.session);
+      }
+
       toast("We're ready to support you. Let's begin.");
     },
     onError: (error) => {
