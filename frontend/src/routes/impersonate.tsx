@@ -1,7 +1,7 @@
 import { ImpersonateDialog } from "@/components/chat/ImpersonateDialog";
+import { ImpersonateThread } from "@/components/chat/ImpersonateThread";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar } from "@/components/chat/Sidebar";
-import { Thread } from "@/components/chat/Thread";
 import { impostorApi } from "@/lib/client";
 import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
@@ -143,10 +143,7 @@ function Impersonate() {
         />
 
         <div className="flex-1 min-h-0">
-          <Thread
-            selectedThreadId={selectedThreadId}
-            isImpersonateMode={mode === "impersonate"}
-          />
+          <ImpersonateThread selectedThreadId={selectedThreadId} />
         </div>
       </div>
     </div>

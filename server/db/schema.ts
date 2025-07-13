@@ -78,9 +78,12 @@ export const impersonateThread = pgTable("impersonate_thread", {
 // Main messages table (now references sessions instead of threads)
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  sessionId: integer("session_id")
-    .notNull()
-    .references(() => sessions.id, { onDelete: "cascade" }),
+  sessionId: integer("session_id").references(() => sessions.id, {
+    onDelete: "cascade",
+  }), // Optional for impersonate threads
+  threadId: integer("thread_id").references(() => impersonateThread.id, {
+    onDelete: "cascade",
+  }), // For impersonate threads
   threadType: varchar("thread_type", {
     enum: ["main", "impersonate"],
   }).notNull(),

@@ -273,14 +273,59 @@ export const chatApi = {
         message,
         sessionId,
         userId,
-        ...(context ? { context } : {}),
-        ...(sender ? { sender } : {}),
-        ...(initialForm ? { initialForm } : {}),
+        context,
+        sender,
+        initialForm,
         ...rest,
       },
       ...(signal ? { fetch: { signal } } : {}),
     });
-    if (!res.ok) throw new Error("Failed to send chat message");
+    if (!res.ok) throw new Error("Failed to send message");
     return res;
+  },
+};
+
+// New chat API for impersonate threads
+export const impersonateChatApi = {
+  async sendMessage({
+    message,
+    threadId,
+    userId,
+    context,
+    sender,
+    initialForm,
+    signal,
+    ...rest
+  }: {
+    message: string;
+    threadId: number;
+    userId: string;
+    context?: any[];
+    sender?: "user" | "ai" | "therapist" | "impostor";
+    initialForm?: any;
+    signal?: AbortSignal;
+    [key: string]: any;
+  }) {
+    const res = await client.api.chat.impersonate.$post({
+      json: {
+        message,
+        threadId,
+        userId,
+        context,
+        sender,
+        initialForm,
+        ...rest,
+      },
+      ...(signal ? { fetch: { signal } } : {}),
+    });
+    if (!res.ok) throw new Error("Failed to send impersonate message");
+    return res;
+  },
+  async getMessages(threadId: number) {
+    const res = await client.api.chat.impersonate[":threadId"].$get({
+      param: { threadId: threadId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch impersonate messages");
+    return res.json();
   },
 };

@@ -134,6 +134,13 @@
       "when": 1752310789827,
       "tag": "0018_slow_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1752384317194,
+      "tag": "0019_calm_doctor_strange",
+      "breakpoints": true
     }
   ]
 }
