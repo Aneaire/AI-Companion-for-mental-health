@@ -3,6 +3,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import client, { observerApi, threadsApi } from "@/lib/client";
 import { useUserProfile } from "@/lib/queries/user";
+import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
 import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
@@ -284,7 +285,7 @@ export function Thread({
               setShowChat(true);
 
               // Fetch and set the correct initial form for this session
-              await fetchThreadInitialForm(sessionCheck.latestSession.id);
+              await fetchThreadInitialForm(selectedThreadId);
             } else {
               // No sessions yet - this might be a new thread
               // Set showChat to true so the interface is visible
@@ -432,6 +433,7 @@ export function Thread({
     let sessionInitialForm = currentContext.sessionId
       ? getInitialForm(currentContext.sessionId)
       : currentContext.initialForm;
+    sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
 
     // 1. Get observer output (strategy, rationale, next_steps)
     let observerStrategy = "";
@@ -441,15 +443,16 @@ export function Thread({
     setLoadingState("observer");
     try {
       // Build the most up-to-date messages array for the observer
-      const messagesForObserver: { sender: "user" | "ai"; text: string }[] = [
-        ...currentContext.messages
-          .filter((msg) => msg.sender === "user" || msg.sender === "ai")
-          .map((msg) => ({
-            sender: (msg.sender === "user" ? "user" : "ai") as "user" | "ai",
-            text: msg.text,
-          })),
-        ...(message ? [{ sender: "user" as "user", text: message }] : []),
-      ];
+      const messagesForObserver = buildMessagesForObserver(
+        currentContext.messages,
+        message
+      );
+
+      // Debug log for observer payload
+      console.log("Observer payload", {
+        messages: messagesForObserver,
+        initialForm: sessionInitialForm,
+      });
 
       const observerRes = await observerApi.getSuggestion({
         messages: messagesForObserver,
