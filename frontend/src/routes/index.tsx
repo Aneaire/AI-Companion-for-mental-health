@@ -26,10 +26,12 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(
-    null
-  );
+  // Remove local state for selectedThreadId and selectedSessionId
+  // Use Zustand store for selection state
+  const selectedThreadId = useChatStore((s) => s.currentContext.threadId);
+  const selectedSessionId = useChatStore((s) => s.currentContext.sessionId);
+  const setThreadId = useChatStore((s) => s.setThreadId);
+  const setSessionId = useChatStore((s) => s.setSessionId);
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const {
@@ -62,7 +64,7 @@ function Index() {
 
   const threadsWithoutPersona = normalThreads;
   const createThread = useCreateThread();
-  const { addMessage, setSessionId, clearMessages } = useChatStore();
+  const { addMessage, clearMessages } = useChatStore();
 
   // Fetch sessions for threads
   useEffect(() => {
@@ -87,8 +89,8 @@ function Index() {
 
   const handleSelectThread = async (id: number) => {
     if (threadsWithoutPersona.some((t) => t.id === id)) {
-      setSelectedThreadId(id);
-      setSelectedSessionId(null); // Clear session selection when selecting thread
+      setThreadId(id);
+      setSessionId(null); // Clear session selection when selecting thread
 
       // Check session status and get the latest active session
       try {
@@ -100,7 +102,7 @@ function Index() {
 
         // Select the latest active session
         if (sessionCheck.latestSession) {
-          setSelectedSessionId(sessionCheck.latestSession.id);
+          setSessionId(sessionCheck.latestSession.id);
         }
       } catch (error) {
         console.error("Error checking session status:", error);
@@ -109,7 +111,7 @@ function Index() {
   };
 
   const handleSelectSession = (sessionId: number) => {
-    setSelectedSessionId(sessionId);
+    setSessionId(sessionId);
   };
 
   const handleNewThread = () => {
@@ -127,7 +129,7 @@ function Index() {
       setThreadSessions(threadId, [...currentSessions, newSession]);
 
       // Select the new session
-      setSelectedSessionId(newSession.id);
+      setSessionId(newSession.id);
 
       toast.success("New session created!");
     } catch (error) {
@@ -180,7 +182,7 @@ function Index() {
           (session) => session.status === "active"
         );
         if (newActiveSession) {
-          setSelectedSessionId(newActiveSession.id);
+          setSessionId(newActiveSession.id);
 
           // Copy the initial form to the new session
           if (currentInitialForm) {
@@ -233,9 +235,9 @@ function Index() {
       threadsWithoutPersona.length > 0 &&
       selectedThreadId == null
     ) {
-      setSelectedThreadId(threadsWithoutPersona[0].id);
+      setThreadId(threadsWithoutPersona[0].id);
     }
-  }, [isLoading, threadsWithoutPersona, selectedThreadId]);
+  }, [isLoading, threadsWithoutPersona, selectedThreadId, setThreadId]);
 
   // Prepare threads with sessions for sidebar
   const threadsWithSessions: ThreadType[] = threadsWithoutPersona.map((t) => ({
@@ -261,8 +263,8 @@ function Index() {
         onNewThread={handleNewThread}
         onNewSession={handleNewSession}
         onExpireSession={handleExpireSession}
-        selectedThreadId={selectedThreadId}
-        selectedSessionId={selectedSessionId}
+        selectedThreadId={selectedThreadId ?? null}
+        selectedSessionId={selectedSessionId ?? null}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -290,8 +292,8 @@ function Index() {
           </div>
         ) : (
           <Thread
-            selectedThreadId={selectedThreadId}
-            selectedSessionId={selectedSessionId}
+            selectedThreadId={selectedThreadId ?? null}
+            selectedSessionId={selectedSessionId ?? null}
           />
         )}
         <ChatDialog
@@ -303,7 +305,7 @@ function Index() {
             setChatDialogOpen(false);
 
             // Select the new thread (session contains both thread data and sessionId)
-            setSelectedThreadId(session.id);
+            setThreadId(session.id);
 
             // Add a small delay to ensure the thread is properly created
             setTimeout(async () => {
@@ -314,10 +316,10 @@ function Index() {
 
                 // Select the first session (Session 1) or use the sessionId from the response
                 if (sessions.length > 0) {
-                  setSelectedSessionId(sessions[0].id);
+                  setSessionId(sessions[0].id);
                 } else if (session.sessionId) {
                   // If no sessions found but we have a sessionId from the response, use it
-                  setSelectedSessionId(session.sessionId);
+                  setSessionId(session.sessionId);
                 }
               } catch (error) {
                 console.error("Error fetching sessions for new thread:", error);
