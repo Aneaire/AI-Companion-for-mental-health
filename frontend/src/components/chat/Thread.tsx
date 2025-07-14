@@ -748,7 +748,7 @@ export function Thread({
               messages={currentContext.messages}
               onSendMessage={onSendMessage || handleSendMessage}
               loadingState={loadingState}
-              inputVisible={false}
+              inputVisible={true}
               isImpersonateMode={false}
             />
           </div>
