@@ -278,16 +278,24 @@ export function ImpersonateThread({
       sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
 
       // Use the new impersonate chat API
+      const contextData = currentContext.messages.map((msg) => ({
+        role: msg.sender === "ai" ? "model" : "user",
+        text: msg.text,
+        timestamp: msg.timestamp.getTime(),
+        ...(msg.contextId ? { contextId: msg.contextId } : {}),
+      }));
+
+      console.log(
+        "[IMPERSONATE FRONTEND] Sending context:",
+        JSON.stringify(contextData, null, 2)
+      );
+      console.log("[IMPERSONATE FRONTEND] Context length:", contextData.length);
+
       const response = await impersonateChatApi.sendMessage({
         message: message,
         threadId: selectedThreadId!,
         userId: String(userProfile.id),
-        context: currentContext.messages.map((msg) => ({
-          role: msg.sender === "ai" ? "model" : "user",
-          text: msg.text,
-          timestamp: msg.timestamp.getTime(),
-          ...(msg.contextId ? { contextId: msg.contextId } : {}),
-        })),
+        context: contextData,
         sender: "user",
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
         ...(observerStrategy ? { strategy: observerStrategy } : {}),
@@ -305,7 +313,7 @@ export function ImpersonateThread({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ErrorResponse;
         console.error("Frontend received error data:", errorData);
         throw new Error(errorData.error || "Failed to get response");
       }
@@ -539,18 +547,30 @@ export function ImpersonateThread({
           setLoadingState("idle");
           const abortController = new AbortController();
           abortControllerRef.current = abortController;
+
+          const contextData = currentContext.messages.map((msg) => ({
+            role: msg.sender === "ai" ? "model" : "user",
+            text: msg.text,
+            timestamp: msg.timestamp.getTime(),
+            ...(msg.contextId ? { contextId: msg.contextId } : {}),
+          }));
+
+          console.log(
+            "[IMPERSONATE LOOP] Therapist turn - Context length:",
+            contextData.length
+          );
+          console.log(
+            "[IMPERSONATE LOOP] Therapist turn - Context:",
+            JSON.stringify(contextData.slice(-3), null, 2)
+          ); // Show last 3 messages
+
           const therapistResponse = await impersonateChatApi.sendMessage({
             message: lastMessage,
             threadId: selectedThreadId!,
             userId: String(userProfile.id),
             sender: "impostor",
             signal: abortController.signal,
-            context: currentContext.messages.map((msg) => ({
-              role: msg.sender === "ai" ? "model" : "user",
-              text: msg.text,
-              timestamp: msg.timestamp.getTime(),
-              ...(msg.contextId ? { contextId: msg.contextId } : {}),
-            })),
+            context: contextData,
             ...(observerStrategy
               ? { systemInstruction: observerStrategy }
               : {}),

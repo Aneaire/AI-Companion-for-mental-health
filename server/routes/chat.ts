@@ -270,12 +270,15 @@ const chat = new Hono()
     }
 
     if (context) {
+      console.log("[MAIN] Context received:", JSON.stringify(context, null, 2));
       context.forEach((msg) => {
         conversationHistory.push({
           role: msg.role === "model" ? "model" : "user",
           parts: [{ text: msg.text }],
         });
       });
+    } else {
+      console.log("[MAIN] No context provided");
     }
 
     if (
@@ -286,6 +289,25 @@ const chat = new Hono()
     }
 
     conversationHistory.push({ role: "user", parts: [{ text: message }] });
+
+    // Log the final conversation history
+    console.log(
+      "[MAIN] Final conversation history length:",
+      conversationHistory.length
+    );
+    console.log(
+      "[MAIN] Conversation history:",
+      JSON.stringify(
+        conversationHistory.map((msg) => ({
+          role: msg.role,
+          text:
+            msg.parts[0]?.text?.substring(0, 100) +
+            (msg.parts[0]?.text && msg.parts[0].text.length > 100 ? "..." : ""),
+        })),
+        null,
+        2
+      )
+    );
 
     // Always save the user message if there is a message and a session
     if (message && currentSessionId && threadType !== "impersonate") {
@@ -606,12 +628,18 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
 
       if (context) {
+        console.log(
+          "[IMPERSONATE] Context received:",
+          JSON.stringify(context, null, 2)
+        );
         context.forEach((msg) => {
           conversationHistory.push({
             role: msg.role === "model" ? "model" : "user",
             parts: [{ text: msg.text }],
           });
         });
+      } else {
+        console.log("[IMPERSONATE] No context provided");
       }
 
       if (
@@ -622,6 +650,27 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
 
       conversationHistory.push({ role: "user", parts: [{ text: message }] });
+
+      // Log the final conversation history
+      console.log(
+        "[IMPERSONATE] Final conversation history length:",
+        conversationHistory.length
+      );
+      console.log(
+        "[IMPERSONATE] Conversation history:",
+        JSON.stringify(
+          conversationHistory.map((msg) => ({
+            role: msg.role,
+            text:
+              msg.parts[0]?.text?.substring(0, 100) +
+              (msg.parts[0]?.text && msg.parts[0].text.length > 100
+                ? "..."
+                : ""),
+          })),
+          null,
+          2
+        )
+      );
 
       // Save the user message if there is a message
       if (message) {
@@ -791,6 +840,32 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             }`,
           });
         }
+      });
+    }
+  )
+  // Test endpoint to verify conversation history
+  .post(
+    "/impersonate/test",
+    zValidator("json", impersonateChatRequestSchema),
+    async (c) => {
+      const rawBody = await c.req.json();
+      const parsed = impersonateChatRequestSchema.safeParse(rawBody);
+      if (!parsed.success) {
+        console.error("Zod validation error:", parsed.error.errors);
+        return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
+      }
+
+      const { context, message } = parsed.data;
+
+      console.log("[TEST] Received message:", message);
+      console.log("[TEST] Context received:", JSON.stringify(context, null, 2));
+      console.log("[TEST] Context length:", context?.length || 0);
+
+      return c.json({
+        message: "Test successful",
+        contextLength: context?.length || 0,
+        context: context,
+        receivedMessage: message,
       });
     }
   )

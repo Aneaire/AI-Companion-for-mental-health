@@ -328,4 +328,29 @@ export const impersonateChatApi = {
     if (!res.ok) throw new Error("Failed to fetch impersonate messages");
     return res.json();
   },
+  async testConversationHistory({
+    message,
+    threadId,
+    userId,
+    context,
+    ...rest
+  }: {
+    message: string;
+    threadId: number;
+    userId: string;
+    context?: any[];
+    [key: string]: any;
+  }) {
+    const res = await client.api.chat.impersonate.test.$post({
+      json: {
+        message,
+        threadId,
+        userId,
+        context,
+        ...rest,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to test conversation history");
+    return res.json();
+  },
 };
