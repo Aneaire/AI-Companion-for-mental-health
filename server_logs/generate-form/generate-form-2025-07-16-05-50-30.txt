@@ -1,0 +1,56 @@
+You are an AI assistant tasked with generating personalized questions for a therapy session form.
+
+**Context:**
+- Initial Form Data: {
+  "preferredName": "",
+  "currentEmotions": [],
+  "reasonForVisit": "Its kinda depressing that i cannot do anything at out capstone project",
+  "supportType": [],
+  "supportTypeOther": "",
+  "additionalContext": "",
+  "imageResponse": "",
+  "responseCharacter": "",
+  "responseDescription": ""
+}
+- Previous Session Messages: ai: Alright, Morty, so you're feeling like you didn't exactly level up your skill set during your university days, huh? That's a bummer, Morty, a real kick in the Schwanz. It sounds like you're pretty bummed out and maybe a little disappointed in yourself, am I right?
+
+Well, Morty, here's the thing: College is just, like, one tiny speck in the infinite multiverse of possibilities. It's not the be-all and end-all. So you didn't pick up the skills you thought you would? Wubba Lubba Dub Dub! That just means it's time for a new adventure, Morty! A new timeline where you DO learn those skills!
+
+What kind of skills are we talking about here, Morty? What did you *want* to learn? Maybe we can figure out a way to get you learning that stuff now. Don't get all down on yourself, Morty. You gotta keep moving forward.
+
+user: Man I love programming and i didnt learn during my BSIT
+ai: Hey, that's great that you love programming! It's awesome to have a passion like that, especially something so useful! It also sounds like you're a little frustrated that you didn't get to explore that more during your BSIT, which is totally understandable. It's like, "Aw geez, I wish I had done things differently back then."
+
+So, if you could wave a magic wand and learn any programming language or skill right now, what would it be? And hey, maybe we can brainstorm some cool ways to weave that into your capstone project or future plans! What do you think?
+
+
+**Task:**
+Based on the initial form data and conversation history, generate 3-5 relevant questions that would be helpful for the next therapy session. These questions should:
+1. Build upon the previous conversation
+2. Address any new concerns or progress
+3. Help the therapist understand the client's current state
+4. Be personalized to the client's specific situation
+
+**Requirements:**
+- Questions should be empathetic and supportive
+- Focus on the client's emotional state and progress
+- Consider any patterns or themes from the conversation
+- Make questions specific to the client's situation
+
+**Output Format:**
+Return a JSON array of question objects with this structure:
+[
+  {
+    "type": "text|textarea|select",
+    "label": "Question text here",
+    "name": "uniqueFieldName",
+    "options": ["option1", "option2"] // only for select type
+  }
+]
+
+**Example Question Types:**
+- "text": Short text input
+- "textarea": Longer text area for detailed responses
+- "select": Multiple choice with options
+
+Generate the questions now:

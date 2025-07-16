@@ -26,6 +26,7 @@ export interface ThreadProps {
   selectedThreadId: number | null;
   selectedSessionId?: number | null;
   onSendMessage?: (message: string) => Promise<void>;
+  showFormIndicator?: boolean;
 }
 
 // Enhanced Loading Fallback Component
@@ -145,6 +146,7 @@ export function Thread({
   selectedThreadId,
   selectedSessionId,
   onSendMessage,
+  showFormIndicator,
 }: ThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
@@ -734,6 +736,21 @@ export function Thread({
           />
         </div>
       </div>
+
+      {/* Visual indicator for form answers being used */}
+      {showFormIndicator && (
+        <div className="mx-4 mt-4 animate-in slide-in-from-top-2 duration-500">
+          <div className="relative bg-gradient-to-r from-green-50 to-blue-50 border border-green-200/60 rounded-xl p-3 shadow-sm backdrop-blur-sm flex items-center gap-3">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-blue-400 text-white font-bold text-lg mr-2">
+              ✓
+            </span>
+            <span className="text-green-900 text-sm font-medium">
+              Session follow-up form answers are now being used to personalize
+              this session.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area with enhanced styling */}
       <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">

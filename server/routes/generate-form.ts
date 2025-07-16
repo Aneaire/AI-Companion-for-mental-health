@@ -1,9 +1,29 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import fs from "fs";
 import { Hono } from "hono";
+import path from "path";
 import { z } from "zod";
 import { geminiConfig } from "../lib/config";
 
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+function logSystemInstructionText(systemInstructionText: string) {
+  try {
+    const now = new Date();
+    const timestamp = now
+      .toISOString()
+      .replace(/[-:T]/g, "-")
+      .replace(/\..+/, "");
+    const logDir = path.join(process.cwd(), "server_logs", "generate-form");
+    const logFile = path.join(logDir, `generate-form-${timestamp}.txt`);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    fs.writeFileSync(logFile, systemInstructionText, "utf8");
+  } catch (logErr) {
+    console.error("Failed to log systemInstructionText:", logErr);
+  }
+}
 
 const generateFormRoute = new Hono().post("/", async (c) => {
   const body = await c.req.json();
@@ -16,8 +36,8 @@ const generateFormRoute = new Hono().post("/", async (c) => {
     return c.json({ success: false, error: parsed.error }, 400);
   }
   const { initialForm, messages } = parsed.data;
-  console.log("Check form", initialForm);
-  console.log("Check messages", messages);
+  // console.log("Check form", initialForm);
+  // console.log("Check messages", messages);
   // Compose a prompt for Gemini
   const prompt = `You are an AI assistant tasked with generating personalized questions for a therapy session form.
 

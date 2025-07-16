@@ -388,6 +388,9 @@ function Index() {
     );
   }
 
+  const [showFormIndicator, setShowFormIndicator] = useState(false);
+  const formIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   return (
     <div className="flex h-screen w-full">
       {/* Mobile Topbar for mobile screens */}
@@ -436,6 +439,7 @@ function Index() {
           <Thread
             selectedThreadId={selectedThreadId ?? null}
             selectedSessionId={selectedSessionId ?? null}
+            showFormIndicator={showFormIndicator}
           />
         )}
         <ChatDialog
@@ -515,6 +519,33 @@ function Index() {
                       "Form saved! Answers will be used in your next session."
                     );
                     setPostSessionDialogOpen(false);
+                    // --- Switch to the new session and show indicator ---
+                    setSessionId(session.id);
+                    clearMessages();
+                    setShowFormIndicator(true);
+                    if (formIndicatorTimeoutRef.current) {
+                      clearTimeout(formIndicatorTimeoutRef.current);
+                    }
+                    formIndicatorTimeoutRef.current = setTimeout(() => {
+                      setShowFormIndicator(false);
+                    }, 4000); // Show for 4 seconds
+                    // --- End indicator logic ---
+                    // --- Trigger therapist to send first engaging message ---
+                    // Fetch the initial form for the new session
+                    const initialForm = getInitialForm(session.id);
+                    // Compose a system message to prompt the therapist to engage
+                    const systemPrompt =
+                      "Please greet and engage the user at the start of this new session, referencing their follow-up form answers if appropriate.";
+                    // Send an empty user message to trigger the AI therapist's first message
+                    await threadsApi.sendMessage({
+                      message: "", // No user message, just trigger the AI
+                      context: [],
+                      sessionId: session.id,
+                      initialForm: initialForm,
+                      systemInstruction: systemPrompt,
+                      threadType: "main",
+                    });
+                    // --- End therapist auto-engage ---
                   } catch (err: any) {
                     setFormSubmitError(err.message || "Unknown error");
                   } finally {

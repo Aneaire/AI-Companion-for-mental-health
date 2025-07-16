@@ -1,0 +1,56 @@
+You are an AI assistant tasked with generating personalized questions for a therapy session form.
+
+**Context:**
+- Initial Form Data: {
+  "preferredName": "",
+  "currentEmotions": [],
+  "reasonForVisit": "Its kinda depressing that i cannot do anything at out capstone project",
+  "supportType": [],
+  "supportTypeOther": "",
+  "additionalContext": "",
+  "imageResponse": "",
+  "responseCharacter": "",
+  "responseDescription": ""
+}
+- Previous Session Messages: ai: Okay, before we start, please remember that I am an AI and not a real therapist or medical professional. I cannot provide diagnoses or specific medical advice. If you are in crisis or need immediate help, please contact 911 or a crisis hotline. Also, please remember that this conversation is for simulation purposes only.
+
+It sounds like you're feeling a sense of sadness and perhaps disappointment about graduating without the traditional university learning experience you had envisioned. That's completely understandable, especially given the unique circumstances many students have faced recently.
+
+It's valid to grieve the loss of what you expected or hoped for. Can you tell me more about what aspects of the university experience you feel you've missed out on the most?
+
+user: Man i hate going to school because of that i didnt learn anything
+ai: I hear you. It sounds incredibly frustrating to feel like you haven't learned anything, especially when you're putting in the time and effort to go to school. That feeling of wasted time can be really disheartening.
+
+Since you mentioned the capstone project earlier, is that feeling of not learning tied to the challenges you're facing with it? Maybe we could explore what's making it feel like you can't do anything about it. Sometimes, breaking down a big problem into smaller, manageable steps can make it feel less overwhelming.
+
+
+**Task:**
+Based on the initial form data and conversation history, generate 3-5 relevant questions that would be helpful for the next therapy session. These questions should:
+1. Build upon the previous conversation
+2. Address any new concerns or progress
+3. Help the therapist understand the client's current state
+4. Be personalized to the client's specific situation
+
+**Requirements:**
+- Questions should be empathetic and supportive
+- Focus on the client's emotional state and progress
+- Consider any patterns or themes from the conversation
+- Make questions specific to the client's situation
+
+**Output Format:**
+Return a JSON array of question objects with this structure:
+[
+  {
+    "type": "text|textarea|select",
+    "label": "Question text here",
+    "name": "uniqueFieldName",
+    "options": ["option1", "option2"] // only for select type
+  }
+]
+
+**Example Question Types:**
+- "text": Short text input
+- "textarea": Longer text area for detailed responses
+- "select": Multiple choice with options
+
+Generate the questions now:
