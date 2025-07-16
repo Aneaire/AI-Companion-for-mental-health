@@ -8,7 +8,13 @@ import { streamSSE } from "hono/streaming";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
-import { impersonateThread, messages, sessions, threads } from "../db/schema";
+import {
+  impersonateThread,
+  messages,
+  sessionForms,
+  sessions,
+  threads,
+} from "../db/schema";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -169,6 +175,18 @@ const chat = new Hono()
     } = parsed.data;
     let currentSessionId = sessionId;
 
+    // Fetch session follow-up form answers if they exist
+    let followupFormAnswers: Record<string, any> | null = null;
+    if (currentSessionId) {
+      const formRows = await db
+        .select()
+        .from(sessionForms)
+        .where(eq(sessionForms.sessionId, currentSessionId));
+      if (formRows.length > 0) {
+        followupFormAnswers = formRows[0].answers;
+      }
+    }
+
     if (initialForm) {
       if (!currentSessionId) {
         return c.json(
@@ -262,7 +280,15 @@ const chat = new Hono()
         initialContextString += `- AI Character Personality: ${initialForm.responseCharacter}\n`;
       if (initialForm.responseDescription)
         initialContextString += `- Custom Response Style: ${initialForm.responseDescription}\n`;
-
+      // Add follow-up form answers if present
+      if (followupFormAnswers) {
+        initialContextString += `\nSession Follow-up Form Answers:\n`;
+        for (const [key, value] of Object.entries(followupFormAnswers)) {
+          initialContextString += `- ${key}: ${
+            typeof value === "string" ? value : JSON.stringify(value)
+          }\n`;
+        }
+      }
       conversationHistory.push({
         role: "user",
         parts: [{ text: initialContextString }],
@@ -728,7 +754,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
 
       const model = gemini.getGenerativeModel({
-        model: geminiConfig.twoFlash,
+        model: geminiConfig.twoPoint5FlashLite,
         systemInstruction: {
           role: "model",
           parts: [{ text: systemInstructionText }],

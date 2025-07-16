@@ -79,6 +79,14 @@ export const threadsApi = {
     if (!res.ok) throw new Error("Failed to check session status");
     return res.json();
   },
+  async saveSessionForm(sessionId: number, answers: Record<string, any>) {
+    const res = await client.api.threads.sessions[":sessionId"].form.$post({
+      param: { sessionId: sessionId.toString() },
+      json: { answers },
+    });
+    if (!res.ok) throw new Error("Failed to save session form");
+    return res.json();
+  },
 };
 
 export const patientApi = {
@@ -351,6 +359,22 @@ export const impersonateChatApi = {
       },
     });
     if (!res.ok) throw new Error("Failed to test conversation history");
+    return res.json();
+  },
+};
+
+export const generateFormApi = {
+  async generate({
+    initialForm,
+    messages,
+  }: {
+    initialForm: any;
+    messages: { sender: string; text: string }[];
+  }) {
+    const res = await client.api["generate-form"].$post({
+      json: { initialForm, messages },
+    });
+    if (!res.ok) throw new Error("Failed to generate form");
     return res.json();
   },
 };

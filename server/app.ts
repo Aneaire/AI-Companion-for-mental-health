@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import chat from "./routes/chat";
+import generateFormRoute from "./routes/generate-form";
 import impostorRoute from "./routes/impostor";
 import observer from "./routes/observer";
 import patientRoute from "./routes/patient";
@@ -23,7 +24,8 @@ const routes = app
   .route("/api/progress", progressRoute)
   .route("/api/observer", observer)
   .route("/api/quality", quality)
-  .route("/api/impostor", impostorRoute);
+  .route("/api/impostor", impostorRoute)
+  .route("/api/generate-form", generateFormRoute);
 
 export default app;
 export type AppType = typeof routes;

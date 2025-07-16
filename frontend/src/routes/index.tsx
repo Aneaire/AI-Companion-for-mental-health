@@ -3,12 +3,32 @@ import type { FormData } from "@/components/chat/ChatForm";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar, type Thread as ThreadType } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
-import { threadsApi } from "@/lib/client";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { generateFormApi, threadsApi } from "@/lib/client";
 import { useCreateThread, useNormalThreads } from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 function getThreadTitle(thread: any) {
@@ -34,6 +54,15 @@ function Index() {
   const setSessionId = useChatStore((s) => s.setSessionId);
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [postSessionDialogOpen, setPostSessionDialogOpen] = useState(false);
+  const [isGeneratingForm, setIsGeneratingForm] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState<any[] | null>(
+    null
+  );
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
+  const postSessionThreadIdRef = useRef<number | null>(null);
   const {
     conversationPreferences,
     setConversationPreferences,
@@ -138,8 +167,35 @@ function Index() {
     }
   };
 
+  // Helper: fetch all messages for all sessions in a thread
+  const fetchAllMessagesForThread = async (threadId: number) => {
+    const sessions = getThreadSessions(threadId) || [];
+    let allMessages: any[] = [];
+    for (const session of sessions) {
+      try {
+        const response = await fetch(
+          `http://localhost:4000/api/chat/${session.id}`
+        );
+        if (response.ok) {
+          const sessionMessages = await response.json();
+          allMessages = allMessages.concat(sessionMessages);
+        }
+      } catch (e) {
+        // ignore error for now
+      }
+    }
+    return allMessages;
+  };
+
+  // Patch handleExpireSession to trigger post-session dialog and generation
   const handleExpireSession = async (threadId: number) => {
     try {
+      setPostSessionDialogOpen(true);
+      setIsGeneratingForm(true);
+      setGeneratedQuestions(null);
+      setFormError(null);
+      postSessionThreadIdRef.current = threadId;
+
       // Get current sessions for this thread
       const currentSessions = getThreadSessions(threadId) || [];
       const activeSession = currentSessions.find(
@@ -148,6 +204,7 @@ function Index() {
 
       if (!activeSession) {
         toast.error("No active session found to expire");
+        setPostSessionDialogOpen(false);
         return;
       }
 
@@ -170,31 +227,39 @@ function Index() {
         throw new Error("Failed to expire session");
       }
 
-      const result = await response.json();
-
       // Refresh sessions for this thread
       const updatedSessions = await threadsApi.getSessions(threadId);
       setThreadSessions(threadId, updatedSessions);
 
-      // If the expired session was selected, select the new active session
-      if (selectedSessionId === activeSession.id) {
-        const newActiveSession = updatedSessions.find(
-          (session) => session.status === "active"
-        );
-        if (newActiveSession) {
-          setSessionId(newActiveSession.id);
+      // Fetch all messages for all sessions
+      const allMessages = await fetchAllMessagesForThread(threadId);
 
-          // Copy the initial form to the new session
-          if (currentInitialForm) {
-            setInitialForm(currentInitialForm, newActiveSession.id);
-          }
-        }
+      // Get persona/initialForm for the thread (use the first session's initialForm or fallback)
+      let personaForm = null;
+      if (currentSessions.length > 0) {
+        personaForm =
+          getInitialForm(currentSessions[0].id) || currentInitialForm;
+      } else {
+        personaForm = currentInitialForm;
       }
-
-      toast.success("Session expired! New session created.");
-    } catch (error) {
-      console.error("Error expiring session:", error);
-      toast.error("Failed to expire session");
+      // Defensive fallback: ensure personaForm is always a non-null object
+      if (
+        typeof personaForm !== "object" ||
+        personaForm === null ||
+        Array.isArray(personaForm)
+      ) {
+        personaForm = {};
+      }
+      // Call generate-form API
+      const genData = await generateFormApi.generate({
+        initialForm: personaForm,
+        messages: allMessages.map((m) => ({ sender: m.sender, text: m.text })),
+      });
+      setGeneratedQuestions(genData.questions || []);
+      setIsGeneratingForm(false);
+    } catch (error: any) {
+      setFormError(error.message || "Unknown error");
+      setIsGeneratingForm(false);
     }
   };
 
@@ -245,6 +310,83 @@ function Index() {
     title: getThreadTitle(t),
     sessions: getThreadSessions(t.id),
   }));
+
+  // Helper to get the latest active session for a thread
+  const getLatestActiveSession = useCallback(
+    (threadId: number) => {
+      const sessions = getThreadSessions(threadId) || [];
+      // Prefer the latest active session
+      const active = sessions.filter((s) => s.status === "active");
+      return active.length > 0
+        ? active[active.length - 1]
+        : sessions[sessions.length - 1];
+    },
+    [getThreadSessions]
+  );
+
+  // Dynamic form rendering for generated questions
+  function GeneratedForm({
+    questions,
+    onSubmit,
+  }: {
+    questions: any[];
+    onSubmit: (values: any) => void;
+  }) {
+    const form = useForm();
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {questions.map((q, idx) => (
+            <FormField
+              key={q.name || idx}
+              control={form.control}
+              name={q.name}
+              rules={{ required: true }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{q.label}</FormLabel>
+                  <FormControl>
+                    {q.type === "text" ? (
+                      <Input {...field} />
+                    ) : q.type === "textarea" ? (
+                      <Textarea {...field} />
+                    ) : q.type === "select" ? (
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {q.options?.map((opt: string) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+            disabled={formSubmitting}
+          >
+            {formSubmitting ? "Saving..." : "Submit"}
+          </button>
+          {formSubmitError && (
+            <div className="text-red-600 text-sm mt-2">{formSubmitError}</div>
+          )}
+        </form>
+      </Form>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full">
@@ -330,6 +472,60 @@ function Index() {
           }}
         />
       </div>
+      {/* Post-session dialog for loading/generation and form */}
+      <Dialog
+        open={postSessionDialogOpen}
+        onOpenChange={setPostSessionDialogOpen}
+      >
+        <DialogContent className="max-w-lg">
+          {isGeneratingForm ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="animate-spin mb-4" size={32} />
+              <div className="text-lg font-semibold">
+                Preparing your next session...
+              </div>
+              <div className="text-gray-500 mt-2 text-sm">
+                Generating personalized follow-up questions. Please wait.
+              </div>
+            </div>
+          ) : formError ? (
+            <div className="text-red-600 font-semibold">{formError}</div>
+          ) : generatedQuestions ? (
+            <div>
+              <div className="text-lg font-semibold mb-2">
+                Session Follow-up Form
+              </div>
+              <GeneratedForm
+                questions={generatedQuestions}
+                onSubmit={async (values) => {
+                  setFormSubmitting(true);
+                  setFormSubmitError(null);
+                  try {
+                    const threadId = postSessionThreadIdRef.current;
+                    if (!threadId) throw new Error("No thread selected");
+                    const session = getLatestActiveSession(threadId);
+                    if (!session) throw new Error("No session found");
+                    // Save form answers using the Hono client
+                    try {
+                      await threadsApi.saveSessionForm(session.id, values);
+                    } catch (err) {
+                      throw err;
+                    }
+                    toast.success(
+                      "Form saved! Answers will be used in your next session."
+                    );
+                    setPostSessionDialogOpen(false);
+                  } catch (err: any) {
+                    setFormSubmitError(err.message || "Unknown error");
+                  } finally {
+                    setFormSubmitting(false);
+                  }
+                }}
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

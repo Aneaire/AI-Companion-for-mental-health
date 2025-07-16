@@ -5,7 +5,7 @@ import { geminiConfig } from "../lib/config";
 
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-export const generateFormRoute = new Hono().post("/", async (c) => {
+const generateFormRoute = new Hono().post("/", async (c) => {
   const body = await c.req.json();
   const schema = z.object({
     initialForm: z.record(z.any()),
@@ -16,7 +16,8 @@ export const generateFormRoute = new Hono().post("/", async (c) => {
     return c.json({ success: false, error: parsed.error }, 400);
   }
   const { initialForm, messages } = parsed.data;
-
+  console.log("Check form", initialForm);
+  console.log("Check messages", messages);
   // Compose a prompt for Gemini
   const prompt = `You are an AI assistant tasked with generating personalized questions for a therapy session form.
 
@@ -57,11 +58,17 @@ Return a JSON array of question objects with this structure:
 
 Generate the questions now:`;
 
+  const systemInstructionText = prompt;
+
   try {
     const model = gemini.getGenerativeModel({
       model: geminiConfig.twoPoint5FlashLite,
+      systemInstruction: {
+        role: "model",
+        parts: [{ text: systemInstructionText }],
+      },
     });
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent("");
     // Try to extract the JSON array from the response
     const text =
       result.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -89,3 +96,5 @@ Generate the questions now:`;
     );
   }
 });
+
+export default generateFormRoute;

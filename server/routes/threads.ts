@@ -2,7 +2,7 @@ import { count, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/config";
-import { messages, sessions, threads } from "../db/schema";
+import { messages, sessionForms, sessions, threads } from "../db/schema";
 
 export const threadsRoute = new Hono()
   .get("/", async (c) => {
@@ -300,6 +300,43 @@ export const threadsRoute = new Hono()
       console.error("Error expiring session:", error);
       return c.json({ error: "Failed to expire session" }, 500);
     }
+  })
+  // Save follow-up form answers for a session
+  .post("/sessions/:sessionId/form", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    if (!sessionId) {
+      return c.json({ error: "sessionId is required" }, 400);
+    }
+    const body = await c.req.json();
+    const schema = z.object({
+      answers: z.record(z.any()),
+    });
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "Invalid input", details: parsed.error }, 400);
+    }
+    // Upsert: if a form already exists for this session, update it; otherwise, insert
+    const existing = await db
+      .select()
+      .from(sessionForms)
+      .where(eq(sessionForms.sessionId, parseInt(sessionId)));
+    let result;
+    if (existing.length > 0) {
+      [result] = await db
+        .update(sessionForms)
+        .set({ answers: parsed.data.answers, updatedAt: new Date() })
+        .where(eq(sessionForms.sessionId, parseInt(sessionId)))
+        .returning();
+    } else {
+      [result] = await db
+        .insert(sessionForms)
+        .values({
+          sessionId: parseInt(sessionId),
+          answers: parsed.data.answers,
+        })
+        .returning();
+    }
+    return c.json({ success: true, form: result });
   });
 
 export default threadsRoute;
