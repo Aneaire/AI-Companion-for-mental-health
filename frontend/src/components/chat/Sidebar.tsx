@@ -174,7 +174,7 @@ export function Sidebar({
             <Plus className="text-blue-600" size={20} />
           </Button>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {threads.length === 0 ? (
             <div className="p-4 text-gray-500 text-sm">No threads yet.</div>
           ) : (

@@ -184,12 +184,17 @@ const ChatForm = ({
           throw new Error("User not authenticated");
         }
 
-        console.log("user id", userProfile?.id);
+        // Use preferredName or fallback to nickname
+        const preferredNameToSend =
+          data.preferredName && data.preferredName.trim() !== ""
+            ? data.preferredName
+            : userProfile?.nickname || "";
+
         // First create the thread
         const threadResponse = await client.api.threads.$post({
           json: {
             userId: userProfile.id,
-            preferredName: data.preferredName,
+            preferredName: preferredNameToSend,
             currentEmotions: data.currentEmotions,
             reasonForVisit: data.reasonForVisit,
             supportType: data.supportType,
@@ -212,13 +217,16 @@ const ChatForm = ({
         await queryClient.invalidateQueries({ queryKey: ["threads"] });
 
         // Store form data in chat context with the session ID
-        setInitialForm(data, session.sessionId || session.id);
+        setInitialForm(
+          { ...data, preferredName: preferredNameToSend },
+          session.sessionId || session.id
+        );
 
         // Then get the AI's initial response
         const chatResponse = await client.api.chat.$post({
           json: {
             message: "",
-            initialForm: data,
+            initialForm: { ...data, preferredName: preferredNameToSend },
             userId: String(userProfile.id),
             sessionId: session.sessionId || session.id,
           },

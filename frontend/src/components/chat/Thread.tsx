@@ -216,7 +216,7 @@ export function Thread({
           responseCharacter: threadData.responseCharacter || "",
           responseDescription: threadData.responseDescription || "",
         };
-        setInitialForm(formData, threadId);
+        setInitialForm(formData);
         return formData;
       }
     } catch (error) {
@@ -436,6 +436,16 @@ export function Thread({
       ? getInitialForm(currentContext.sessionId)
       : currentContext.initialForm;
     sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
+
+    // Fallback: use nickname if preferredName is missing
+    if (
+      sessionInitialForm &&
+      (!sessionInitialForm.preferredName ||
+        sessionInitialForm.preferredName.trim() === "") &&
+      userProfile?.nickname
+    ) {
+      sessionInitialForm.preferredName = userProfile.nickname;
+    }
 
     // 1. Get observer output (strategy, rationale, next_steps)
     let observerStrategy = "";

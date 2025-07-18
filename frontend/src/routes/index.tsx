@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { generateFormApi, threadsApi } from "@/lib/client";
+import { chatApi, generateFormApi, threadsApi } from "@/lib/client";
 import { useCreateThread, useNormalThreads } from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
@@ -447,32 +447,32 @@ function Index() {
           onOpenChange={setChatDialogOpen}
           onSubmit={handleChatFormSubmit}
           onThreadCreated={async (session) => {
-            // Close the dialog first
             setChatDialogOpen(false);
 
-            // Select the new thread (session contains both thread data and sessionId)
+            // Add the new thread to the store immediately
+            addNormalThread(session);
+
+            // Select the new thread
             setThreadId(session.id);
 
-            // Add a small delay to ensure the thread is properly created
-            setTimeout(async () => {
+            try {
               // Fetch sessions for the new thread and select the first session
-              try {
-                const sessions = await threadsApi.getSessions(session.id);
-                setThreadSessions(session.id, sessions);
+              const sessions = await threadsApi.getSessions(session.id);
+              setThreadSessions(session.id, sessions);
 
-                // Select the first session (Session 1) or use the sessionId from the response
-                if (sessions.length > 0) {
-                  setSessionId(sessions[0].id);
-                } else if (session.sessionId) {
-                  // If no sessions found but we have a sessionId from the response, use it
-                  setSessionId(session.sessionId);
-                }
-              } catch (error) {
-                console.error("Error fetching sessions for new thread:", error);
-                // If we can't fetch sessions, still try to select the thread
-                // The Thread component will handle creating a session if needed
+              // Select the first session (Session 1) or use the sessionId from the response
+              if (sessions.length > 0) {
+                setSessionId(sessions[0].id);
+              } else if (session.sessionId) {
+                setSessionId(session.sessionId);
               }
-            }, 100);
+            } catch (error) {
+              console.error("Error fetching sessions for new thread:", error);
+              // Fallback: select the sessionId from the response if available
+              if (session.sessionId) {
+                setSessionId(session.sessionId);
+              }
+            }
           }}
         />
       </div>
@@ -537,10 +537,17 @@ function Index() {
                     const systemPrompt =
                       "Please greet and engage the user at the start of this new session, referencing their follow-up form answers if appropriate.";
                     // Send an empty user message to trigger the AI therapist's first message
-                    await threadsApi.sendMessage({
+                    // Find the thread for this session to get userId
+                    const thread = threadsWithoutPersona.find(
+                      (t) => t.id === threadId
+                    );
+                    if (!thread)
+                      throw new Error("Thread not found for userId lookup");
+                    await chatApi.sendMessage({
                       message: "", // No user message, just trigger the AI
                       context: [],
                       sessionId: session.id,
+                      userId: String(thread.userId), // Use userId from thread
                       initialForm: initialForm,
                       systemInstruction: systemPrompt,
                       threadType: "main",

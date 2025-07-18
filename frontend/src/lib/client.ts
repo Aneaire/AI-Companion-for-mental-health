@@ -80,10 +80,14 @@ export const threadsApi = {
     return res.json();
   },
   async saveSessionForm(sessionId: number, answers: Record<string, any>) {
-    const res = await client.api.threads.sessions[":sessionId"].form.$post({
-      param: { sessionId: sessionId.toString() },
-      json: { answers },
-    });
+    const res = await fetch(
+      `http://localhost:4000/api/threads/sessions/${sessionId}/form`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      }
+    );
     if (!res.ok) throw new Error("Failed to save session form");
     return res.json();
   },
