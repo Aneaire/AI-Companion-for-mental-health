@@ -41,6 +41,7 @@ export const threads = pgTable("threads", {
   responseCharacter: varchar("response_character"),
   responseDescription: text("response_description"),
   summaryContext: text("summary_context"),
+  archived: timestamp("archived"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

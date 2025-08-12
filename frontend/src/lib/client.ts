@@ -12,9 +12,18 @@ export const hcWithType = (...args: Parameters<typeof hc>): Client =>
 export default client;
 
 export const threadsApi = {
-  async list(userId: number, threadType: "chat" = "chat") {
+  async list(
+    userId: number,
+    limit: number = 20,
+    offset: number = 0,
+    threadType: "chat" = "chat"
+  ) {
     const res = await client.api.threads.$get({
-      query: { userId: userId.toString() },
+      query: {
+        userId: userId.toString(),
+        limit: limit.toString(),
+        offset: offset.toString(),
+      },
     });
     if (!res.ok) throw new Error("Failed to fetch threads");
     return res.json();

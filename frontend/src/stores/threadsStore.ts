@@ -22,25 +22,16 @@ export type PersonaThread = {
 export type NormalThread = PersonaThread; // For now, same shape
 
 interface ThreadsState {
-  personaThreads: PersonaThread[];
-  setPersonaThreads: (threads: PersonaThread[]) => void;
-  addPersonaThread: (thread: PersonaThread) => void;
-  clearPersonaThreads: () => void;
-  normalThreads: NormalThread[];
-  setNormalThreads: (threads: NormalThread[]) => void;
-  addNormalThread: (thread: NormalThread) => void;
-  clearNormalThreads: () => void;
+  // Keep only UI state that can't be derived from queries
+  selectedThreadId: number | null;
+  selectedSessionId: number | null;
+  setSelectedThread: (threadId: number | null) => void;
+  setSelectedSession: (sessionId: number | null) => void;
 }
 
 export const useThreadsStore = create<ThreadsState>((set) => ({
-  personaThreads: [],
-  setPersonaThreads: (threads) => set({ personaThreads: threads }),
-  addPersonaThread: (thread) =>
-    set((state) => ({ personaThreads: [thread, ...state.personaThreads] })),
-  clearPersonaThreads: () => set({ personaThreads: [] }),
-  normalThreads: [],
-  setNormalThreads: (threads) => set({ normalThreads: threads }),
-  addNormalThread: (thread) =>
-    set((state) => ({ normalThreads: [thread, ...state.normalThreads] })),
-  clearNormalThreads: () => set({ normalThreads: [] }),
+  selectedThreadId: null,
+  selectedSessionId: null,
+  setSelectedThread: (threadId) => set({ selectedThreadId: threadId }),
+  setSelectedSession: (sessionId) => set({ selectedSessionId: sessionId }),
 }));

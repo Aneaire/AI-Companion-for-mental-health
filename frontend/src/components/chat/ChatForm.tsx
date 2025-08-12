@@ -213,8 +213,24 @@ const ChatForm = ({
 
         const session = await threadResponse.json();
 
-        // Invalidate threads query so sidebar refreshes
-        await queryClient.invalidateQueries({ queryKey: ["threads"] });
+        // Optimistically add the new thread to the cache before invalidating
+        queryClient.setQueryData(
+          ["normalThreads", userProfile?.id, 20, 0],
+          (oldData: any) => {
+            if (!oldData) return { threads: [session], total: 1 };
+            return {
+              ...oldData,
+              threads: [session, ...oldData.threads],
+              total: oldData.total + 1,
+            };
+          }
+        );
+
+        // Invalidate queries with a small delay to allow UI to update first
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+          queryClient.invalidateQueries({ queryKey: ["threads"] });
+        }, 100);
 
         // Store form data in chat context with the session ID
         setInitialForm(

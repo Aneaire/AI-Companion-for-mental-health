@@ -1,13 +1,15 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { Message } from "@/types/chat";
-import { BrainCircuit, MessageCircle, User } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User } from "lucide-react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean | "idle" | "observer" | "generating" | "streaming";
+  onRetryMessage?: (message: Message) => void;
 }
 
 // Enhanced patchMarkdown to handle more streaming edge cases
@@ -47,18 +49,205 @@ export function patchMarkdown(text: string): string {
   return patched;
 }
 
-export function MessageList({ messages, isLoading }: MessageListProps) {
+// Memoized Message Component for better performance
+const MessageBubble = memo(({ 
+  message, 
+  isUser, 
+  isConsecutive, 
+  onRetry 
+}: {
+  message: Message;
+  isUser: boolean;
+  isConsecutive: boolean;
+  onRetry?: (message: Message) => void;
+}) => {
+  const formatTime = (timestamp?: Date) => {
+    if (!timestamp) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(timestamp);
+  };
+
+  const user = { imageUrl: "", fullName: "User" };
+
+  const handleRetry = useCallback(() => {
+    if (onRetry && message.status === "failed") {
+      onRetry(message);
+    }
+  }, [onRetry, message]);
+
+  const getStatusIndicator = () => {
+    if (!message.status || message.status === "sent") return null;
+    
+    switch (message.status) {
+      case "sending":
+        return (
+          <div className="flex items-center gap-1 mt-1">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+            <span className="text-xs text-yellow-600">Sending...</span>
+          </div>
+        );
+      case "failed":
+        return (
+          <div className="flex items-center gap-2 mt-1">
+            <AlertCircle size={12} className="text-red-500" />
+            <span className="text-xs text-red-600">{message.error || "Failed to send"}</span>
+            {onRetry && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-5 px-2 text-xs text-red-600 hover:text-red-700"
+                onClick={handleRetry}
+              >
+                <RefreshCw size={10} className="mr-1" />
+                Retry
+              </Button>
+            )}
+          </div>
+        );
+      case "streaming":
+        // For streaming, don't show any status indicator - the live text is the indicator
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      className={`flex items-end gap-2 sm:gap-3 animate-in fade-in duration-300 ${
+        isUser ? "justify-end" : "justify-start"
+      } ${message.status === "failed" ? "opacity-75" : ""}`}
+    >
+      {!isUser && (
+        <div className="flex flex-col items-center">
+          <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <BrainCircuit size={12} className="sm:w-4 sm:h-4" />
+            </AvatarFallback>
+          </Avatar>
+          {message.timestamp && (
+            <span className="text-xs text-gray-400 mt-1 hidden sm:block">
+              {formatTime(message.timestamp)}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div
+        className={`max-w-[75%] sm:max-w-[75%] group ${
+          isConsecutive ? "mt-1" : "mt-0"
+        }`}
+      >
+        <div
+          className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm transition-all duration-200 hover:shadow-md ${
+            isUser
+              ? `bg-gradient-to-r from-blue-600 to-purple-600 text-white ${
+                  message.status === "failed" ? "from-red-500 to-red-600" : ""
+                }`
+              : "bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-800"
+          }`}
+          role="article"
+          aria-label={isUser ? "User message" : "AI message"}
+        >
+          <div
+            className={`prose prose-xs sm:prose-sm max-w-none ${
+              isUser ? "prose-invert" : ""
+            } [&_p]:mb-1 sm:[&_p]:mb-2 [&_p:last-child]:mb-0`}
+          >
+            {message.status === "streaming" && !message.text ? (
+              // Show loading dots for empty streaming messages
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-current rounded-full animate-bounce opacity-60" />
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-current rounded-full animate-bounce delay-100 opacity-60" />
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-current rounded-full animate-bounce delay-200 opacity-60" />
+              </div>
+            ) : (
+              <ReactMarkdown
+                components={{
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      className={`${
+                        isUser
+                          ? "text-blue-200 hover:text-blue-100"
+                          : "text-blue-600 hover:text-blue-700"
+                      } underline transition-colors`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  code: ({ children, className }) => (
+                    <code
+                      className={`${
+                        isUser
+                          ? "bg-white/20 text-blue-100"
+                          : "bg-gray-100 text-gray-800"
+                      } px-1 py-0.5 sm:px-1.5 sm:py-0.5 rounded text-xs sm:text-sm font-mono`}
+                    >
+                      {children}
+                    </code>
+                  ),
+                  pre: ({ children }) => (
+                    <pre
+                      className={`${
+                        isUser
+                          ? "bg-white/20 border-white/30"
+                          : "bg-gray-100 border-gray-200"
+                      } border rounded-lg p-2 sm:p-3 overflow-x-auto text-xs sm:text-sm`}
+                    >
+                      {children}
+                    </pre>
+                  ),
+                }}
+              >
+                {message.text}
+              </ReactMarkdown>
+            )}
+          </div>
+        </div>
+        {getStatusIndicator()}
+      </div>
+
+      {isUser && (
+        <div className="flex flex-col items-center">
+          <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
+            <AvatarImage
+              src={user?.imageUrl || ""}
+              alt={user?.fullName || "User"}
+            />
+            <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white">
+              {user?.fullName?.charAt(0) || (
+                <User size={12} className="sm:w-4 sm:h-4" />
+              )}
+            </AvatarFallback>
+          </Avatar>
+          {message.timestamp && (
+            <span className="text-xs text-gray-400 mt-1 hidden sm:block">
+              {formatTime(message.timestamp)}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+MessageBubble.displayName = "MessageBubble";
+
+export const MessageList = memo(function MessageList({ 
+  messages, 
+  isLoading, 
+  onRetryMessage 
+}: MessageListProps) {
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastMessageCountRef = useRef<number>(messages.length);
   const lastMessageTextRef = useRef<string>("");
   const [stabilizedMessages, setStabilizedMessages] = useState<Message[]>([]);
-
-  // Mock user data for demo
-  const user = {
-    imageUrl: "",
-    fullName: "User",
-  };
 
   // Stabilize messages for rendering during streaming
   useEffect(() => {
@@ -112,44 +301,84 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
   const getMessageKey = (message: Message, index: number) => {
     return (
       message.tempId ||
+      message.id ||
       `${message.sender}-${message.timestamp?.getTime() || index}`
     );
   };
 
-  const formatTime = (timestamp?: Date) => {
-    if (!timestamp) return "";
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(timestamp);
-  };
-
-  const LoadingIndicator = ({ text }: { text: string }) => (
-    <div className="flex items-start gap-2 sm:gap-3 mb-4 sm:mb-6 animate-in fade-in duration-300">
-      <div className="relative">
-        <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
-          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-            <BrainCircuit size={12} className="sm:w-4 sm:h-4" />
-          </AvatarFallback>
-        </Avatar>
-        <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full animate-pulse border-2 border-white" />
-      </div>
-      <div className="">
-        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-medium text-gray-700">
-              {text}
-            </span>
-            <div className="flex gap-1">
-              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full animate-bounce" />
-              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full animate-bounce delay-100" />
-              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full animate-bounce delay-200" />
+  // Smooth loading indicator with fixed height to prevent layout shifts
+  const SmoothLoadingIndicator = ({ 
+    currentState, 
+    hasStreamingMessage 
+  }: { 
+    currentState: string;
+    hasStreamingMessage: boolean;
+  }) => {
+    // Always render the container to maintain consistent spacing, but hide content when not needed
+    const showContent = !hasStreamingMessage && currentState && currentState !== "idle";
+    
+    const getLoadingContent = () => {
+      switch (currentState) {
+        case "observer":
+          return "Thinking";
+        case "generating":
+          return "Generating";
+        default:
+          return null;
+      }
+    };
+    
+    const loadingText = getLoadingContent();
+    
+    return (
+      <div 
+        className="animate-in fade-in duration-300"
+        style={{ 
+          minHeight: showContent ? "60px" : "0px", // Maintain height when showing, collapse when not
+          transition: "min-height 0.2s cubic-bezier(0.4, 0, 0.2, 1)", // Smooth height transition
+          overflow: "hidden" // Prevent content from showing during collapse
+        }}
+      >
+        {showContent && loadingText && (
+          <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="relative">
+              <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  <BrainCircuit size={12} className="sm:w-4 sm:h-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full animate-pulse border-2 border-white" />
+            </div>
+            <div className="flex items-center"> {/* Changed from flex-1 to just flex items-center for content-width */}
+              <div 
+                className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm inline-block"
+                style={{ 
+                  transition: "all 0.2s ease-in-out"
+                }}
+              >
+                <div className="flex items-center gap-2 whitespace-nowrap"> {/* Added whitespace-nowrap to prevent wrapping */}
+                  <span 
+                    className="text-xs sm:text-sm font-medium text-gray-700"
+                    style={{ 
+                      transition: "opacity 0.2s ease-in-out"
+                    }}
+                    key={loadingText} // Key ensures smooth text transition
+                  >
+                    {loadingText}
+                  </span>
+                  <div className="flex gap-1">
+                    <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full animate-bounce" />
+                    <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full animate-bounce delay-100" />
+                    <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full animate-bounce delay-200" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div
@@ -183,29 +412,12 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
             );
           }
 
-          if (message.sender === "ai" && !message.text) {
-            return (
-              <div
-                key={getMessageKey(message, index)}
-                className="flex items-start gap-2 sm:gap-3 mb-4 sm:mb-6"
-              >
-                <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                    <BrainCircuit size={12} className="sm:w-4 sm:h-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce" />
-                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
-                  </div>
-                </div>
-              </div>
-            );
+          // Don't show empty AI messages with dots - let the status indicator handle it
+          if (message.sender === "ai" && !message.text && message.status !== "streaming") {
+            return null; // Skip rendering empty AI messages
           }
 
-          if (!message.text) {
+          if (!message.text && message.status !== "streaming") {
             return (
               <div
                 key={getMessageKey(message, index)}
@@ -224,129 +436,24 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
             stabilizedMessages[index - 1]?.sender === message.sender;
 
           return (
-            <div
+            <MessageBubble
               key={getMessageKey(message, index)}
-              className={`flex items-end gap-2 sm:gap-3 animate-in fade-in duration-300 ${
-                isUser ? "justify-end" : "justify-start"
-              }`}
-            >
-              {!isUser && (
-                <div className="flex flex-col items-center">
-                  <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                      <BrainCircuit size={12} className="sm:w-4 sm:h-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                  {message.timestamp && (
-                    <span className="text-xs text-gray-400 mt-1 hidden sm:block">
-                      {formatTime(message.timestamp)}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div
-                className={`max-w-[75%] sm:max-w-[75%] group ${
-                  isConsecutive ? "mt-1" : "mt-0"
-                }`}
-              >
-                <div
-                  className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-sm transition-all duration-200 hover:shadow-md ${
-                    isUser
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                      : "bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-800"
-                  }`}
-                  role="article"
-                  aria-label={isUser ? "User message" : "AI message"}
-                >
-                  <div
-                    className={`prose prose-xs sm:prose-sm max-w-none ${
-                      isUser ? "prose-invert" : ""
-                    } [&_p]:mb-1 sm:[&_p]:mb-2 [&_p:last-child]:mb-0`}
-                  >
-                    <ReactMarkdown
-                      components={{
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            className={`${
-                              isUser
-                                ? "text-blue-200 hover:text-blue-100"
-                                : "text-blue-600 hover:text-blue-700"
-                            } underline transition-colors`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {children}
-                          </a>
-                        ),
-                        code: ({ children, className }) => (
-                          <code
-                            className={`${
-                              isUser
-                                ? "bg-white/20 text-blue-100"
-                                : "bg-gray-100 text-gray-800"
-                            } px-1 py-0.5 sm:px-1.5 sm:py-0.5 rounded text-xs sm:text-sm font-mono`}
-                          >
-                            {children}
-                          </code>
-                        ),
-                        pre: ({ children }) => (
-                          <pre
-                            className={`${
-                              isUser
-                                ? "bg-white/20 border-white/30"
-                                : "bg-gray-100 border-gray-200"
-                            } border rounded-lg p-2 sm:p-3 overflow-x-auto text-xs sm:text-sm`}
-                          >
-                            {children}
-                          </pre>
-                        ),
-                      }}
-                    >
-                      {message.text}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-
-              {isUser && (
-                <div className="flex flex-col items-center">
-                  <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-white shadow-sm">
-                    <AvatarImage
-                      src={user?.imageUrl || ""}
-                      alt={user?.fullName || "User"}
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white">
-                      {user?.fullName?.charAt(0) || (
-                        <User size={12} className="sm:w-4 sm:h-4" />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  {message.timestamp && (
-                    <span className="text-xs text-gray-400 mt-1 hidden sm:block">
-                      {formatTime(message.timestamp)}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+              message={message}
+              isUser={isUser}
+              isConsecutive={isConsecutive}
+              onRetry={onRetryMessage}
+            />
           );
         })
       )}
 
-      {/* Enhanced loading indicators */}
-      {typeof isLoading === "string" && isLoading === "observer" && (
-        <LoadingIndicator text="Thinking" />
-      )}
-      {typeof isLoading === "string" && isLoading === "generating" && (
-        <LoadingIndicator text="Generating" />
-      )}
-      {typeof isLoading === "string" && isLoading === "streaming" && (
-        <LoadingIndicator text="Responding" />
-      )}
+      {/* Smooth loading indicator with fixed height to prevent layout shifts */}
+      <SmoothLoadingIndicator 
+        currentState={typeof isLoading === "string" ? isLoading : "idle"}
+        hasStreamingMessage={stabilizedMessages.some(msg => msg.status === "streaming")}
+      />
 
       <div ref={endOfMessagesRef} aria-hidden="true" />
     </div>
   );
-}
+});

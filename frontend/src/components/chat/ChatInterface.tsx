@@ -15,6 +15,7 @@ interface ChatInterfaceProps {
   onStartImpersonation?: () => void;
   onStopImpersonation?: () => void;
   isImpersonating?: boolean;
+  onRetryMessage?: (message: Message) => void;
 }
 
 export function ChatInterface({
@@ -26,6 +27,7 @@ export function ChatInterface({
   onStartImpersonation,
   onStopImpersonation,
   isImpersonating = false,
+  onRetryMessage,
 }: ChatInterfaceProps): JSX.Element {
   const getLoadingBadge = () => {
     if (loadingState === "idle") return null;
@@ -37,14 +39,16 @@ export function ChatInterface({
         text: "Thinking",
         icon: Loader2,
       },
-      streaming: {
-        variant: "default" as const,
-        text: "Responding",
-        icon: Loader2,
-      },
+      // Remove streaming variant since the actual response is visible
     };
 
-    const config = variants[loadingState];
+    const config = variants[loadingState as keyof typeof variants];
+    
+    // Don't show badge for streaming since the actual response is visible
+    if (!config || loadingState === "streaming") {
+      return null;
+    }
+    
     const Icon = config.icon;
 
     return (
@@ -82,7 +86,11 @@ export function ChatInterface({
               </p>
             </div>
           ) : (
-            <MessageList messages={messages} isLoading={loadingState} />
+            <MessageList 
+              messages={messages} 
+              isLoading={loadingState} 
+              onRetryMessage={onRetryMessage}
+            />
           )}
         </div>
       </ScrollArea>

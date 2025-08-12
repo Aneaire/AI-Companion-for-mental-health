@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/config";
@@ -10,13 +10,28 @@ export const threadsRoute = new Hono()
     if (!userId) {
       return c.json({ error: "userId is required" }, 400);
     }
+    // Pagination support
+    const limit = parseInt(c.req.query("limit") || "20");
+    const offset = parseInt(c.req.query("offset") || "0");
 
-    const sessions = await db
+    // Get total count for pagination (exclude archived threads)
+    const [{ count: total }] = await db
+      .select({ count: count() })
+      .from(threads)
+      .where(and(eq(threads.userId, parseInt(userId)), isNull(threads.archived)));
+
+    const threadRows = await db
       .select()
       .from(threads)
-      .where(eq(threads.userId, parseInt(userId)))
-      .orderBy(desc(threads.updatedAt));
-    return c.json(sessions);
+      .where(and(eq(threads.userId, parseInt(userId)), isNull(threads.archived)))
+      .orderBy(desc(threads.updatedAt))
+      .limit(limit)
+      .offset(offset);
+
+    return c.json({
+      total,
+      threads: threadRows,
+    });
   })
   .get("/:threadId", async (c) => {
     const threadId = c.req.param("threadId");
@@ -337,6 +352,153 @@ export const threadsRoute = new Hono()
         .returning();
     }
     return c.json({ success: true, form: result });
+  })
+  // Archive a thread
+  .post("/:threadId/archive", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    try {
+      // Check if thread exists
+      const thread = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.id, parseInt(threadId)))
+        .limit(1);
+
+      if (!thread.length) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      // Mark thread as archived
+      const [updatedThread] = await db
+        .update(threads)
+        .set({ 
+          archived: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(threads.id, parseInt(threadId)))
+        .returning();
+
+      return c.json({
+        message: "Thread archived successfully",
+        thread: updatedThread,
+      });
+    } catch (error) {
+      console.error("Error archiving thread:", error);
+      return c.json({ error: "Failed to archive thread" }, 500);
+    }
+  })
+  // Delete a thread permanently
+  .delete("/:threadId", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    try {
+      // Check if thread exists
+      const thread = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.id, parseInt(threadId)))
+        .limit(1);
+
+      if (!thread.length) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      // Delete the thread (cascade will handle sessions, messages, and forms)
+      await db
+        .delete(threads)
+        .where(eq(threads.id, parseInt(threadId)));
+
+      return c.json({
+        message: "Thread deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      return c.json({ error: "Failed to delete thread" }, 500);
+    }
+  })
+  // Get archived threads
+  .get("/archived", async (c) => {
+    const userId = c.req.query("userId");
+    if (!userId) {
+      return c.json({ error: "userId is required" }, 400);
+    }
+    
+    // Pagination support
+    const limit = parseInt(c.req.query("limit") || "20");
+    const offset = parseInt(c.req.query("offset") || "0");
+
+    try {
+      // Get total count for pagination (only archived threads)
+      const [{ count: total }] = await db
+        .select({ count: count() })
+        .from(threads)
+        .where(and(eq(threads.userId, parseInt(userId)), isNotNull(threads.archived)));
+
+      const archivedThreads = await db
+        .select()
+        .from(threads)
+        .where(and(eq(threads.userId, parseInt(userId)), isNotNull(threads.archived)))
+        .orderBy(desc(threads.archived))
+        .limit(limit)
+        .offset(offset);
+
+      return c.json({
+        total,
+        threads: archivedThreads,
+      });
+    } catch (error) {
+      console.error("Error fetching archived threads:", error);
+      return c.json({ error: "Failed to fetch archived threads" }, 500);
+    }
+  })
+  // Unarchive a thread
+  .post("/:threadId/unarchive", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    try {
+      // Check if thread exists and is archived
+      const thread = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.id, parseInt(threadId)))
+        .limit(1);
+
+      if (!thread.length) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      if (!thread[0].archived) {
+        return c.json({ error: "Thread is not archived" }, 400);
+      }
+
+      // Unarchive the thread
+      const [updatedThread] = await db
+        .update(threads)
+        .set({ 
+          archived: null,
+          updatedAt: new Date()
+        })
+        .where(eq(threads.id, parseInt(threadId)))
+        .returning();
+
+      return c.json({
+        message: "Thread unarchived successfully",
+        thread: updatedThread,
+      });
+    } catch (error) {
+      console.error("Error unarchiving thread:", error);
+      return c.json({ error: "Failed to unarchive thread" }, 500);
+    }
   });
 
 export default threadsRoute;

@@ -15,11 +15,16 @@ export interface ConversationContext {
 }
 
 export interface Message {
+  id?: string; // Server ID for persisted messages
   sender: "user" | "ai" | "impostor" | "therapist";
   text: string;
   timestamp: Date;
-  tempId?: number; // Optional: for precise tracking
+  tempId?: number; // Temporary ID for optimistic updates
   contextId?: string; // To group messages in the same context
+  sessionId?: number; // Associated session
+  status?: "sending" | "sent" | "failed" | "streaming"; // Message status
+  retryCount?: number; // For retry logic
+  error?: string; // Error message if failed
 }
 
 // Define the mental health concerns users can select from with added color themes

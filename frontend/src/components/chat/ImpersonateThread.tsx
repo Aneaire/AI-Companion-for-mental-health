@@ -33,6 +33,7 @@ interface FetchedMessage {
 export interface ImpersonateThreadProps {
   selectedThreadId: number | null;
   onSendMessage?: (message: string) => Promise<void>;
+  onThreadActivity?: (threadId: number) => void;
 }
 
 // Enhanced Loading Fallback Component
@@ -97,6 +98,7 @@ function DevToolsToggle({
 export function ImpersonateThread({
   selectedThreadId,
   onSendMessage,
+  onThreadActivity,
 }: ImpersonateThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
@@ -312,6 +314,10 @@ export function ImpersonateThread({
         ...(conversationPreferences ? { conversationPreferences } : {}),
       });
 
+      if (typeof onThreadActivity === "function" && selectedThreadId) {
+        onThreadActivity(selectedThreadId);
+      }
+
       if (!response.ok) {
         const errorData = (await response.json()) as ErrorResponse;
         console.error("Frontend received error data:", errorData);
@@ -396,6 +402,9 @@ export function ImpersonateThread({
         fullResponse += "\n";
       }
       updateLastMessage(patchMarkdown(fullResponse));
+      if (typeof onThreadActivity === "function" && selectedThreadId) {
+        onThreadActivity(selectedThreadId);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = {
@@ -465,6 +474,11 @@ export function ImpersonateThread({
     if (!impostorProfile) {
       toast.error("No persona profile found. Please create one first.");
       return;
+    }
+
+    // Move thread to top immediately when roleplay starts
+    if (typeof onThreadActivity === "function" && selectedThreadId) {
+      onThreadActivity(selectedThreadId);
     }
 
     // Clean up temp/empty impersonate messages before starting

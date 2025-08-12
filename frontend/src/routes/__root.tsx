@@ -13,7 +13,6 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { useCreateThread, usePersonaThreads } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
-import { useThreadsStore } from "@/stores/threadsStore";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -43,12 +42,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       usePersonaThreads(isImpersonatePage);
     const createThread = useCreateThread();
     const { addMessage, setSessionId, clearMessages } = useChatStore();
-    const {
-      personaThreads,
-      setPersonaThreads,
-      addPersonaThread,
-      clearNormalThreads,
-    } = useThreadsStore();
 
     const handleSelectThread = (id: number) => {
       setSelectedThreadId(id);
@@ -67,21 +60,18 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       return () => window.removeEventListener("resize", handleResize);
     }, []);
     // Auto-select the first thread on load if none is selected
-    useEffect(() => {
-      if (!isPersonaLoading && Array.isArray(personaThreadsApi)) {
-        setPersonaThreads(personaThreadsApi);
-      }
-    }, [isPersonaLoading, personaThreadsApi, setPersonaThreads]);
+    // No local store for personaThreads; component pages will read directly from query
 
     useEffect(() => {
       if (
         !isPersonaLoading &&
-        personaThreads.length > 0 &&
+        Array.isArray(personaThreadsApi) &&
+        personaThreadsApi.length > 0 &&
         selectedThreadId == null
       ) {
-        setSelectedThreadId(personaThreads[0].id);
+        setSelectedThreadId(personaThreadsApi[0].id);
       }
-    }, [isPersonaLoading, personaThreads, selectedThreadId]);
+    }, [isPersonaLoading, personaThreadsApi, selectedThreadId]);
 
     useEffect(() => {
       if (isError) {

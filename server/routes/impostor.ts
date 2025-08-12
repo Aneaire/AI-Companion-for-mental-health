@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { geminiConfig } from "server/lib/config";
@@ -164,7 +164,8 @@ ${message}
     const threads = await db
       .select()
       .from(impersonateThread)
-      .where(eq(impersonateThread.userId, parseInt(userId)));
+      .where(eq(impersonateThread.userId, parseInt(userId)))
+      .orderBy(desc(impersonateThread.updatedAt));
     return c.json(threads);
   })
   .get("/threads/:threadId", async (c) => {

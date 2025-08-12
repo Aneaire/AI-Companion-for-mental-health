@@ -2,13 +2,16 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import client, { observerApi, threadsApi } from "@/lib/client";
+import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
 import { useChatStore } from "@/stores/chatStore";
+import { useThreadsStore } from "@/stores/threadsStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Brain, Lightbulb, Loader2, Settings, X } from "lucide-react";
-import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
+import { memo, Suspense, useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
 import { patchMarkdown } from "./MessageList";
 
@@ -27,6 +30,8 @@ export interface ThreadProps {
   selectedSessionId?: number | null;
   onSendMessage?: (message: string) => Promise<void>;
   showFormIndicator?: boolean;
+  onMessageSent?: (threadId: number) => void;
+  onThreadDeleted?: () => void;
 }
 
 // Enhanced Loading Fallback Component
@@ -147,11 +152,16 @@ export function Thread({
   selectedSessionId,
   onSendMessage,
   showFormIndicator,
+  onMessageSent,
+  onThreadDeleted,
 }: ThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
     clerkId || null
   );
+  const queryClient = useQueryClient();
+  const moveThreadToTop = useMoveThreadToTop();
+  const { setSelectedThread } = useThreadsStore();
   const {
     currentContext,
     addMessage,
@@ -161,12 +171,8 @@ export function Thread({
     clearMessages,
     setInitialForm,
     getInitialForm,
-    setThreadSessions,
-    getThreadSessions,
     loadingState,
     setLoadingState,
-    impersonateMaxExchanges,
-    setImpersonateMaxExchanges,
     conversationPreferences,
     setConversationPreferences,
   } = useChatStore();
@@ -182,6 +188,60 @@ export function Thread({
   const [agentNextSteps, setAgentNextSteps] = useState<string[]>([]);
   const [showDevTools, setShowDevTools] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [selectedSessionStatus, setSelectedSessionStatus] = useState<
+    "active" | "finished" | undefined
+  >(undefined);
+  const [threadTitle, setThreadTitle] = useState<string>("");
+
+  // Thread management functions (memoized to prevent recreating on every render)
+  const handleDeleteThread = useCallback(async (threadId: number) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/threads/${threadId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete thread');
+      }
+
+      // Remove from query cache
+      queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+      queryClient.removeQueries({ queryKey: ["threadSessions", threadId] });
+      
+      // Clear current context
+      clearMessages();
+      setThreadId(null);
+      setSelectedThread(null);
+      
+      // Notify parent component
+      onThreadDeleted?.();
+      
+      toast.success("Thread deleted successfully");
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      toast.error("Failed to delete thread");
+    }
+  }, [queryClient, clearMessages, setThreadId, setSelectedThread, onThreadDeleted]);
+
+  const handleArchiveThread = useCallback(async (threadId: number) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/threads/${threadId}/archive`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to archive thread');
+      }
+
+      // Invalidate query cache to refresh the thread list
+      queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+      
+      // Success toast will be shown by the dialog component
+    } catch (error) {
+      console.error("Error archiving thread:", error);
+      toast.error("Failed to archive thread");
+    }
+  }, [queryClient]);
 
   // Helper function to fetch thread initial form data
   const fetchThreadInitialForm = async (threadId: number) => {
@@ -192,6 +252,13 @@ export function Thread({
       });
       if (response.ok) {
         const threadData = await response.json();
+        
+        // Set thread title for the header
+        const title = threadData.sessionName || 
+                     threadData.reasonForVisit || 
+                     `Thread #${threadId}`;
+        setThreadTitle(title);
+        
         // Convert main thread data to FormData format
         const formData: import("@/lib/client").FormData = {
           preferredName: threadData.preferredName || "",
@@ -244,7 +311,6 @@ export function Thread({
 
           if (threadSessions.ok) {
             const sessions = await threadSessions.json();
-            setThreadSessions(selectedThreadId, sessions);
 
             // Use the latest active session from the session check
             if (sessionCheck.latestSession) {
@@ -310,7 +376,6 @@ export function Thread({
     updateLastMessage,
     setSessionId,
     setThreadId,
-    setThreadSessions,
     clearMessages,
     setInitialForm,
   ]);
@@ -322,6 +387,20 @@ export function Thread({
       const fetchSessionMessages = async () => {
         try {
           setLoadingHistory(true);
+          // Fetch session status to determine input availability
+          try {
+            const sessions = await threadsApi.getSessions(
+              selectedThreadId ?? selectedSessionId
+            );
+            const found = Array.isArray(sessions)
+              ? sessions.find((s: any) => s.id === selectedSessionId)
+              : undefined;
+            setSelectedSessionStatus(
+              found?.status === "finished" ? "finished" : "active"
+            );
+          } catch (e) {
+            setSelectedSessionStatus(undefined);
+          }
           const response = await client.api.chat[":sessionId"].$get({
             param: { sessionId: String(selectedSessionId) },
           });
@@ -355,8 +434,10 @@ export function Thread({
           sortedMessages.forEach((msg) => addMessage(msg));
           setShowChat(true);
 
-          // Fetch and set the correct initial form for this session
-          await fetchThreadInitialForm(selectedSessionId);
+          // Fetch and set the correct initial form for this thread
+          if (selectedThreadId) {
+            await fetchThreadInitialForm(selectedThreadId);
+          }
         } catch (error) {
           console.error("Error fetching session messages:", error);
           setSessionId(null);
@@ -369,6 +450,7 @@ export function Thread({
   }, [
     selectedSessionId,
     currentContext.sessionId,
+    selectedThreadId,
     addMessage,
     updateLastMessage,
     setSessionId,
@@ -410,7 +492,9 @@ export function Thread({
     sortedMessages.forEach((msg) => addMessage(msg));
 
     // Fetch and set the correct initial form for this thread
-    await fetchThreadInitialForm(sessionId);
+    if (selectedThreadId) {
+      await fetchThreadInitialForm(selectedThreadId);
+    }
   };
 
   const handleSendMessage = async (message: string): Promise<void> => {
@@ -582,6 +666,11 @@ export function Thread({
         },
       });
 
+      // Optimistically move the thread to the top after sending a message
+      if (onMessageSent && selectedThreadId) {
+        onMessageSent(selectedThreadId);
+      }
+
       if (!response.ok) {
         const errorData = (await response.json()) as ErrorResponse;
         console.error("Frontend received error data:", errorData);
@@ -743,6 +832,10 @@ export function Thread({
           <ChatHeader
             preferences={conversationPreferences}
             onPreferencesChange={setConversationPreferences}
+            selectedThreadId={selectedThreadId}
+            threadTitle={threadTitle}
+            onDeleteThread={handleDeleteThread}
+            onArchiveThread={handleArchiveThread}
           />
         </div>
       </div>
@@ -778,7 +871,7 @@ export function Thread({
               messages={currentContext.messages}
               onSendMessage={onSendMessage || handleSendMessage}
               loadingState={loadingState}
-              inputVisible={true}
+              inputVisible={selectedSessionStatus !== "finished"}
               isImpersonateMode={false}
             />
           </div>

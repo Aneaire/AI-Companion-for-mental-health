@@ -22,9 +22,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { chatApi, generateFormApi, threadsApi } from "@/lib/client";
-import { useCreateThread, useNormalThreads } from "@/lib/queries/threads";
+import {
+  useCreateThread,
+  useMoveThreadToTop,
+  useNormalThreads,
+  useThreadSessions,
+} from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -46,10 +52,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  // Remove local state for selectedThreadId and selectedSessionId
-  // Use Zustand store for selection state
-  const selectedThreadId = useChatStore((s) => s.currentContext.threadId);
-  const selectedSessionId = useChatStore((s) => s.currentContext.sessionId);
+  // Use optimized thread selection from threadsStore
+  const {
+    selectedThreadId,
+    selectedSessionId,
+    setSelectedThread,
+    setSelectedSession,
+  } = useThreadsStore();
   const setThreadId = useChatStore((s) => s.setThreadId);
   const setSessionId = useChatStore((s) => s.setSessionId);
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
@@ -66,71 +75,42 @@ function Index() {
   const {
     conversationPreferences,
     setConversationPreferences,
-    setThreadSessions,
-    getThreadSessions,
     getInitialForm,
     setInitialForm,
   } = useChatStore();
 
-  const { data: threadsData, isLoading } = useNormalThreads(true);
-  const { normalThreads, setNormalThreads, addNormalThread } =
-    useThreadsStore();
+  // Use TanStack Query directly instead of duplicating in Zustand
+  const {
+    data: threadsData,
+    isLoading,
+    limit,
+    setLimit,
+    offset,
+    setOffset,
+  } = useNormalThreads(true);
 
-  // Clear chat state when main page loads
-  useEffect(() => {
-    const { clearMessages, setSessionId, setThreadId } =
-      useChatStore.getState();
-    clearMessages();
-    setSessionId(null);
-    setThreadId(null);
-  }, []);
-
-  useEffect(() => {
-    if (!isLoading && Array.isArray(threadsData)) {
-      setNormalThreads(threadsData);
-    }
-  }, [isLoading, threadsData, setNormalThreads]);
-
-  const threadsWithoutPersona = normalThreads;
+  const threadsWithoutPersona = threadsData?.threads || [];
+  const totalThreads = threadsData?.total || 0;
   const createThread = useCreateThread();
+  const moveThreadToTop = useMoveThreadToTop();
+  const queryClient = useQueryClient();
   const { addMessage, clearMessages } = useChatStore();
 
-  // Fetch sessions for threads
-  useEffect(() => {
-    const fetchSessionsForThreads = async () => {
-      for (const thread of threadsWithoutPersona) {
-        try {
-          const sessions = await threadsApi.getSessions(thread.id);
-          setThreadSessions(thread.id, sessions);
-        } catch (error) {
-          console.error(
-            `Error fetching sessions for thread ${thread.id}:`,
-            error
-          );
-        }
-      }
-    };
-
-    if (threadsWithoutPersona.length > 0) {
-      fetchSessionsForThreads();
-    }
-  }, [threadsWithoutPersona, setThreadSessions]);
+  // Use query hook for sessions instead of manual fetching
+  const { data: threadSessions } = useThreadSessions(selectedThreadId);
 
   const handleSelectThread = async (id: number) => {
     if (threadsWithoutPersona.some((t) => t.id === id)) {
+      setSelectedThread(id);
       setThreadId(id);
-      setSessionId(null); // Clear session selection when selecting thread
+      setSelectedSession(null);
+      setSessionId(null);
 
       // Check session status and get the latest active session
       try {
         const sessionCheck = await threadsApi.checkSession(id);
-
-        // Update sessions for this thread
-        const sessions = await threadsApi.getSessions(id);
-        setThreadSessions(id, sessions);
-
-        // Select the latest active session
         if (sessionCheck.latestSession) {
+          setSelectedSession(sessionCheck.latestSession.id);
           setSessionId(sessionCheck.latestSession.id);
         }
       } catch (error) {
@@ -140,7 +120,7 @@ function Index() {
   };
 
   const handleSelectSession = (sessionId: number) => {
-    setSessionId(sessionId);
+    setSelectedSession(sessionId);
   };
 
   const handleNewThread = () => {
@@ -149,15 +129,13 @@ function Index() {
 
   const handleNewSession = async (threadId: number) => {
     try {
+      const sessionsCount = threadSessions?.length || 0;
       const newSession = await threadsApi.createSession(threadId, {
-        sessionName: `Session ${(getThreadSessions(threadId)?.length || 0) + 1}`,
+        sessionName: `Session ${sessionsCount + 1}`,
       });
 
-      // Update sessions for this thread
-      const currentSessions = getThreadSessions(threadId) || [];
-      setThreadSessions(threadId, [...currentSessions, newSession]);
-
       // Select the new session
+      setSelectedSession(newSession.id);
       setSessionId(newSession.id);
 
       toast.success("New session created!");
@@ -169,7 +147,7 @@ function Index() {
 
   // Helper: fetch all messages for all sessions in a thread
   const fetchAllMessagesForThread = async (threadId: number) => {
-    const sessions = getThreadSessions(threadId) || [];
+    const sessions = threadSessions || [];
     let allMessages: any[] = [];
     for (const session of sessions) {
       try {
@@ -197,7 +175,7 @@ function Index() {
       postSessionThreadIdRef.current = threadId;
 
       // Get current sessions for this thread
-      const currentSessions = getThreadSessions(threadId) || [];
+      const currentSessions = threadSessions || [];
       const activeSession = currentSessions.find(
         (session) => session.status === "active"
       );
@@ -227,20 +205,17 @@ function Index() {
         throw new Error("Failed to expire session");
       }
 
-      // Refresh sessions for this thread
-      const updatedSessions = await threadsApi.getSessions(threadId);
-      setThreadSessions(threadId, updatedSessions);
+      // Sessions will be refreshed automatically by the query
 
       // Fetch all messages for all sessions
       const allMessages = await fetchAllMessagesForThread(threadId);
 
-      // Get persona/initialForm for the thread (use the first session's initialForm or fallback)
+      // Get persona/initialForm for the thread
       let personaForm = null;
       if (currentSessions.length > 0) {
         personaForm =
-          getInitialForm(currentSessions[0].id) || currentInitialForm;
-      } else {
-        personaForm = currentInitialForm;
+          getInitialForm(currentSessions[0].id) ||
+          getInitialForm(activeSession.id);
       }
       // Defensive fallback: ensure personaForm is always a non-null object
       if (
@@ -279,9 +254,7 @@ function Index() {
       timestamp: new Date(),
       contextId: "default",
     });
-    if (newThread) {
-      addNormalThread(newThread);
-    }
+    // Thread will be added automatically via optimistic updates in the mutation
   };
 
   useEffect(() => {
@@ -300,29 +273,55 @@ function Index() {
       threadsWithoutPersona.length > 0 &&
       selectedThreadId == null
     ) {
+      setSelectedThread(threadsWithoutPersona[0].id);
       setThreadId(threadsWithoutPersona[0].id);
     }
-  }, [isLoading, threadsWithoutPersona, selectedThreadId, setThreadId]);
+  }, [
+    isLoading,
+    threadsWithoutPersona,
+    selectedThreadId,
+    setSelectedThread,
+    setThreadId,
+  ]);
 
-  // Prepare threads with sessions for sidebar
+  // Ensure a session is selected for the selected thread on initial load/refresh
+  useEffect(() => {
+    const ensureSessionSelected = async () => {
+      if (!selectedThreadId || selectedSessionId != null) return;
+      try {
+        const sessionCheck = await threadsApi.checkSession(selectedThreadId);
+        if (sessionCheck?.latestSession?.id) {
+          setSelectedSession(sessionCheck.latestSession.id);
+          setSessionId(sessionCheck.latestSession.id);
+        }
+      } catch (err) {
+        console.error("Error ensuring session on initial load:", err);
+      }
+    };
+    ensureSessionSelected();
+  }, [selectedThreadId, selectedSessionId, setSelectedSession, setSessionId]);
+
+  // Prepare threads with sessions for sidebar - only for selected thread to avoid overfetching
   const threadsWithSessions: ThreadType[] = threadsWithoutPersona.map((t) => ({
     id: t.id,
     title: getThreadTitle(t),
-    sessions: getThreadSessions(t.id),
+    sessions: t.id === selectedThreadId ? threadSessions : undefined,
   }));
 
   // Helper to get the latest active session for a thread
   const getLatestActiveSession = useCallback(
     (threadId: number) => {
-      const sessions = getThreadSessions(threadId) || [];
+      const sessions = threadSessions || [];
       // Prefer the latest active session
       const active = sessions.filter((s) => s.status === "active");
       return active.length > 0
         ? active[active.length - 1]
         : sessions[sessions.length - 1];
     },
-    [getThreadSessions]
+    [threadSessions]
   );
+
+  // Use optimistic update hook instead of manual state manipulation
 
   // Dynamic form rendering for generated questions
   function GeneratedForm({
@@ -412,6 +411,11 @@ function Index() {
         selectedSessionId={selectedSessionId ?? null}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        limit={limit}
+        setLimit={setLimit}
+        offset={offset}
+        setOffset={setOffset}
+        total={totalThreads}
       />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <MobileTopbar
@@ -440,6 +444,21 @@ function Index() {
             selectedThreadId={selectedThreadId ?? null}
             selectedSessionId={selectedSessionId ?? null}
             showFormIndicator={showFormIndicator}
+            onMessageSent={moveThreadToTop}
+            onThreadDeleted={() => {
+              // Select first available thread after deletion
+              if (threadsWithoutPersona.length > 1) {
+                const remainingThreads = threadsWithoutPersona.filter(t => t.id !== selectedThreadId);
+                if (remainingThreads.length > 0) {
+                  handleSelectThread(remainingThreads[0].id);
+                }
+              } else {
+                setSelectedThread(null);
+                setThreadId(null);
+                setSelectedSession(null);
+                setSessionId(null);
+              }
+            }}
           />
         )}
         <ChatDialog
@@ -449,30 +468,31 @@ function Index() {
           onThreadCreated={async (session) => {
             setChatDialogOpen(false);
 
-            // Add the new thread to the store immediately
-            addNormalThread(session);
-
-            // Select the new thread
+            // Immediately select the new thread and session
+            setSelectedThread(session.id);
             setThreadId(session.id);
+            
+            // Use the sessionId from the response immediately
+            const sessionId = session.sessionId || session.id;
+            setSelectedSession(sessionId);
+            setSessionId(sessionId);
 
-            try {
-              // Fetch sessions for the new thread and select the first session
-              const sessions = await threadsApi.getSessions(session.id);
-              setThreadSessions(session.id, sessions);
+            // Optimistically update the thread sessions cache
+            queryClient.setQueryData(
+              ["threadSessions", session.id],
+              [{
+                id: sessionId,
+                threadId: session.id,
+                sessionNumber: 1,
+                sessionName: "Session 1",
+                status: "active",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }]
+            );
 
-              // Select the first session (Session 1) or use the sessionId from the response
-              if (sessions.length > 0) {
-                setSessionId(sessions[0].id);
-              } else if (session.sessionId) {
-                setSessionId(session.sessionId);
-              }
-            } catch (error) {
-              console.error("Error fetching sessions for new thread:", error);
-              // Fallback: select the sessionId from the response if available
-              if (session.sessionId) {
-                setSessionId(session.sessionId);
-              }
-            }
+            // The form already handled the optimistic update for the threads list
+            // No need to do additional async operations here
           }}
         />
       </div>

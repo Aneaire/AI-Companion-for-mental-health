@@ -48,6 +48,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.57.0",
+    "react-intersection-observer": "^9.16.0",
     "react-speech-kit": "^3.0.1",
     "recharts": "^3.0.2",
     "sonner": "^2.0.5",

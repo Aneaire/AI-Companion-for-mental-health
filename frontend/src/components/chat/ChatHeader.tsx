@@ -4,18 +4,26 @@ import type { ConversationPreferences } from "@/stores/chatStore";
 import { BrainCircuit, Settings, Sparkles } from "lucide-react";
 import type { JSX } from "react";
 import { useState } from "react";
-import { ConversationPreferencesDialog } from "./ConversationPreferencesDialog";
+import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
 
 interface ChatHeaderProps {
   preferences: ConversationPreferences;
   onPreferencesChange: (preferences: ConversationPreferences) => void;
+  selectedThreadId?: number | null;
+  threadTitle?: string;
+  onDeleteThread?: (threadId: number) => void;
+  onArchiveThread?: (threadId: number) => void;
 }
 
 export function ChatHeader({
   preferences,
   onPreferencesChange,
+  selectedThreadId,
+  threadTitle,
+  onDeleteThread,
+  onArchiveThread,
 }: ChatHeaderProps): JSX.Element {
-  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <>
@@ -58,7 +66,7 @@ export function ChatHeader({
               variant="ghost"
               size="sm"
               className="text-gray-600 hover:text-gray-900 hover:bg-gray-100/50"
-              onClick={() => setIsPreferencesOpen(true)}
+              onClick={() => setIsSettingsOpen(true)}
             >
               <Settings size={16} className="mr-2" />
               Settings
@@ -67,11 +75,15 @@ export function ChatHeader({
         </div>
       </header>
 
-      <ConversationPreferencesDialog
-        isOpen={isPreferencesOpen}
-        onClose={() => setIsPreferencesOpen(false)}
+      <ThreadSettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        selectedThreadId={selectedThreadId}
+        threadTitle={threadTitle}
         preferences={preferences}
         onPreferencesChange={onPreferencesChange}
+        onDeleteThread={onDeleteThread}
+        onArchiveThread={onArchiveThread}
       />
     </>
   );

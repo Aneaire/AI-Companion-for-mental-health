@@ -32,29 +32,35 @@ interface ConversationContext {
 }
 
 interface ChatState {
+  // Current session data (ephemeral - not persisted)
   currentContext: ConversationContext;
   contexts: Map<string, ConversationContext>;
-  // Store sessions per thread
-  threadSessions: Map<number, Session[]>;
   loadingState: "idle" | "observer" | "generating" | "streaming";
+
+  // User preferences (persisted)
   conversationPreferences: ConversationPreferences;
+  impersonateMaxExchanges: number;
+
+  // Initial forms cache (persisted)
+  initialForms: Map<number, FormData>;
+
+  // Actions
   setCurrentContext: (contextId: string) => void;
   addMessage: (message: Message) => void;
   updateContextSummary: (summary: string) => void;
   clearCurrentContext: () => void;
   updateLastMessage: (newText: string) => void;
+  updateMessageStatus: (tempId: number, status: Message["status"], error?: string) => void;
+  removeMessage: (tempId: number) => void;
   setSessionId: (sessionId: number | null) => void;
   setThreadId: (threadId: number | null) => void;
   clearMessages: () => void;
-  setInitialForm: (form: FormData) => void;
-  getInitialForm: (sessionId: number) => FormData | undefined;
-  setThreadSessions: (threadId: number, sessions: Session[]) => void;
-  getThreadSessions: (threadId: number) => Session[] | undefined;
+  setInitialForm: (form: FormData, threadOrSessionId?: number) => void;
+  getInitialForm: (threadOrSessionId: number) => FormData | undefined;
   setLoadingState: (
     state: "idle" | "observer" | "generating" | "streaming"
   ) => void;
   setMessages: (messages: Message[]) => void;
-  impersonateMaxExchanges: number;
   setImpersonateMaxExchanges: (val: number) => void;
   setConversationPreferences: (preferences: ConversationPreferences) => void;
 }
@@ -69,7 +75,6 @@ export const useChatStore = create<ChatState>()(
         threadId: null,
       },
       contexts: new Map(),
-      threadSessions: new Map(),
       loadingState: "idle",
       conversationPreferences: {
         briefAndConcise: false,
@@ -78,6 +83,8 @@ export const useChatStore = create<ChatState>()(
         casualAndFriendly: false,
         professionalAndFormal: false,
       },
+      initialForms: new Map<number, FormData>(),
+      impersonateMaxExchanges: 10,
       setCurrentContext: (contextId: string) => {
         const { contexts } = get();
         const context = contexts.get(contextId) || {
@@ -128,6 +135,28 @@ export const useChatStore = create<ChatState>()(
           currentContext: { ...currentContext, messages },
         });
       },
+      updateMessageStatus: (tempId: number, status: Message["status"], error?: string) => {
+        const { currentContext } = get();
+        const messages = [...currentContext.messages];
+        const messageIndex = messages.findIndex(msg => msg.tempId === tempId);
+        if (messageIndex !== -1) {
+          messages[messageIndex] = {
+            ...messages[messageIndex],
+            status,
+            error,
+          };
+          set({
+            currentContext: { ...currentContext, messages },
+          });
+        }
+      },
+      removeMessage: (tempId: number) => {
+        const { currentContext } = get();
+        const messages = currentContext.messages.filter(msg => msg.tempId !== tempId);
+        set({
+          currentContext: { ...currentContext, messages },
+        });
+      },
       clearCurrentContext: () => {
         set({
           currentContext: {
@@ -156,32 +185,22 @@ export const useChatStore = create<ChatState>()(
           currentContext: { ...currentContext, messages: [] },
         });
       },
-      setInitialForm: (form: FormData) => {
-        const { currentContext } = get();
-        // Debug log for setting initial form
-        console.log("[DEBUG] setInitialForm called", { form });
-        set({
-          currentContext: { ...currentContext, initialForm: form },
-        });
+      setInitialForm: (form: FormData, threadOrSessionId?: number) => {
+        const { currentContext, initialForms } = get();
+        if (typeof threadOrSessionId === "number") {
+          const updatedForms = new Map(initialForms);
+          updatedForms.set(threadOrSessionId, form);
+          set({ initialForms: updatedForms });
+        } else {
+          set({ currentContext: { ...currentContext, initialForm: form } });
+        }
       },
-      getInitialForm: (_sessionId: number) => {
-        const { currentContext } = get();
-        // Debug log for getting initial form
-        console.log("[DEBUG] getInitialForm called", {
-          sessionId: _sessionId,
-          result: currentContext.initialForm,
-        });
+      getInitialForm: (threadOrSessionId: number) => {
+        const { initialForms, currentContext } = get();
+        if (initialForms && initialForms.has(threadOrSessionId)) {
+          return initialForms.get(threadOrSessionId);
+        }
         return currentContext.initialForm;
-      },
-      setThreadSessions: (threadId: number, sessions: Session[]) => {
-        const { threadSessions } = get();
-        const updatedSessions = new Map(threadSessions);
-        updatedSessions.set(threadId, sessions);
-        set({ threadSessions: updatedSessions });
-      },
-      getThreadSessions: (threadId: number) => {
-        const { threadSessions } = get();
-        return threadSessions.get(threadId);
       },
       setLoadingState: (
         state: "idle" | "observer" | "generating" | "streaming"
@@ -194,7 +213,6 @@ export const useChatStore = create<ChatState>()(
           currentContext: { ...currentContext, messages },
         });
       },
-      impersonateMaxExchanges: 10,
       setImpersonateMaxExchanges: (val: number) =>
         set({ impersonateMaxExchanges: val }),
       setConversationPreferences: (preferences: ConversationPreferences) =>
@@ -211,9 +229,6 @@ export const useChatStore = create<ChatState>()(
           if (parsed.state && parsed.state.contexts) {
             parsed.state.contexts = new Map(parsed.state.contexts);
           }
-          if (parsed.state && parsed.state.threadSessions) {
-            parsed.state.threadSessions = new Map(parsed.state.threadSessions);
-          }
           if (
             parsed.state &&
             parsed.state.currentContext &&
@@ -228,45 +243,20 @@ export const useChatStore = create<ChatState>()(
           return parsed;
         },
         setItem: (name, value) => {
-          // Manually serialize Map to array for storage
-          const serializedValue = JSON.stringify({
-            ...value,
-            state: {
-              ...value.state,
-              currentContext: {
-                sessionId: value.state.currentContext.sessionId,
-                threadId: value.state.currentContext.threadId,
-                initialForm: value.state.currentContext.initialForm,
-              },
-              threadSessions: Array.from(value.state.threadSessions.entries()),
-            },
-          });
-          localStorage.setItem(name, serializedValue);
+          // Store the partialized state as-is; currentContext is not persisted
+          localStorage.setItem(name, JSON.stringify(value));
         },
         removeItem: (name) => localStorage.removeItem(name),
       },
       partialize: (state: ChatState) => ({
-        // Only persist minimal data, not messages or contexts
-        currentContext: {
-          sessionId: state.currentContext.sessionId,
-          threadId: state.currentContext.threadId,
-          initialForm: state.currentContext.initialForm,
-        },
-        threadSessions: Array.from(state.threadSessions.entries()),
+        // Only persist user preferences and settings
         impersonateMaxExchanges: state.impersonateMaxExchanges,
         conversationPreferences: state.conversationPreferences,
+        initialForms: Array.from(state.initialForms.entries()),
       }),
       merge: (persistedState: any, currentState: ChatState) => {
-        // Only merge the minimal persisted state
         return {
           ...currentState,
-          currentContext: {
-            ...currentState.currentContext,
-            sessionId: persistedState.currentContext?.sessionId ?? null,
-            threadId: persistedState.currentContext?.threadId ?? null,
-            initialForm: persistedState.currentContext?.initialForm,
-          },
-          threadSessions: new Map(persistedState.threadSessions || []),
           impersonateMaxExchanges: persistedState.impersonateMaxExchanges ?? 10,
           conversationPreferences: persistedState.conversationPreferences ?? {
             briefAndConcise: false,
@@ -275,6 +265,7 @@ export const useChatStore = create<ChatState>()(
             casualAndFriendly: false,
             professionalAndFormal: false,
           },
+          initialForms: new Map(persistedState.initialForms || []),
         };
       },
     }

@@ -187,23 +187,17 @@ const chat = new Hono()
       }
     }
 
+    let sessionData: any[] = [];
+    const sessionIdNum = Number(currentSessionId);
     if (initialForm) {
-      if (!currentSessionId) {
-        return c.json(
-          { error: "Session ID is required for initial form submission" },
-          400
-        );
-      }
-
-      // Validate session exists, user has access, and session is active
-      const sessionData = await db
+      sessionData = await db
         .select({
           session: sessions,
           thread: threads,
         })
         .from(sessions)
         .innerJoin(threads, eq(sessions.threadId, threads.id))
-        .where(eq(sessions.id, currentSessionId))
+        .where(eq(sessions.id, sessionIdNum))
         .limit(1);
 
       if (
@@ -226,15 +220,14 @@ const chat = new Hono()
         400
       );
     } else {
-      // For ongoing chats, validate session exists, user has access, and session is active
-      const sessionData = await db
+      sessionData = await db
         .select({
           session: sessions,
           thread: threads,
         })
         .from(sessions)
         .innerJoin(threads, eq(sessions.threadId, threads.id))
-        .where(eq(sessions.id, currentSessionId))
+        .where(eq(sessions.id, sessionIdNum))
         .limit(1);
 
       if (
@@ -326,7 +319,7 @@ const chat = new Hono()
           ? (sender as SenderType)
           : "user";
         await db.insert(messages).values({
-          sessionId: currentSessionId,
+          sessionId: sessionIdNum,
           threadType: threadType || "main",
           sender: safeSender,
           text: message,
@@ -336,7 +329,14 @@ const chat = new Hono()
         await db
           .update(sessions)
           .set({ updatedAt: new Date() })
-          .where(eq(sessions.id, currentSessionId));
+          .where(eq(sessions.id, sessionIdNum));
+        // Update thread's updatedAt
+        if (sessionData && sessionData.length > 0) {
+          await db
+            .update(threads)
+            .set({ updatedAt: new Date() })
+            .where(eq(threads.id, sessionData[0].thread.id));
+        }
       } catch (error) {
         console.error("Error saving user message:", error);
       }
@@ -346,7 +346,7 @@ const chat = new Hono()
         .from(messages)
         .where(
           and(
-            eq(messages.sessionId, currentSessionId),
+            eq(messages.sessionId, sessionIdNum),
             eq(messages.threadType, threadType || "main")
           )
         );
@@ -370,7 +370,7 @@ const chat = new Hono()
           await db
             .update(sessions)
             .set({ summary: summaryText })
-            .where(eq(sessions.id, currentSessionId));
+            .where(eq(sessions.id, sessionIdNum));
         } catch (err) {
           console.error("Error generating or saving summary:", err);
         }
@@ -394,7 +394,7 @@ const chat = new Hono()
         await db
           .update(sessions)
           .set({ summary: summaryText })
-          .where(eq(sessions.id, currentSessionId));
+          .where(eq(sessions.id, sessionIdNum));
       } catch (err) {
         console.error("Error generating or saving initial summary:", err);
       }
@@ -514,7 +514,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           type SenderType = (typeof allowedSenders)[number];
           let aiSender: SenderType = "ai";
           await db.insert(messages).values({
-            sessionId: currentSessionId,
+            sessionId: sessionIdNum,
             threadType: threadType || "main",
             sender: aiSender,
             text: aiResponseText,
@@ -524,10 +524,10 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           await db
             .update(sessions)
             .set({ updatedAt: new Date() })
-            .where(eq(sessions.id, currentSessionId));
+            .where(eq(sessions.id, sessionIdNum));
 
           await saveConversationToFile(
-            currentSessionId,
+            sessionIdNum,
             message,
             aiResponseText,
             model.systemInstruction?.parts[0].text || "",
@@ -676,6 +676,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             text: message,
             timestamp: new Date(),
           });
+
+          // Update the thread's updatedAt timestamp to reflect recent activity
+          await db
+            .update(impersonateThread)
+            .set({ updatedAt: new Date() })
+            .where(eq(impersonateThread.id, threadId));
         } catch (error) {
           console.error("Error saving user message:", error);
         }
@@ -796,6 +802,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 text: aiResponseText,
                 timestamp: new Date(),
               });
+
+              // Update the thread's updatedAt timestamp to reflect recent activity
+              await db
+                .update(impersonateThread)
+                .set({ updatedAt: new Date() })
+                .where(eq(impersonateThread.id, threadId));
 
               await saveConversationToFile(
                 threadId, // Use threadId for file naming
