@@ -1,0 +1,54 @@
+You are an AI assistant tasked with generating personalized questions for a therapy session form.
+
+**Context:**
+- Initial Form Data: {
+  "preferredName": "",
+  "currentEmotions": [],
+  "reasonForVisit": "Kinda sad that i am graduating without learning in a university",
+  "supportType": [],
+  "supportTypeOther": "",
+  "additionalContext": "",
+  "imageResponse": "",
+  "responseCharacter": "",
+  "responseDescription": ""
+}
+- Previous Session Messages: ai: Hello there. I understand that you're feeling a bit sad about graduating without the traditional university learning experience. It sounds like you're grappling with a sense of loss or disappointment about what you missed out on. It's completely valid to feel that way. Graduating is a significant milestone, and it's natural to have certain expectations or hopes tied to the journey.
+
+Can you tell me more about what specifically makes you sad about this?
+
+user: Man i hate going to school because of that i didnt learn anything
+ai: I hear you, and it sounds like you're feeling incredibly frustrated that you don't feel like you learned much from your schooling. It's tough to feel like you've invested time and energy into something without getting the results you hoped for.
+
+When you say you didn't learn anything, what kind of learning were you hoping for? Were there specific skills or subjects you wish you'd engaged with more?
+
+
+**Task:**
+Based on the initial form data and conversation history, generate 3-5 relevant questions that would be helpful for the next therapy session. These questions should:
+1. Build upon the previous conversation
+2. Address any new concerns or progress
+3. Help the therapist understand the client's current state
+4. Be personalized to the client's specific situation
+
+**Requirements:**
+- Questions should be empathetic and supportive
+- Focus on the client's emotional state and progress
+- Consider any patterns or themes from the conversation
+- Make questions specific to the client's situation
+
+**Output Format:**
+Return a JSON array of question objects with this structure:
+[
+  {
+    "type": "text|textarea|select",
+    "label": "Question text here",
+    "name": "uniqueFieldName",
+    "options": ["option1", "option2"] // only for select type
+  }
+]
+
+**Example Question Types:**
+- "text": Short text input
+- "textarea": Longer text area for detailed responses
+- "select": Multiple choice with options
+
+Generate the questions now:

@@ -1,13 +1,41 @@
 import { ChatDialog } from "@/components/chat/ChatDialog";
 import type { FormData } from "@/components/chat/ChatForm";
 import MobileTopbar from "@/components/chat/MobileTopbar";
-import { Sidebar } from "@/components/chat/Sidebar";
+import { Sidebar, type Thread as ThreadType } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
-import { useCreateThread, useNormalThreads } from "@/lib/queries/threads";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { chatApi, generateFormApi, threadsApi } from "@/lib/client";
+import {
+  useCreateThread,
+  useMoveThreadToTop,
+  useNormalThreads,
+  useThreadSessions,
+} from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 function getThreadTitle(thread: any) {
   if (thread.sessionName) return thread.sessionName;
@@ -24,32 +52,190 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
+  // Use optimized thread selection from threadsStore
+  const {
+    selectedThreadId,
+    selectedSessionId,
+    setSelectedThread,
+    setSelectedSession,
+  } = useThreadsStore();
+  const setThreadId = useChatStore((s) => s.setThreadId);
+  const setSessionId = useChatStore((s) => s.setSessionId);
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { conversationPreferences, setConversationPreferences } =
-    useChatStore();
+  const [postSessionDialogOpen, setPostSessionDialogOpen] = useState(false);
+  const [isGeneratingForm, setIsGeneratingForm] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState<any[] | null>(
+    null
+  );
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
+  const postSessionThreadIdRef = useRef<number | null>(null);
+  const {
+    conversationPreferences,
+    setConversationPreferences,
+    getInitialForm,
+    setInitialForm,
+  } = useChatStore();
 
-  const { data: threadsApi, isLoading } = useNormalThreads(true);
-  const { normalThreads, setNormalThreads, addNormalThread } =
-    useThreadsStore();
-  useEffect(() => {
-    if (!isLoading && Array.isArray(threadsApi)) {
-      setNormalThreads(threadsApi);
-    }
-  }, [isLoading, threadsApi, setNormalThreads]);
-  const threadsWithoutPersona = normalThreads;
+  // Use TanStack Query directly instead of duplicating in Zustand
+  const {
+    data: threadsData,
+    isLoading,
+    limit,
+    setLimit,
+    offset,
+    setOffset,
+  } = useNormalThreads(true);
+
+  const threadsWithoutPersona = threadsData?.threads || [];
+  const totalThreads = threadsData?.total || 0;
   const createThread = useCreateThread();
-  const { addMessage, setSessionId, clearMessages } = useChatStore();
+  const moveThreadToTop = useMoveThreadToTop();
+  const queryClient = useQueryClient();
+  const { addMessage, clearMessages } = useChatStore();
 
-  const handleSelectThread = (id: number) => {
+  // Use query hook for sessions instead of manual fetching
+  const { data: threadSessions } = useThreadSessions(selectedThreadId);
+
+  const handleSelectThread = async (id: number) => {
     if (threadsWithoutPersona.some((t) => t.id === id)) {
-      setSelectedThreadId(id);
+      setSelectedThread(id);
+      setThreadId(id);
+      setSelectedSession(null);
+      setSessionId(null);
+
+      // Check session status and get the latest active session
+      try {
+        const sessionCheck = await threadsApi.checkSession(id);
+        if (sessionCheck.latestSession) {
+          setSelectedSession(sessionCheck.latestSession.id);
+          setSessionId(sessionCheck.latestSession.id);
+        }
+      } catch (error) {
+        console.error("Error checking session status:", error);
+      }
     }
+  };
+
+  const handleSelectSession = (sessionId: number) => {
+    setSelectedSession(sessionId);
   };
 
   const handleNewThread = () => {
     setChatDialogOpen(true);
+  };
+
+  const handleNewSession = async (threadId: number) => {
+    try {
+      const sessionsCount = threadSessions?.length || 0;
+      const newSession = await threadsApi.createSession(threadId, {
+        sessionName: `Session ${sessionsCount + 1}`,
+      });
+
+      // Select the new session
+      setSelectedSession(newSession.id);
+      setSessionId(newSession.id);
+
+      toast.success("New session created!");
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast.error("Failed to create new session");
+    }
+  };
+
+  // Helper: fetch all messages for all sessions in a thread
+  const fetchAllMessagesForThread = async (threadId: number) => {
+    const sessions = threadSessions || [];
+    let allMessages: any[] = [];
+    for (const session of sessions) {
+      try {
+        const response = await fetch(
+          `http://localhost:4000/api/chat/${session.id}`
+        );
+        if (response.ok) {
+          const sessionMessages = await response.json();
+          allMessages = allMessages.concat(sessionMessages);
+        }
+      } catch (e) {
+        // ignore error for now
+      }
+    }
+    return allMessages;
+  };
+
+  // Patch handleExpireSession to trigger post-session dialog and generation
+  const handleExpireSession = async (threadId: number) => {
+    try {
+      setPostSessionDialogOpen(true);
+      setIsGeneratingForm(true);
+      setGeneratedQuestions(null);
+      setFormError(null);
+      postSessionThreadIdRef.current = threadId;
+
+      // Get current sessions for this thread
+      const currentSessions = threadSessions || [];
+      const activeSession = currentSessions.find(
+        (session) => session.status === "active"
+      );
+
+      if (!activeSession) {
+        toast.error("No active session found to expire");
+        setPostSessionDialogOpen(false);
+        return;
+      }
+
+      // Get the initial form from the current session before expiring it
+      const currentInitialForm = getInitialForm(activeSession.id);
+
+      // Call API to mark session as finished
+      const response = await fetch(
+        `http://localhost:4000/api/threads/${threadId}/expire-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ sessionId: activeSession.id }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to expire session");
+      }
+
+      // Sessions will be refreshed automatically by the query
+
+      // Fetch all messages for all sessions
+      const allMessages = await fetchAllMessagesForThread(threadId);
+
+      // Get persona/initialForm for the thread
+      let personaForm = null;
+      if (currentSessions.length > 0) {
+        personaForm =
+          getInitialForm(currentSessions[0].id) ||
+          getInitialForm(activeSession.id);
+      }
+      // Defensive fallback: ensure personaForm is always a non-null object
+      if (
+        typeof personaForm !== "object" ||
+        personaForm === null ||
+        Array.isArray(personaForm)
+      ) {
+        personaForm = {};
+      }
+      // Call generate-form API
+      const genData = await generateFormApi.generate({
+        initialForm: personaForm,
+        messages: allMessages.map((m) => ({ sender: m.sender, text: m.text })),
+      });
+      setGeneratedQuestions(genData.questions || []);
+      setIsGeneratingForm(false);
+    } catch (error: any) {
+      setFormError(error.message || "Unknown error");
+      setIsGeneratingForm(false);
+    }
   };
 
   const handleChatFormSubmit = (
@@ -58,7 +244,8 @@ function Index() {
     sessionId: number,
     newThread?: any
   ) => {
-    setSessionId(sessionId);
+    // Don't set session ID here - let the Thread component handle it
+    // The session ID will be set when the thread is selected
     clearMessages();
     const cleanAIResponse = aiResponse.replace(/^[0-9]+/, "").trim();
     addMessage({
@@ -67,9 +254,7 @@ function Index() {
       timestamp: new Date(),
       contextId: "default",
     });
-    if (newThread) {
-      addNormalThread(newThread);
-    }
+    // Thread will be added automatically via optimistic updates in the mutation
   };
 
   useEffect(() => {
@@ -88,9 +273,122 @@ function Index() {
       threadsWithoutPersona.length > 0 &&
       selectedThreadId == null
     ) {
-      setSelectedThreadId(threadsWithoutPersona[0].id);
+      setSelectedThread(threadsWithoutPersona[0].id);
+      setThreadId(threadsWithoutPersona[0].id);
     }
-  }, [isLoading, threadsWithoutPersona, selectedThreadId]);
+  }, [
+    isLoading,
+    threadsWithoutPersona,
+    selectedThreadId,
+    setSelectedThread,
+    setThreadId,
+  ]);
+
+  // Ensure a session is selected for the selected thread on initial load/refresh
+  useEffect(() => {
+    const ensureSessionSelected = async () => {
+      if (!selectedThreadId || selectedSessionId != null) return;
+      try {
+        const sessionCheck = await threadsApi.checkSession(selectedThreadId);
+        if (sessionCheck?.latestSession?.id) {
+          setSelectedSession(sessionCheck.latestSession.id);
+          setSessionId(sessionCheck.latestSession.id);
+        }
+      } catch (err) {
+        console.error("Error ensuring session on initial load:", err);
+      }
+    };
+    ensureSessionSelected();
+  }, [selectedThreadId, selectedSessionId, setSelectedSession, setSessionId]);
+
+  // Prepare threads with sessions for sidebar - only for selected thread to avoid overfetching
+  const threadsWithSessions: ThreadType[] = threadsWithoutPersona.map((t) => ({
+    id: t.id,
+    title: getThreadTitle(t),
+    sessions: t.id === selectedThreadId ? threadSessions : undefined,
+  }));
+
+  // Helper to get the latest active session for a thread
+  const getLatestActiveSession = useCallback(
+    (threadId: number) => {
+      const sessions = threadSessions || [];
+      // Prefer the latest active session
+      const active = sessions.filter((s) => s.status === "active");
+      return active.length > 0
+        ? active[active.length - 1]
+        : sessions[sessions.length - 1];
+    },
+    [threadSessions]
+  );
+
+  // Use optimistic update hook instead of manual state manipulation
+
+  // Dynamic form rendering for generated questions
+  function GeneratedForm({
+    questions,
+    onSubmit,
+  }: {
+    questions: any[];
+    onSubmit: (values: any) => void;
+  }) {
+    const form = useForm();
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {questions.map((q, idx) => (
+            <FormField
+              key={q.name || idx}
+              control={form.control}
+              name={q.name}
+              rules={{ required: true }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{q.label}</FormLabel>
+                  <FormControl>
+                    {q.type === "text" ? (
+                      <Input {...field} />
+                    ) : q.type === "textarea" ? (
+                      <Textarea {...field} />
+                    ) : q.type === "select" ? (
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {q.options?.map((opt: string) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+            disabled={formSubmitting}
+          >
+            {formSubmitting ? "Saving..." : "Submit"}
+          </button>
+          {formSubmitError && (
+            <div className="text-red-600 text-sm mt-2">{formSubmitError}</div>
+          )}
+        </form>
+      </Form>
+    );
+  }
+
+  const [showFormIndicator, setShowFormIndicator] = useState(false);
+  const formIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   return (
     <div className="flex h-screen w-full">
@@ -103,15 +401,21 @@ function Index() {
         />
       </div>
       <Sidebar
-        threads={threadsWithoutPersona.map((t) => ({
-          id: t.id,
-          title: getThreadTitle(t),
-        }))}
+        threads={threadsWithSessions}
         onSelectThread={handleSelectThread}
+        onSelectSession={handleSelectSession}
         onNewThread={handleNewThread}
-        selectedThreadId={selectedThreadId}
+        onNewSession={handleNewSession}
+        onExpireSession={handleExpireSession}
+        selectedThreadId={selectedThreadId ?? null}
+        selectedSessionId={selectedSessionId ?? null}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        limit={limit}
+        setLimit={setLimit}
+        offset={offset}
+        setOffset={setOffset}
+        total={totalThreads}
       />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <MobileTopbar
@@ -136,18 +440,150 @@ function Index() {
             </button>
           </div>
         ) : (
-          <Thread selectedThreadId={selectedThreadId} />
+          <Thread
+            selectedThreadId={selectedThreadId ?? null}
+            selectedSessionId={selectedSessionId ?? null}
+            showFormIndicator={showFormIndicator}
+            onMessageSent={moveThreadToTop}
+            onThreadDeleted={() => {
+              // Select first available thread after deletion
+              if (threadsWithoutPersona.length > 1) {
+                const remainingThreads = threadsWithoutPersona.filter(t => t.id !== selectedThreadId);
+                if (remainingThreads.length > 0) {
+                  handleSelectThread(remainingThreads[0].id);
+                }
+              } else {
+                setSelectedThread(null);
+                setThreadId(null);
+                setSelectedSession(null);
+                setSessionId(null);
+              }
+            }}
+          />
         )}
         <ChatDialog
           open={chatDialogOpen}
           onOpenChange={setChatDialogOpen}
           onSubmit={handleChatFormSubmit}
-          onThreadCreated={(session) => {
-            setSelectedThreadId(session.id);
+          onThreadCreated={async (session) => {
             setChatDialogOpen(false);
+
+            // Immediately select the new thread and session
+            setSelectedThread(session.id);
+            setThreadId(session.id);
+            
+            // Use the sessionId from the response immediately
+            const sessionId = session.sessionId || session.id;
+            setSelectedSession(sessionId);
+            setSessionId(sessionId);
+
+            // Optimistically update the thread sessions cache
+            queryClient.setQueryData(
+              ["threadSessions", session.id],
+              [{
+                id: sessionId,
+                threadId: session.id,
+                sessionNumber: 1,
+                sessionName: "Session 1",
+                status: "active",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }]
+            );
+
+            // The form already handled the optimistic update for the threads list
+            // No need to do additional async operations here
           }}
         />
       </div>
+      {/* Post-session dialog for loading/generation and form */}
+      <Dialog
+        open={postSessionDialogOpen}
+        onOpenChange={setPostSessionDialogOpen}
+      >
+        <DialogContent className="max-w-lg">
+          {isGeneratingForm ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="animate-spin mb-4" size={32} />
+              <div className="text-lg font-semibold">
+                Preparing your next session...
+              </div>
+              <div className="text-gray-500 mt-2 text-sm">
+                Generating personalized follow-up questions. Please wait.
+              </div>
+            </div>
+          ) : formError ? (
+            <div className="text-red-600 font-semibold">{formError}</div>
+          ) : generatedQuestions ? (
+            <div>
+              <div className="text-lg font-semibold mb-2">
+                Session Follow-up Form
+              </div>
+              <GeneratedForm
+                questions={generatedQuestions}
+                onSubmit={async (values) => {
+                  setFormSubmitting(true);
+                  setFormSubmitError(null);
+                  try {
+                    const threadId = postSessionThreadIdRef.current;
+                    if (!threadId) throw new Error("No thread selected");
+                    const session = getLatestActiveSession(threadId);
+                    if (!session) throw new Error("No session found");
+                    // Save form answers using the Hono client
+                    try {
+                      await threadsApi.saveSessionForm(session.id, values);
+                    } catch (err) {
+                      throw err;
+                    }
+                    toast.success(
+                      "Form saved! Answers will be used in your next session."
+                    );
+                    setPostSessionDialogOpen(false);
+                    // --- Switch to the new session and show indicator ---
+                    setSessionId(session.id);
+                    clearMessages();
+                    setShowFormIndicator(true);
+                    if (formIndicatorTimeoutRef.current) {
+                      clearTimeout(formIndicatorTimeoutRef.current);
+                    }
+                    formIndicatorTimeoutRef.current = setTimeout(() => {
+                      setShowFormIndicator(false);
+                    }, 4000); // Show for 4 seconds
+                    // --- End indicator logic ---
+                    // --- Trigger therapist to send first engaging message ---
+                    // Fetch the initial form for the new session
+                    const initialForm = getInitialForm(session.id);
+                    // Compose a system message to prompt the therapist to engage
+                    const systemPrompt =
+                      "Please greet and engage the user at the start of this new session, referencing their follow-up form answers if appropriate.";
+                    // Send an empty user message to trigger the AI therapist's first message
+                    // Find the thread for this session to get userId
+                    const thread = threadsWithoutPersona.find(
+                      (t) => t.id === threadId
+                    );
+                    if (!thread)
+                      throw new Error("Thread not found for userId lookup");
+                    await chatApi.sendMessage({
+                      message: "", // No user message, just trigger the AI
+                      context: [],
+                      sessionId: session.id,
+                      userId: String(thread.userId), // Use userId from thread
+                      initialForm: initialForm,
+                      systemInstruction: systemPrompt,
+                      threadType: "main",
+                    });
+                    // --- End therapist auto-engage ---
+                  } catch (err: any) {
+                    setFormSubmitError(err.message || "Unknown error");
+                  } finally {
+                    setFormSubmitting(false);
+                  }
+                }}
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

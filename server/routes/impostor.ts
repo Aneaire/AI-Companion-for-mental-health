@@ -1,11 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
-import { persona } from "../db/schema";
+import { impersonateThread, messages, persona } from "../db/schema";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -156,6 +156,101 @@ ${message}
       console.error("Error generating impostor response:", error);
       return c.json({ error: "Failed to generate response" }, 500);
     }
+  })
+  // Impersonate threads endpoints
+  .get("/threads", async (c) => {
+    const userId = c.req.query("userId");
+    if (!userId) return c.json({ error: "userId is required" }, 400);
+    const threads = await db
+      .select()
+      .from(impersonateThread)
+      .where(eq(impersonateThread.userId, parseInt(userId)))
+      .orderBy(desc(impersonateThread.updatedAt));
+    return c.json(threads);
+  })
+  .get("/threads/:threadId", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    const thread = await db
+      .select()
+      .from(impersonateThread)
+      .where(eq(impersonateThread.id, parseInt(threadId)))
+      .limit(1);
+
+    if (!thread.length) {
+      return c.json({ error: "Thread not found" }, 404);
+    }
+
+    return c.json(thread[0]);
+  })
+  .post("/threads", async (c) => {
+    const body = await c.req.json();
+    const schema = z.object({
+      userId: z.number(),
+      personaId: z.number().optional().nullable(),
+      sessionName: z.string().optional(),
+      preferredName: z.string().optional(),
+      reasonForVisit: z.string(),
+    });
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "Invalid input", details: parsed.error }, 400);
+    }
+    const [thread] = await db
+      .insert(impersonateThread)
+      .values({
+        userId: parsed.data.userId,
+        personaId: parsed.data.personaId ?? null,
+        sessionName: parsed.data.sessionName,
+        preferredName: parsed.data.preferredName,
+        reasonForVisit: parsed.data.reasonForVisit,
+      })
+      .returning();
+    return c.json(thread);
+  })
+  // Impersonate messages endpoints
+  .get("/messages", async (c) => {
+    const sessionId = c.req.query("sessionId");
+    const threadType = c.req.query("threadType");
+    if (!sessionId || !threadType)
+      return c.json({ error: "sessionId and threadType are required" }, 400);
+    const msgs = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.sessionId, parseInt(sessionId)),
+          eq(messages.threadType, threadType as "main" | "impersonate")
+        )
+      )
+      .orderBy(messages.timestamp);
+    return c.json(msgs);
+  })
+  .post("/messages", async (c) => {
+    const body = await c.req.json();
+    const schema = z.object({
+      sessionId: z.number(),
+      threadType: z.enum(["main", "impersonate"]),
+      sender: z.enum(["user", "ai", "therapist", "impostor"]),
+      text: z.string(),
+    });
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "Invalid input", details: parsed.error }, 400);
+    }
+    const [msg] = await db
+      .insert(messages)
+      .values({
+        sessionId: parsed.data.sessionId,
+        threadType: parsed.data.threadType,
+        sender: parsed.data.sender,
+        text: parsed.data.text,
+      })
+      .returning();
+    return c.json(msg);
   });
 
 export default impostorRoute;

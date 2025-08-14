@@ -1,14 +1,15 @@
 import { ImpersonateDialog } from "@/components/chat/ImpersonateDialog";
+import { ImpersonateThread } from "@/components/chat/ImpersonateThread";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar } from "@/components/chat/Sidebar";
-import { Thread } from "@/components/chat/Thread";
-import { impostorApi, threadsApi } from "@/lib/client";
+import { impostorApi } from "@/lib/client";
+import { usePersonaThreads } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
-import { useThreadsStore } from "@/stores/threadsStore";
 import { useAuth } from "@clerk/clerk-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 function Impersonate() {
@@ -17,18 +18,36 @@ function Impersonate() {
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
-  const { personaThreads, addPersonaThread } = useThreadsStore();
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
     clerkId || null
   );
-  const { setInitialForm } = useChatStore();
+  const { setInitialForm, clearMessages, setSessionId, setThreadId } =
+    useChatStore();
   const { conversationPreferences, setConversationPreferences } =
     useChatStore();
+  const queryClient = useQueryClient();
+  const { data: personaThreadsApi, isLoading: threadsLoading } =
+    usePersonaThreads(true);
+  const personaThreads = useMemo(
+    () => personaThreadsApi ?? [],
+    [personaThreadsApi]
+  );
+
+  // Clear chat state when impersonate page loads
+  useEffect(() => {
+    clearMessages();
+    setSessionId(null);
+    setThreadId(null);
+  }, [clearMessages, setSessionId, setThreadId]);
 
   // Select the first thread on first render if available
   useEffect(() => {
-    if (personaThreads.length > 0 && selectedThreadId == null) {
+    if (
+      Array.isArray(personaThreads) &&
+      personaThreads.length > 0 &&
+      selectedThreadId == null
+    ) {
       setSelectedThreadId(personaThreads[0].id);
     }
   }, [personaThreads, selectedThreadId]);
@@ -39,11 +58,14 @@ function Impersonate() {
     // Find the selected thread and set initial form
     const thread = personaThreads.find((t) => t.id === id);
     if (thread) {
-      setInitialForm({
-        preferredName: thread.preferredName || thread.sessionName || "",
-        reasonForVisit: thread.reasonForVisit || "",
-        // add other required fields if needed
-      });
+      setInitialForm(
+        {
+          preferredName: thread.preferredName || thread.sessionName || "",
+          reasonForVisit: thread.reasonForVisit || "",
+          // add other required fields if needed
+        },
+        id
+      );
     }
   };
 
@@ -72,22 +94,61 @@ function Impersonate() {
     };
     console.log("[impostorApi.upsertProfile] Sending data:", payload);
     const persona = await impostorApi.upsertProfile(payload);
+
+    // Invalidate the impostor profile query to fetch the newly created profile
+    await queryClient.invalidateQueries({
+      queryKey: ["impostorProfile", userId],
+    });
+
     // 2. Create thread with personaId
-    const newThread = await threadsApi.create({
+    const newThread = await impostorApi.createThread({
       userId: payload.userId,
       personaId: persona.id,
       reasonForVisit: formData.problemDescription,
       preferredName: formData.fullName,
     });
-    addPersonaThread(newThread);
+    // Optimistically add to personaThreads cache
+    queryClient.setQueryData(["personaThreads", userId], (old: any) =>
+      Array.isArray(old) ? [newThread, ...old] : [newThread]
+    );
     setSelectedThreadId(newThread.id);
-    setInitialForm({
-      preferredName: formData.fullName,
-      reasonForVisit: formData.problemDescription,
-      // add other required fields if needed
-    });
+    setInitialForm(
+      {
+        preferredName: formData.fullName,
+        reasonForVisit: formData.problemDescription,
+        // add other required fields if needed
+      },
+      newThread.id
+    );
     setImpersonateDialogOpen(false);
   };
+
+  // Move thread to top when used
+  const handleThreadActivity = useCallback(
+    (threadId: number) => {
+      const thread = personaThreads.find((t) => t.id === threadId);
+      if (!thread) return;
+      queryClient.setQueryData(
+        ["personaThreads", userProfile?.id],
+        (old: any) => {
+          if (!Array.isArray(old)) return old;
+          const remaining = old.filter((t: any) => t.id !== threadId);
+          return [thread, ...remaining];
+        }
+      );
+    },
+    [personaThreads, queryClient, userProfile?.id]
+  );
+
+  // Memoized sidebar threads to always reflect latest personaThreads order
+  const sidebarThreads = useMemo(
+    () =>
+      (Array.isArray(personaThreads) ? personaThreads : []).map((t) => ({
+        id: t.id,
+        title: t.sessionName || t.reasonForVisit || `Thread #${t.id}`,
+      })),
+    [personaThreads]
+  );
 
   return (
     <div className="flex h-screen w-full">
@@ -100,13 +161,13 @@ function Impersonate() {
         />
       </div>
       <Sidebar
-        threads={personaThreads.map((t) => ({
-          id: t.id,
-          title: t.sessionName || t.reasonForVisit || `Thread #${t.id}`,
-        }))}
+        threads={sidebarThreads}
         onSelectThread={handleSelectThread}
+        onSelectSession={() => {}} // No session management for impersonate
         onNewThread={handleNewThread}
+        onNewSession={() => {}} // No session creation for impersonate
         selectedThreadId={selectedThreadId}
+        selectedSessionId={null} // No session selection for impersonate
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -118,10 +179,16 @@ function Impersonate() {
         />
 
         <div className="flex-1 min-h-0">
-          <Thread
-            selectedThreadId={selectedThreadId}
-            isImpersonateMode={mode === "impersonate"}
-          />
+          {threadsLoading ? (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              Loading threads...
+            </div>
+          ) : (
+            <ImpersonateThread
+              selectedThreadId={selectedThreadId}
+              onThreadActivity={handleThreadActivity}
+            />
+          )}
         </div>
       </div>
     </div>

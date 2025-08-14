@@ -184,12 +184,17 @@ const ChatForm = ({
           throw new Error("User not authenticated");
         }
 
-        console.log("user id", userProfile?.id);
+        // Use preferredName or fallback to nickname
+        const preferredNameToSend =
+          data.preferredName && data.preferredName.trim() !== ""
+            ? data.preferredName
+            : userProfile?.nickname || "";
+
         // First create the thread
         const threadResponse = await client.api.threads.$post({
           json: {
             userId: userProfile.id,
-            preferredName: data.preferredName,
+            preferredName: preferredNameToSend,
             currentEmotions: data.currentEmotions,
             reasonForVisit: data.reasonForVisit,
             supportType: data.supportType,
@@ -197,6 +202,8 @@ const ChatForm = ({
             additionalContext: data.additionalContext,
             responseTone: data.responseTone,
             imageResponse: data.imageResponse,
+            responseCharacter: data.responseCharacter,
+            responseDescription: data.responseDescription,
           },
         });
 
@@ -206,19 +213,38 @@ const ChatForm = ({
 
         const session = await threadResponse.json();
 
-        // Invalidate threads query so sidebar refreshes
-        await queryClient.invalidateQueries({ queryKey: ["threads"] });
+        // Optimistically add the new thread to the cache before invalidating
+        queryClient.setQueryData(
+          ["normalThreads", userProfile?.id, 20, 0],
+          (oldData: any) => {
+            if (!oldData) return { threads: [session], total: 1 };
+            return {
+              ...oldData,
+              threads: [session, ...oldData.threads],
+              total: oldData.total + 1,
+            };
+          }
+        );
 
-        // Store form data in chat context
-        setInitialForm(data);
+        // Invalidate queries with a small delay to allow UI to update first
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+          queryClient.invalidateQueries({ queryKey: ["threads"] });
+        }, 100);
+
+        // Store form data in chat context with the session ID
+        setInitialForm(
+          { ...data, preferredName: preferredNameToSend },
+          session.sessionId || session.id
+        );
 
         // Then get the AI's initial response
         const chatResponse = await client.api.chat.$post({
           json: {
             message: "",
-            initialForm: data,
+            initialForm: { ...data, preferredName: preferredNameToSend },
             userId: String(userProfile.id),
-            sessionId: session.id,
+            sessionId: session.sessionId || session.id,
           },
         });
 
@@ -300,6 +326,22 @@ const ChatForm = ({
     },
     onSuccess: (response) => {
       console.log("Thread created and AI responded:", response);
+
+      // Call the onSubmit callback with the form data and AI response
+      if (onSubmit) {
+        onSubmit(
+          response.session,
+          response.response,
+          response.session.sessionId || response.session.id
+        );
+      }
+
+      // Call the onThreadCreated callback to handle thread selection
+      // The response.session contains both thread data and sessionId
+      if (onThreadCreated) {
+        onThreadCreated(response.session);
+      }
+
       toast("We're ready to support you. Let's begin.");
     },
     onError: (error) => {

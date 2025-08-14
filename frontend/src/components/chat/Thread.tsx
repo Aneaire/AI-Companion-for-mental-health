@@ -1,15 +1,18 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
-import client, { chatApi, impostorApi, observerApi } from "@/lib/client";
-import { useImpostorProfile, useUserProfile } from "@/lib/queries/user";
+import client, { observerApi, threadsApi } from "@/lib/client";
+import { useMoveThreadToTop } from "@/lib/queries/threads";
+import { useUserProfile } from "@/lib/queries/user";
+import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
 import { useChatStore } from "@/stores/chatStore";
+import { useThreadsStore } from "@/stores/threadsStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Brain, Lightbulb, Loader2, Settings, X } from "lucide-react";
-import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
+import { memo, Suspense, useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
-import { ImpersonateInput } from "./ImpersonateInput";
 import { patchMarkdown } from "./MessageList";
 
 interface ErrorResponse {
@@ -24,8 +27,11 @@ interface FetchedMessage {
 
 export interface ThreadProps {
   selectedThreadId: number | null;
+  selectedSessionId?: number | null;
   onSendMessage?: (message: string) => Promise<void>;
-  isImpersonateMode?: boolean;
+  showFormIndicator?: boolean;
+  onMessageSent?: (threadId: number) => void;
+  onThreadDeleted?: () => void;
 }
 
 // Enhanced Loading Fallback Component
@@ -143,26 +149,30 @@ function cleanUpImpersonateTempMessages(
 
 export function Thread({
   selectedThreadId,
+  selectedSessionId,
   onSendMessage,
-  isImpersonateMode = false,
+  showFormIndicator,
+  onMessageSent,
+  onThreadDeleted,
 }: ThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
     clerkId || null
   );
-  const { data: impostorProfile, isLoading: impostorProfileLoading } =
-    useImpostorProfile(userProfile?.id ? Number(userProfile.id) : null);
+  const queryClient = useQueryClient();
+  const moveThreadToTop = useMoveThreadToTop();
+  const { setSelectedThread } = useThreadsStore();
   const {
     currentContext,
     addMessage,
     updateLastMessage,
     setSessionId,
+    setThreadId,
     clearMessages,
     setInitialForm,
+    getInitialForm,
     loadingState,
     setLoadingState,
-    impersonateMaxExchanges,
-    setImpersonateMaxExchanges,
     conversationPreferences,
     setConversationPreferences,
   } = useChatStore();
@@ -178,48 +188,231 @@ export function Thread({
   const [agentNextSteps, setAgentNextSteps] = useState<string[]>([]);
   const [showDevTools, setShowDevTools] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isImpersonating, setIsImpersonating] = useState(false);
-  const isImpersonatingRef = useRef(isImpersonating);
-  const [mode, setMode] = useState<"impersonate" | "chat">(
-    isImpersonateMode ? "impersonate" : "chat"
-  );
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [selectedSessionStatus, setSelectedSessionStatus] = useState<
+    "active" | "finished" | undefined
+  >(undefined);
+  const [threadTitle, setThreadTitle] = useState<string>("");
 
-  // Helper function to convert preferences to system instructions
-  const getPreferencesInstruction = () => {
-    const instructions: string[] = [];
+  // Thread management functions (memoized to prevent recreating on every render)
+  const handleDeleteThread = useCallback(async (threadId: number) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/threads/${threadId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete thread');
+      }
 
-    if (conversationPreferences.briefAndConcise) {
-      instructions.push("Keep responses brief and concise");
+      // Remove from query cache
+      queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+      queryClient.removeQueries({ queryKey: ["threadSessions", threadId] });
+      
+      // Clear current context
+      clearMessages();
+      setThreadId(null);
+      setSelectedThread(null);
+      
+      // Notify parent component
+      onThreadDeleted?.();
+      
+      toast.success("Thread deleted successfully");
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      toast.error("Failed to delete thread");
     }
-    if (conversationPreferences.empatheticAndSupportive) {
-      instructions.push("Be empathetic and emotionally supportive");
+  }, [queryClient, clearMessages, setThreadId, setSelectedThread, onThreadDeleted]);
+
+  const handleArchiveThread = useCallback(async (threadId: number) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/threads/${threadId}/archive`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to archive thread');
+      }
+
+      // Invalidate query cache to refresh the thread list
+      queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+      
+      // Success toast will be shown by the dialog component
+    } catch (error) {
+      console.error("Error archiving thread:", error);
+      toast.error("Failed to archive thread");
     }
-    if (conversationPreferences.solutionFocused) {
-      instructions.push("Focus on providing practical solutions and advice");
+  }, [queryClient]);
+
+  // Helper function to fetch thread initial form data
+  const fetchThreadInitialForm = async (threadId: number) => {
+    try {
+      // For main threads, fetch from main API
+      const response = await client.api.threads[":threadId"].$get({
+        param: { threadId: String(threadId) },
+      });
+      if (response.ok) {
+        const threadData = await response.json();
+        
+        // Set thread title for the header
+        const title = threadData.sessionName || 
+                     threadData.reasonForVisit || 
+                     `Thread #${threadId}`;
+        setThreadTitle(title);
+        
+        // Convert main thread data to FormData format
+        const formData: import("@/lib/client").FormData = {
+          preferredName: threadData.preferredName || "",
+          currentEmotions: threadData.currentEmotions || [],
+          reasonForVisit: threadData.reasonForVisit || "",
+          supportType: (threadData.supportType || []) as (
+            | "listen"
+            | "copingTips"
+            | "encouragement"
+            | "resources"
+            | "other"
+          )[],
+          supportTypeOther: threadData.supportTypeOther || "",
+          additionalContext: threadData.additionalContext || "",
+          responseTone: (threadData.responseTone || undefined) as
+            | "empathetic"
+            | "practical"
+            | "encouraging"
+            | "concise"
+            | undefined,
+          imageResponse: threadData.imageResponse || "",
+          responseCharacter: threadData.responseCharacter || "",
+          responseDescription: threadData.responseDescription || "",
+        };
+        setInitialForm(formData);
+        return formData;
+      }
+    } catch (error) {
+      console.error("Error fetching thread initial form:", error);
     }
-    if (conversationPreferences.casualAndFriendly) {
-      instructions.push("Use a casual and friendly tone");
-    }
-    if (conversationPreferences.professionalAndFormal) {
-      instructions.push("Maintain a professional and formal approach");
-    }
-    console.log(instructions);
-    return instructions.length > 0 ? instructions.join(". ") + "." : "";
+    return undefined;
   };
 
   useEffect(() => {
     if (selectedThreadId) {
-      setSessionId(selectedThreadId);
-      const fetchMessages = async () => {
+      setThreadId(selectedThreadId);
+      const fetchThreadData = async () => {
         try {
           setLoadingHistory(true);
+
+          // First check session status and potentially create new session
+          const sessionCheck = await threadsApi.checkSession(selectedThreadId);
+
+          // Fetch sessions for this thread
+          const threadSessions = await client.api.threads[
+            ":threadId"
+          ].sessions.$get({
+            param: { threadId: String(selectedThreadId) },
+          });
+
+          if (threadSessions.ok) {
+            const sessions = await threadSessions.json();
+
+            // Use the latest active session from the session check
+            if (sessionCheck.latestSession) {
+              setSessionId(sessionCheck.latestSession.id);
+
+              // Fetch messages for this session
+              const response = await client.api.chat[":sessionId"].$get({
+                param: { sessionId: String(sessionCheck.latestSession.id) },
+              });
+              if (!response.ok)
+                throw new Error("Failed to fetch previous messages");
+              const rawMessages = await response.json();
+
+              clearMessages();
+              setProgressRecommendation("");
+              lastSuggestionRef.current = "";
+
+              // Convert and add messages
+              const fetchedMessages: FetchedMessage[] = rawMessages.map(
+                (msg: any) => ({
+                  role: msg.sender === "ai" ? "model" : "user",
+                  text: msg.text,
+                  timestamp: msg.timestamp,
+                })
+              );
+
+              // Sort messages by timestamp to ensure correct order
+              const sortedMessages = fetchedMessages
+                .sort((a, b) => a.timestamp - b.timestamp)
+                .map((msg) => ({
+                  sender: (msg.role === "model" ? "ai" : "user") as
+                    | "user"
+                    | "ai",
+                  text: msg.text,
+                  timestamp: new Date(msg.timestamp),
+                  contextId: "default",
+                }));
+
+              sortedMessages.forEach((msg) => addMessage(msg));
+              setShowChat(true);
+
+              // Fetch and set the correct initial form for this session
+              await fetchThreadInitialForm(selectedThreadId);
+            } else {
+              // No sessions yet - this might be a new thread
+              // Set showChat to true so the interface is visible
+              setShowChat(true);
+              setSessionId(null);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching thread data:", error);
+          setSessionId(null);
+        } finally {
+          setLoadingHistory(false);
+        }
+      };
+      fetchThreadData();
+    }
+  }, [
+    selectedThreadId,
+    addMessage,
+    updateLastMessage,
+    setSessionId,
+    setThreadId,
+    clearMessages,
+    setInitialForm,
+  ]);
+
+  // Handle session switching
+  useEffect(() => {
+    if (selectedSessionId && selectedSessionId !== currentContext.sessionId) {
+      setSessionId(selectedSessionId);
+      const fetchSessionMessages = async () => {
+        try {
+          setLoadingHistory(true);
+          // Fetch session status to determine input availability
+          try {
+            const sessions = await threadsApi.getSessions(
+              selectedThreadId ?? selectedSessionId
+            );
+            const found = Array.isArray(sessions)
+              ? sessions.find((s: any) => s.id === selectedSessionId)
+              : undefined;
+            setSelectedSessionStatus(
+              found?.status === "finished" ? "finished" : "active"
+            );
+          } catch (e) {
+            setSelectedSessionStatus(undefined);
+          }
           const response = await client.api.chat[":sessionId"].$get({
-            param: { sessionId: String(selectedThreadId) },
+            param: { sessionId: String(selectedSessionId) },
           });
           if (!response.ok)
             throw new Error("Failed to fetch previous messages");
           const rawMessages = await response.json();
+
+          clearMessages();
+          setProgressRecommendation("");
+          lastSuggestionRef.current = "";
+
+          // Convert and add messages
           const fetchedMessages: FetchedMessage[] = rawMessages.map(
             (msg: any) => ({
               role: msg.sender === "ai" ? "model" : "user",
@@ -227,35 +420,42 @@ export function Thread({
               timestamp: msg.timestamp,
             })
           );
-          clearMessages();
-          // Remove any temp/streaming messages from the store before adding loaded messages
-          // (Assumes clearMessages resets messages, but if not, filter here)
-          setProgressRecommendation("");
-          lastSuggestionRef.current = "";
-          fetchedMessages.forEach((msg) =>
-            addMessage({
-              sender: msg.role === "model" ? "ai" : "user",
+
+          // Sort messages by timestamp to ensure correct order
+          const sortedMessages = fetchedMessages
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .map((msg) => ({
+              sender: (msg.role === "model" ? "ai" : "user") as "user" | "ai",
               text: msg.text,
               timestamp: new Date(msg.timestamp),
               contextId: "default",
-            })
-          );
+            }));
+
+          sortedMessages.forEach((msg) => addMessage(msg));
           setShowChat(true);
+
+          // Fetch and set the correct initial form for this thread
+          if (selectedThreadId) {
+            await fetchThreadInitialForm(selectedThreadId);
+          }
         } catch (error) {
-          console.error("Error fetching previous messages:", error);
+          console.error("Error fetching session messages:", error);
           setSessionId(null);
         } finally {
           setLoadingHistory(false);
         }
       };
-      fetchMessages();
+      fetchSessionMessages();
     }
   }, [
+    selectedSessionId,
+    currentContext.sessionId,
     selectedThreadId,
     addMessage,
     updateLastMessage,
     setSessionId,
     clearMessages,
+    setInitialForm,
   ]);
 
   const handleFormSubmit = async (sessionId: number) => {
@@ -264,24 +464,36 @@ export function Thread({
     const response = await client.api.chat[":sessionId"].$get({
       param: { sessionId: String(sessionId) },
     });
-    if (response.ok) {
-      const rawMessages = await response.json();
-      const fetchedMessages: FetchedMessage[] = rawMessages.map((msg: any) => ({
-        role: msg.sender === "ai" ? "model" : "user",
+    if (!response.ok) {
+      throw new Error("Failed to fetch messages");
+    }
+    const rawMessages = await response.json();
+
+    clearMessages();
+    setProgressRecommendation("");
+    lastSuggestionRef.current = "";
+
+    // Convert and add messages
+    const fetchedMessages: FetchedMessage[] = rawMessages.map((msg: any) => ({
+      role: msg.sender === "ai" ? "model" : "user",
+      text: msg.text,
+      timestamp: msg.timestamp,
+    }));
+
+    // Sort messages by timestamp to ensure correct order
+    const sortedMessages = fetchedMessages
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((msg) => ({
+        sender: (msg.role === "model" ? "ai" : "user") as "user" | "ai",
         text: msg.text,
-        timestamp: msg.timestamp,
+        timestamp: new Date(msg.timestamp),
+        contextId: "default",
       }));
-      clearMessages();
-      setProgressRecommendation("");
-      lastSuggestionRef.current = "";
-      fetchedMessages.forEach((msg) =>
-        addMessage({
-          sender: msg.role === "model" ? "ai" : "user",
-          text: msg.text,
-          timestamp: new Date(msg.timestamp),
-          contextId: "default",
-        })
-      );
+    sortedMessages.forEach((msg) => addMessage(msg));
+
+    // Fetch and set the correct initial form for this thread
+    if (selectedThreadId) {
+      await fetchThreadInitialForm(selectedThreadId);
     }
   };
 
@@ -303,6 +515,22 @@ export function Thread({
       addMessage(userMessage);
     }
 
+    // Get the correct initial form for this session
+    let sessionInitialForm = currentContext.sessionId
+      ? getInitialForm(currentContext.sessionId)
+      : currentContext.initialForm;
+    sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
+
+    // Fallback: use nickname if preferredName is missing
+    if (
+      sessionInitialForm &&
+      (!sessionInitialForm.preferredName ||
+        sessionInitialForm.preferredName.trim() === "") &&
+      userProfile?.nickname
+    ) {
+      sessionInitialForm.preferredName = userProfile.nickname;
+    }
+
     // 1. Get observer output (strategy, rationale, next_steps)
     let observerStrategy = "";
     let observerRationale = "";
@@ -310,19 +538,21 @@ export function Thread({
     let observerSentiment = "";
     setLoadingState("observer");
     try {
+      // Build the most up-to-date messages array for the observer
+      const messagesForObserver = buildMessagesForObserver(
+        currentContext.messages,
+        message
+      );
+
+      // Debug log for observer payload
+      console.log("Observer payload", {
+        messages: messagesForObserver,
+        initialForm: sessionInitialForm,
+      });
+
       const observerRes = await observerApi.getSuggestion({
-        messages: [
-          ...currentContext.messages
-            .filter((msg) => msg.sender === "user" || msg.sender === "ai")
-            .map((msg) => ({
-              sender: msg.sender as "user" | "ai",
-              text: msg.text,
-            })),
-          ...(message ? [{ sender: "user" as "user", text: message }] : []),
-        ],
-        ...(currentContext.initialForm
-          ? { initialForm: currentContext.initialForm }
-          : {}),
+        messages: messagesForObserver,
+        ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
       });
       observerStrategy = observerRes.strategy || "";
       observerRationale = observerRes.rationale || "";
@@ -352,8 +582,28 @@ export function Thread({
     try {
       console.log(
         "[Thread] Sending message with initialForm:",
-        currentContext.initialForm
+        sessionInitialForm,
+        "Type:",
+        typeof sessionInitialForm,
+        "Is Array:",
+        Array.isArray(sessionInitialForm)
       );
+
+      // Ensure initialForm is an object, not an array
+      if (Array.isArray(sessionInitialForm)) {
+        console.error(
+          "initialForm is an array, this should not happen:",
+          sessionInitialForm
+        );
+        // Try to get the first item if it's an array
+        const firstItem = sessionInitialForm[0];
+        if (firstItem && typeof firstItem === "object") {
+          sessionInitialForm = firstItem;
+        } else {
+          sessionInitialForm = undefined;
+        }
+      }
+
       const response = await client.api.chat.$post({
         json: {
           message: message,
@@ -366,9 +616,7 @@ export function Thread({
           ...(currentContext.sessionId
             ? { sessionId: currentContext.sessionId }
             : {}),
-          ...(currentContext.initialForm
-            ? { initialForm: currentContext.initialForm }
-            : {}),
+          ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
           ...(message.trim() === "" && !currentContext.messages.length
             ? { initialForm: undefined }
             : {}),
@@ -383,16 +631,45 @@ export function Thread({
           ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
           ...(observerSentiment ? { sentiment: observerSentiment } : {}),
           // Pass conversation preferences
-          ...(getPreferencesInstruction()
-            ? {
-                systemInstruction: observerStrategy
-                  ? `${observerStrategy} ${getPreferencesInstruction()}`
-                  : getPreferencesInstruction(),
-              }
-            : {}),
+          ...(() => {
+            const instructions: string[] = [];
+            if (conversationPreferences.briefAndConcise) {
+              instructions.push("Keep responses brief and concise");
+            }
+            if (conversationPreferences.empatheticAndSupportive) {
+              instructions.push("Be empathetic and emotionally supportive");
+            }
+            if (conversationPreferences.solutionFocused) {
+              instructions.push(
+                "Focus on providing practical solutions and advice"
+              );
+            }
+            if (conversationPreferences.casualAndFriendly) {
+              instructions.push("Use a casual and friendly tone");
+            }
+            if (conversationPreferences.professionalAndFormal) {
+              instructions.push("Maintain a professional and formal approach");
+            }
+            const preferencesText =
+              instructions.length > 0 ? instructions.join(". ") + "." : "";
+            return preferencesText
+              ? {
+                  systemInstruction: observerStrategy
+                    ? `${observerStrategy} ${preferencesText}`
+                    : preferencesText,
+                }
+              : {};
+          })(),
           ...(conversationPreferences ? { conversationPreferences } : {}),
+          // Pass threadType for main chat
+          threadType: "main",
         },
       });
+
+      // Optimistically move the thread to the top after sending a message
+      if (onMessageSent && selectedThreadId) {
+        onMessageSent(selectedThreadId);
+      }
 
       if (!response.ok) {
         const errorData = (await response.json()) as ErrorResponse;
@@ -497,312 +774,55 @@ export function Thread({
   };
 
   // Run agent when selectedThreadId changes (only for initial load)
+  // Removed this useEffect to prevent multiple observer calls
+  // The observer is now only called in handleSendMessage when needed
+
+  // Call observer once when thread is loaded to populate DevTools
   useEffect(() => {
     if (
       selectedThreadId &&
       currentContext.messages.some((msg) => msg.sender === "user") &&
       !isStreaming &&
-      !loadingHistory
+      !loadingHistory &&
+      agentStrategy === "" // Only if we don't already have strategy data
     ) {
       (async () => {
         try {
+          // Get the correct initial form for this session
+          const sessionInitialForm = getInitialForm(selectedThreadId);
+
           const res = await observerApi.getSuggestion({
             messages: currentContext.messages
               .filter((msg) => msg.sender === "user" || msg.sender === "ai")
               .map((msg) => ({
-                sender: msg.sender as "user" | "ai",
+                sender: (msg.sender === "user" ? "user" : "ai") as
+                  | "user"
+                  | "ai",
                 text: msg.text,
               })),
-            ...(currentContext.initialForm
-              ? { initialForm: currentContext.initialForm }
-              : {}),
+            ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
           });
           setAgentStrategy(res.strategy || "");
           setAgentRationale(res.rationale || "");
           setAgentNextSteps(res.next_steps || []);
         } catch (error) {
           console.error("Error getting observer suggestion:", error);
-        } finally {
-          setLoadingState("idle");
         }
       })();
-    } else if (!currentContext.messages.some((msg) => msg.sender === "user")) {
-      setAgentStrategy("");
-      setAgentRationale("");
-      setAgentNextSteps([]);
     }
+  }, [selectedThreadId, loadingHistory, getInitialForm]); // Only depend on thread change and loading state
+
+  // Clear agent strategy when switching threads
+  useEffect(() => {
+    setAgentStrategy("");
+    setAgentRationale("");
+    setAgentNextSteps([]);
   }, [selectedThreadId]);
 
-  useEffect(() => {
-    isImpersonatingRef.current = isImpersonating;
-  }, [isImpersonating]);
-
-  const handleStartImpersonation = async () => {
-    if (!userProfile?.id) {
-      toast.error("User profile not loaded.");
-      return;
-    }
-    if (!currentContext.sessionId) {
-      toast.error("No session selected. Please select or create a thread.");
-      return;
-    }
-    if (!impostorProfile) {
-      toast.error("No persona profile found. Please create one first.");
-      return;
-    }
-
-    // Clean up temp/empty impersonate messages before starting
-    cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
-      clearMessages();
-      msgs.forEach((msg) => addMessage(msg));
-    });
-
-    setImpersonateMaxExchanges(10); // Always reset exchanges at start
-    setIsImpersonating(true);
-    isImpersonatingRef.current = true;
-    setLoadingState("generating");
-
-    const checkShouldStop = () => {
-      if (!isImpersonatingRef.current) {
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-          abortControllerRef.current = null;
-        }
-        throw new Error("Impersonation stopped");
-      }
-    };
-
-    try {
-      const userProfileData = impostorProfile;
-      let exchanges = 0;
-      // Find last valid message (non-empty)
-      const lastValidMessage = [...currentContext.messages]
-        .reverse()
-        .find((m) => m.text && m.text.trim() !== "");
-      let lastMessage = lastValidMessage
-        ? lastValidMessage.text
-        : "Hello, I am here for therapy. I have been struggling with some issues.";
-      let lastSender = lastValidMessage ? lastValidMessage.sender : null;
-
-      while (
-        exchanges < impersonateMaxExchanges &&
-        isImpersonatingRef.current
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        checkShouldStop();
-
-        if (lastSender === "user") {
-          setLoadingState("observer");
-          // Therapist's turn
-          let observerStrategy = "";
-          let observerRationale = "";
-          let observerNextSteps: string[] = [];
-          let observerSentiment = "";
-          try {
-            const observerRes = await observerApi.getSuggestion({
-              messages: [
-                ...currentContext.messages
-                  .filter((msg) => msg.sender === "user" || msg.sender === "ai")
-                  .map((msg) => ({
-                    sender: msg.sender as "user" | "ai",
-                    text: msg.text,
-                  })),
-                { sender: "user", text: lastMessage },
-              ],
-              ...(currentContext.initialForm
-                ? { initialForm: currentContext.initialForm }
-                : {}),
-            });
-            observerStrategy = observerRes.strategy || "";
-            observerRationale = observerRes.rationale || "";
-            observerNextSteps = observerRes.next_steps || [];
-            observerSentiment = observerRes.sentiment || "";
-            setAgentStrategy(observerStrategy);
-            setAgentRationale(observerRationale);
-            setAgentNextSteps(observerNextSteps);
-          } catch (e) {
-            observerStrategy = "";
-            observerRationale = "";
-            observerNextSteps = [];
-            observerSentiment = "";
-          }
-          setLoadingState("idle");
-          const abortController = new AbortController();
-          abortControllerRef.current = abortController;
-          const therapistResponse = await chatApi.sendMessage({
-            message: lastMessage,
-            sessionId: currentContext.sessionId,
-            userId: String(userProfile.id),
-            sender: "impostor",
-            signal: abortController.signal,
-            ...(observerStrategy
-              ? { systemInstruction: observerStrategy }
-              : {}),
-            ...(observerRationale ? { observerRationale } : {}),
-            ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
-            ...(observerSentiment ? { sentiment: observerSentiment } : {}),
-            ...(getPreferencesInstruction()
-              ? {
-                  systemInstruction: observerStrategy
-                    ? `${observerStrategy} ${getPreferencesInstruction()}`
-                    : getPreferencesInstruction(),
-                }
-              : {}),
-            ...(conversationPreferences ? { conversationPreferences } : {}),
-          });
-
-          const reader = therapistResponse.body?.getReader();
-          let therapistFullResponse = "";
-
-          if (reader) {
-            const tempAiMessage = {
-              sender: "ai" as const,
-              text: "",
-              timestamp: new Date(),
-              tempId: Date.now(),
-              contextId: "impersonate" as const,
-            };
-            if (!isImpersonatingRef.current) return;
-            addMessage(tempAiMessage);
-
-            const decoder = new TextDecoder();
-            let buffer = "";
-
-            while (true) {
-              checkShouldStop();
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value);
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const content = line.substring("data: ".length);
-                  if (content.trim() === "" || /^\d+$/.test(content.trim()))
-                    continue;
-                  therapistFullResponse += content + "\n";
-                }
-              }
-              if (!isImpersonatingRef.current) return;
-              updateLastMessage(therapistFullResponse);
-            }
-
-            if (buffer) {
-              therapistFullResponse += buffer;
-              if (!isImpersonatingRef.current) return;
-              updateLastMessage(therapistFullResponse);
-            }
-          }
-
-          lastMessage = therapistFullResponse.trim() || lastMessage;
-          lastSender = "ai";
-        } else {
-          // Impostor's turn
-          const abortController = new AbortController();
-          abortControllerRef.current = abortController;
-          const impostorResponse = await impostorApi.sendMessage({
-            sessionId: currentContext.sessionId,
-            message: lastMessage,
-            userProfile: userProfileData,
-            signal: abortController.signal,
-            ...(getPreferencesInstruction()
-              ? {
-                  systemInstruction: getPreferencesInstruction(),
-                }
-              : {}),
-            ...(conversationPreferences ? { conversationPreferences } : {}),
-          });
-
-          const reader = impostorResponse.body?.getReader();
-          let impostorFullResponse = "";
-
-          if (reader) {
-            const tempUserMessage = {
-              sender: "user" as const,
-              text: "",
-              timestamp: new Date(),
-              tempId: Date.now(),
-              contextId: "impersonate" as const,
-            };
-            if (!isImpersonatingRef.current) return;
-            addMessage(tempUserMessage);
-
-            const decoder = new TextDecoder();
-            let buffer = "";
-
-            while (true) {
-              checkShouldStop();
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value);
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const content = line.substring("data: ".length);
-                  if (content.trim() === "" || /^\d+$/.test(content.trim()))
-                    continue;
-                  impostorFullResponse += content + "\n";
-                }
-              }
-              if (!isImpersonatingRef.current) return;
-              updateLastMessage(impostorFullResponse);
-            }
-
-            if (buffer) {
-              impostorFullResponse += buffer;
-              if (!isImpersonatingRef.current) return;
-              updateLastMessage(impostorFullResponse);
-            }
-          }
-
-          lastMessage = impostorFullResponse.trim() || lastMessage;
-          lastSender = "user";
-        }
-
-        exchanges++;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-    } catch (error) {
-      if ((error as Error).message !== "Impersonation stopped") {
-        console.error("Error during impersonation:", error);
-        toast.error("Failed to continue impersonation");
-      } else {
-        console.log("Impersonation loop exited cleanly.");
-      }
-    } finally {
-      setLoadingState("idle");
-      setIsImpersonating(false);
-      isImpersonatingRef.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-      // Clean up temp/empty impersonate messages after stopping
-      cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
-        clearMessages();
-        msgs.forEach((msg) => addMessage(msg));
-      });
-    }
-  };
-
-  const handleStopImpersonation = async () => {
-    setIsImpersonating(false);
-    isImpersonatingRef.current = false;
-    // Clean up temp/empty impersonate messages after stopping
-    cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
-      clearMessages();
-      msgs.forEach((msg) => addMessage(msg));
-    });
-  };
-
-  useEffect(() => {
-    setMode(isImpersonateMode ? "impersonate" : "chat");
-  }, [isImpersonateMode]);
+  // Get the correct initial form for the current session
+  const currentSessionInitialForm = currentContext.sessionId
+    ? getInitialForm(currentContext.sessionId)
+    : currentContext.initialForm;
 
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
@@ -812,9 +832,28 @@ export function Thread({
           <ChatHeader
             preferences={conversationPreferences}
             onPreferencesChange={setConversationPreferences}
+            selectedThreadId={selectedThreadId}
+            threadTitle={threadTitle}
+            onDeleteThread={handleDeleteThread}
+            onArchiveThread={handleArchiveThread}
           />
         </div>
       </div>
+
+      {/* Visual indicator for form answers being used */}
+      {showFormIndicator && (
+        <div className="mx-4 mt-4 animate-in slide-in-from-top-2 duration-500">
+          <div className="relative bg-gradient-to-r from-green-50 to-blue-50 border border-green-200/60 rounded-xl p-3 shadow-sm backdrop-blur-sm flex items-center gap-3">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-blue-400 text-white font-bold text-lg mr-2">
+              ✓
+            </span>
+            <span className="text-green-900 text-sm font-medium">
+              Session follow-up form answers are now being used to personalize
+              this session.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area with enhanced styling */}
       <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">
@@ -832,29 +871,11 @@ export function Thread({
               messages={currentContext.messages}
               onSendMessage={onSendMessage || handleSendMessage}
               loadingState={loadingState}
-              inputVisible={false}
-              isImpersonateMode={isImpersonateMode}
-              onStartImpersonation={handleStartImpersonation}
-              onStopImpersonation={handleStopImpersonation}
-              isImpersonating={isImpersonating}
+              inputVisible={selectedSessionStatus !== "finished"}
+              isImpersonateMode={false}
             />
           </div>
         </Suspense>
-        {/* Custom input for impersonate/chat mode */}
-        <ImpersonateInput
-          mode={mode}
-          onModeChange={setMode}
-          isImpersonating={isImpersonating}
-          onStart={handleStartImpersonation}
-          onStop={handleStopImpersonation}
-          onSendMessage={handleSendMessage}
-          disabled={
-            mode !== "impersonate" &&
-            loadingState !== "idle" &&
-            loadingState !== "observer"
-          }
-          hideModeSwitch={!isImpersonateMode} // HIDE SWITCH ON MAIN PAGE
-        />
       </main>
 
       {/* Enhanced Dev Tools Toggle */}
@@ -872,7 +893,7 @@ export function Thread({
         agentNextSteps={agentNextSteps}
         messageCount={currentContext.messages.length}
         messages={currentContext.messages}
-        initialForm={currentContext.initialForm}
+        initialForm={currentSessionInitialForm}
         isOpen={showDevTools}
         onClose={() => setShowDevTools(false)}
       />

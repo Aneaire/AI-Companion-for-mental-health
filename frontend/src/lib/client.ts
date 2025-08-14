@@ -12,9 +12,18 @@ export const hcWithType = (...args: Parameters<typeof hc>): Client =>
 export default client;
 
 export const threadsApi = {
-  async list(userId: number, threadType: "chat" = "chat") {
+  async list(
+    userId: number,
+    limit: number = 20,
+    offset: number = 0,
+    threadType: "chat" = "chat"
+  ) {
     const res = await client.api.threads.$get({
-      query: { userId: userId.toString(), threadType },
+      query: {
+        userId: userId.toString(),
+        limit: limit.toString(),
+        offset: offset.toString(),
+      },
     });
     if (!res.ok) throw new Error("Failed to fetch threads");
     return res.json();
@@ -36,6 +45,59 @@ export const threadsApi = {
       json: data,
     });
     if (!res.ok) throw new Error("Failed to create thread");
+    return res.json();
+  },
+  async get(threadId: number) {
+    const res = await client.api.threads[":threadId"].$get({
+      param: { threadId: threadId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch thread");
+    return res.json();
+  },
+  async getSessions(threadId: number) {
+    const res = await client.api.threads[":threadId"].sessions.$get({
+      param: { threadId: threadId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch thread sessions");
+    return res.json();
+  },
+  async createSession(threadId: number, data: { sessionName?: string }) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/${threadId}/sessions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to create session");
+    return res.json();
+  },
+  async checkSession(threadId: number) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/${threadId}/check-session`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (!res.ok) throw new Error("Failed to check session status");
+    return res.json();
+  },
+  async saveSessionForm(sessionId: number, answers: Record<string, any>) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/sessions/${sessionId}/form`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to save session form");
     return res.json();
   },
 };
@@ -121,6 +183,26 @@ export const impostorApi = {
     }
     return res.json();
   },
+  async listThreads(userId: number) {
+    const res = await client.api.impostor.threads.$get({
+      query: { userId: userId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch impersonate threads");
+    return res.json();
+  },
+  async createThread(data: {
+    userId: number;
+    personaId?: number;
+    sessionName?: string;
+    preferredName?: string;
+    reasonForVisit: string;
+  }) {
+    const res = await client.api.impostor.threads.$post({
+      json: data,
+    });
+    if (!res.ok) throw new Error("Failed to create impersonate thread");
+    return res.json();
+  },
   async sendMessage({
     sessionId,
     message,
@@ -138,6 +220,32 @@ export const impostorApi = {
     });
     if (!res.ok) throw new Error("Failed to send impostor message");
     return res; // Return the Response object for streaming
+  },
+  async getMessages(
+    sessionId: number,
+    threadType: "impersonate" = "impersonate"
+  ) {
+    const res = await fetch(
+      `http://localhost:4000/api/impostor/messages?sessionId=${sessionId}&threadType=${threadType}`
+    );
+    if (!res.ok) throw new Error("Failed to fetch impersonate messages");
+    return res.json();
+  },
+  async postMessage(data: {
+    sessionId: number;
+    threadType: "impersonate";
+    sender: "user" | "ai" | "therapist" | "impostor";
+    text: string;
+  }) {
+    const res = await fetch(`http://localhost:4000/api/impostor/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to post impersonate message");
+    return res.json();
   },
 };
 
@@ -186,14 +294,100 @@ export const chatApi = {
         message,
         sessionId,
         userId,
-        ...(context ? { context } : {}),
-        ...(sender ? { sender } : {}),
-        ...(initialForm ? { initialForm } : {}),
+        context,
+        sender,
+        initialForm,
         ...rest,
       },
       ...(signal ? { fetch: { signal } } : {}),
     });
-    if (!res.ok) throw new Error("Failed to send chat message");
+    if (!res.ok) throw new Error("Failed to send message");
     return res;
+  },
+};
+
+// New chat API for impersonate threads
+export const impersonateChatApi = {
+  async sendMessage({
+    message,
+    threadId,
+    userId,
+    context,
+    sender,
+    initialForm,
+    signal,
+    ...rest
+  }: {
+    message: string;
+    threadId: number;
+    userId: string;
+    context?: any[];
+    sender?: "user" | "ai" | "therapist" | "impostor";
+    initialForm?: any;
+    signal?: AbortSignal;
+    [key: string]: any;
+  }) {
+    const res = await client.api.chat.impersonate.$post({
+      json: {
+        message,
+        threadId,
+        userId,
+        context,
+        sender,
+        initialForm,
+        ...rest,
+      },
+      ...(signal ? { fetch: { signal } } : {}),
+    });
+    if (!res.ok) throw new Error("Failed to send impersonate message");
+    return res;
+  },
+  async getMessages(threadId: number) {
+    const res = await client.api.chat.impersonate[":threadId"].$get({
+      param: { threadId: threadId.toString() },
+    });
+    if (!res.ok) throw new Error("Failed to fetch impersonate messages");
+    return res.json();
+  },
+  async testConversationHistory({
+    message,
+    threadId,
+    userId,
+    context,
+    ...rest
+  }: {
+    message: string;
+    threadId: number;
+    userId: string;
+    context?: any[];
+    [key: string]: any;
+  }) {
+    const res = await client.api.chat.impersonate.test.$post({
+      json: {
+        message,
+        threadId,
+        userId,
+        context,
+        ...rest,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to test conversation history");
+    return res.json();
+  },
+};
+
+export const generateFormApi = {
+  async generate({
+    initialForm,
+    messages,
+  }: {
+    initialForm: any;
+    messages: { sender: string; text: string }[];
+  }) {
+    const res = await client.api["generate-form"].$post({
+      json: { initialForm, messages },
+    });
+    if (!res.ok) throw new Error("Failed to generate form");
+    return res.json();
   },
 };

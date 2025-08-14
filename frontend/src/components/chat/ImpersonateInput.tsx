@@ -82,6 +82,13 @@ export function ImpersonateInput({
           </Badge>
         );
       }
+      if (disabled) {
+        return (
+          <Badge variant="outline" className="text-xs text-gray-500">
+            No Thread Selected
+          </Badge>
+        );
+      }
       return (
         <Badge variant="outline" className="text-xs">
           Ready
@@ -131,7 +138,9 @@ export function ImpersonateInput({
               mode === "impersonate"
                 ? isImpersonating
                   ? "AI is impersonating..."
-                  : "Click Start to begin roleplay"
+                  : disabled
+                    ? "Select a thread to start roleplay"
+                    : "Click Start to begin roleplay"
                 : "Type your message..."
             }
             className="flex-1 min-h-[36px] sm:min-h-[40px] max-h-24 sm:max-h-32 resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-sm sm:text-base"
@@ -182,7 +191,9 @@ export function ImpersonateInput({
         {mode === "impersonate"
           ? isImpersonating
             ? "AI is actively roleplaying. Press Stop to end the session."
-            : "Start an AI-to-AI roleplay conversation where the AI plays the patient role."
+            : disabled
+              ? "Please select a thread from the sidebar to start roleplay."
+              : "Start an AI-to-AI roleplay conversation where the AI plays the patient role."
           : "Press Enter to send your message, or Shift+Enter for a new line."}
       </div>
       {/* Helper Text - Mobile */}
@@ -190,7 +201,9 @@ export function ImpersonateInput({
         {mode === "impersonate"
           ? isImpersonating
             ? "AI is roleplaying. Press Stop."
-            : "Start AI-to-AI roleplay (AI as patient)."
+            : disabled
+              ? "Select a thread to start."
+              : "Start AI-to-AI roleplay (AI as patient)."
           : "Enter: send. Shift+Enter: new line."}
       </div>
     </div>

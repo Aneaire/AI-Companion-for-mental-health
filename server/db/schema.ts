@@ -23,7 +23,8 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const chatSessions = pgTable("chat_sessions", {
+// Main threads table (for main page)
+export const threads = pgTable("threads", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
@@ -37,20 +38,56 @@ export const chatSessions = pgTable("chat_sessions", {
   additionalContext: text("additional_context"),
   responseTone: varchar("response_tone"),
   imageResponse: text("image_response"),
+  responseCharacter: varchar("response_character"),
+  responseDescription: text("response_description"),
   summaryContext: text("summary_context"),
-  threadType: varchar("thread_type", { enum: ["chat"] })
-    .default("chat")
-    .notNull(),
+  archived: timestamp("archived"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-  personaId: integer("persona_id").references(() => persona.id),
 });
 
+// Sessions table (for organizing conversations within threads)
+export const sessions = pgTable("sessions", {
+  id: serial("id").primaryKey(),
+  threadId: integer("thread_id")
+    .notNull()
+    .references(() => threads.id, { onDelete: "cascade" }),
+  sessionNumber: integer("session_number").notNull(), // 1-5
+  sessionName: varchar("session_name"),
+  summary: text("summary"),
+  status: varchar("status", {
+    enum: ["active", "finished"],
+  }).default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Impersonate threads table (for impersonate page)
+export const impersonateThread = pgTable("impersonate_thread", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  personaId: integer("persona_id").references(() => persona.id),
+  sessionName: varchar("session_name"),
+  preferredName: varchar("preferred_name"),
+  reasonForVisit: text("reason_for_visit").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Main messages table (now references sessions instead of threads)
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  sessionId: integer("session_id")
-    .notNull()
-    .references(() => chatSessions.id),
+  sessionId: integer("session_id").references(() => sessions.id, {
+    onDelete: "cascade",
+  }), // Optional for impersonate threads
+  threadId: integer("thread_id").references(() => impersonateThread.id, {
+    onDelete: "cascade",
+  }), // For impersonate threads
+  threadType: varchar("thread_type", {
+    enum: ["main", "impersonate"],
+  }).notNull(),
   sender: varchar("sender", {
     enum: ["user", "ai", "therapist", "impostor"],
   }).notNull(),
@@ -68,6 +105,16 @@ export const persona = pgTable("persona", {
   problemDescription: text("problem_description").notNull(),
   background: text("background"),
   personality: varchar("personality"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const sessionForms = pgTable("session_forms", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  answers: jsonb("answers").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
