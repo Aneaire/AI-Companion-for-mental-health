@@ -136,7 +136,7 @@ export const patientApi = {
   },
 };
 
-// Add observer API client
+// Add observer API client (original - for backward compatibility)
 export const observerApi = {
   async getSuggestion({
     messages,
@@ -149,6 +149,40 @@ export const observerApi = {
       json: { messages, ...(initialForm ? { initialForm } : {}) },
     });
     if (!res.ok) throw new Error("Failed to get observer suggestion");
+    return res.json();
+  },
+};
+
+// Add main observer API client (for main chat/therapy sessions)
+export const mainObserverApi = {
+  async getSuggestion({
+    messages,
+    initialForm,
+  }: {
+    messages: { text: string; sender: "user" | "ai" }[];
+    initialForm?: import("./client").FormData;
+  }) {
+    const res = await client.api["main-observer"].$post({
+      json: { messages, ...(initialForm ? { initialForm } : {}) },
+    });
+    if (!res.ok) throw new Error("Failed to get main observer suggestion");
+    return res.json();
+  },
+};
+
+// Add impersonate observer API client (for impersonate/roleplay sessions)
+export const impersonateObserverApi = {
+  async getSuggestion({
+    messages,
+    initialForm,
+  }: {
+    messages: { text: string; sender: "user" | "ai" }[];
+    initialForm?: import("./client").FormData;
+  }) {
+    const res = await client.api["impersonate-observer"].$post({
+      json: { messages, ...(initialForm ? { initialForm } : {}) },
+    });
+    if (!res.ok) throw new Error("Failed to get impersonate observer suggestion");
     return res.json();
   },
 };

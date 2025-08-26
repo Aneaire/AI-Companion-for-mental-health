@@ -3,7 +3,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import { FormRequiredState } from "@/components/chat/FormRequiredState";
 import { SessionManagementDialog } from "@/components/chat/SessionManagementDialog";
-import client, { observerApi, threadsApi } from "@/lib/client";
+import client, { mainObserverApi, threadsApi } from "@/lib/client";
 import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
@@ -661,7 +661,7 @@ export function Thread({
         initialForm: sessionInitialForm,
       });
 
-      const observerRes = await observerApi.getSuggestion({
+      const observerRes = await mainObserverApi.getSuggestion({
         messages: messagesForObserver,
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
       });
@@ -902,7 +902,7 @@ export function Thread({
           // Get the correct initial form for this session
           const sessionInitialForm = getInitialForm(selectedThreadId);
 
-          const res = await observerApi.getSuggestion({
+          const res = await mainObserverApi.getSuggestion({
             messages: currentContext.messages
               .filter((msg) => msg.sender === "user" || msg.sender === "ai")
               .map((msg) => ({
