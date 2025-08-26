@@ -158,12 +158,18 @@ export const mainObserverApi = {
   async getSuggestion({
     messages,
     initialForm,
+    followupForm,
   }: {
     messages: { text: string; sender: "user" | "ai" }[];
     initialForm?: import("./client").FormData;
+    followupForm?: Record<string, any>;
   }) {
     const res = await client.api["main-observer"].$post({
-      json: { messages, ...(initialForm ? { initialForm } : {}) },
+      json: { 
+        messages, 
+        ...(initialForm ? { initialForm } : {}),
+        ...(followupForm ? { followupForm } : {})
+      },
     });
     if (!res.ok) throw new Error("Failed to get main observer suggestion");
     return res.json();

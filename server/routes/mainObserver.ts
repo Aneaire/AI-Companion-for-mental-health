@@ -25,7 +25,8 @@ const logMainObserverCall = async (
     reasonForVisit?: string;
     supportType?: string[];
     additionalContext?: string;
-  }
+  },
+  followupForm?: Record<string, any>
 ) => {
   try {
     // Create main_observer_logs directory if it doesn't exist
@@ -78,6 +79,23 @@ ${
     : "No initial form data provided"
 }
 
+## Follow-up Form Data (from Previous Session)
+${
+  followupForm
+    ? Object.entries(followupForm)
+        .map(([key, value]) => {
+          // Convert technical field names to human-readable format
+          const humanReadableKey = key
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())
+            .replace(/_/g, ' ');
+          const formattedValue = typeof value === "string" ? value : JSON.stringify(value);
+          return `- **${humanReadableKey}:** ${formattedValue}`;
+        })
+        .join("\n")
+    : "No follow-up form data provided"
+}
+
 ## Gemini Response
 ### Sentiment
 ${geminiResponse.sentiment}
@@ -126,6 +144,7 @@ export const mainObserverRequestSchema = z.object({
       additionalContext: z.string().optional(),
     })
     .optional(),
+  followupForm: z.record(z.any()).optional(), // Add follow-up form data
 });
 
 export const mainObserverResponseSchema = z.object({
@@ -145,12 +164,12 @@ const mainObserver = new Hono().post(
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
-    const { messages, initialForm } = parsed.data;
+    const { messages, initialForm, followupForm } = parsed.data;
 
     try {
       // Use Gemini for sentiment and strategy analysis
       const { sentiment, strategy, rationale, next_steps } =
-        await analyzeWithMainGemini(messages, initialForm);
+        await analyzeWithMainGemini(messages, initialForm, followupForm);
 
       // Log the observer call
       await logMainObserverCall(
@@ -161,7 +180,8 @@ const mainObserver = new Hono().post(
           rationale,
           next_steps,
         },
-        initialForm
+        initialForm,
+        followupForm
       );
 
       return c.json({ sentiment, strategy, rationale, next_steps });
@@ -187,7 +207,8 @@ async function analyzeWithMainGemini(
     reasonForVisit?: string;
     supportType?: string[];
     additionalContext?: string;
-  }
+  },
+  followupForm?: Record<string, any>
 ): Promise<{
   sentiment: "positive" | "negative" | "neutral" | "urgent" | "confused" | "crisis_risk";
   strategy: string;
@@ -219,6 +240,20 @@ async function analyzeWithMainGemini(
       contextString += `Additional context: ${initialForm.additionalContext}\n`;
   }
 
+  // Add follow-up form data if present
+  if (followupForm && Object.keys(followupForm).length > 0) {
+    contextString += `\nFollow-up Form Answers from Previous Session:\n`;
+    for (const [key, value] of Object.entries(followupForm)) {
+      // Convert technical field names to human-readable format
+      const humanReadableKey = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .replace(/_/g, ' ');
+      const formattedValue = typeof value === "string" ? value : JSON.stringify(value);
+      contextString += `${humanReadableKey}: ${formattedValue}\n`;
+    }
+  }
+
   // Get recent conversation (last 5 messages for context)
   const recentMessages = messages.slice(-5);
   const conversationText = recentMessages
@@ -238,18 +273,25 @@ Analyze the user's current emotional state and provide strategic guidance for th
 2. What therapeutic approach would be most beneficial right now
 3. The best intervention strategy for the AI therapist to take
 4. Any signs of crisis or need for immediate intervention
+5. **IMPORTANT**: If follow-up form answers are provided, use them to understand the user's progress, concerns, and current state since the last session. This helps identify continuity of care and therapeutic progress.
+
+**Key Strategic Considerations:**
+- If follow-up form data shows improvement, acknowledge progress and build on it
+- If follow-up form data reveals new concerns or setbacks, address them with appropriate therapeutic interventions
+- Use follow-up form insights to personalize the therapeutic approach and show session-to-session continuity
+- Consider how the user's previous session experiences should inform the current session strategy
 
 **CRITICAL:** If you detect ANY signs of suicidal thoughts, self-harm, harm to others, or severe crisis, set sentiment to "crisis_risk" immediately.
 
 Respond in this exact JSON format:
 {
   "sentiment": "positive|negative|neutral|urgent|confused|crisis_risk",
-  "strategy": "A clear, therapeutic strategy for the AI therapist focusing on evidence-based approaches",
-  "rationale": "Why this therapeutic strategy is appropriate given the user's current state and therapeutic needs",
+  "strategy": "A clear, therapeutic strategy for the AI therapist focusing on evidence-based approaches, incorporating follow-up form insights if available",
+  "rationale": "Why this therapeutic strategy is appropriate given the user's current state, therapeutic needs, and any progress or concerns from their follow-up form",
   "next_steps": ["Specific therapeutic intervention 1", "Specific therapeutic intervention 2", "Specific therapeutic intervention 3", "Follow-up action"]
 }
 
-Focus on evidence-based therapeutic approaches like CBT, DBT, mindfulness, validation therapy, etc. Prioritize safety and crisis intervention if needed.`;
+Focus on evidence-based therapeutic approaches like CBT, DBT, mindfulness, validation therapy, etc. Prioritize safety and crisis intervention if needed. Use follow-up form data to enhance therapeutic continuity and personalization.`;
 
   const result = await model.generateContent(prompt);
   const response = result.response.text();
