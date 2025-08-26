@@ -1,6 +1,8 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
+import { FormRequiredState } from "@/components/chat/FormRequiredState";
+import { SessionManagementDialog } from "@/components/chat/SessionManagementDialog";
 import client, { observerApi, threadsApi } from "@/lib/client";
 import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
@@ -32,6 +34,7 @@ export interface ThreadProps {
   showFormIndicator?: boolean;
   onMessageSent?: (threadId: number) => void;
   onThreadDeleted?: () => void;
+  onSessionSelected?: (sessionId: number) => void;
 }
 
 // Enhanced Loading Fallback Component
@@ -154,6 +157,7 @@ export function Thread({
   showFormIndicator,
   onMessageSent,
   onThreadDeleted,
+  onSessionSelected,
 }: ThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
@@ -192,6 +196,13 @@ export function Thread({
     "active" | "finished" | undefined
   >(undefined);
   const [threadTitle, setThreadTitle] = useState<string>("");
+  
+  // Session management state
+  const [sessionManagementOpen, setSessionManagementOpen] = useState(false);
+  const [sessionFormCompleted, setSessionFormCompleted] = useState<boolean | null>(null);
+  const [currentSessionNumber, setCurrentSessionNumber] = useState(1);
+  const [dialogSessionId, setDialogSessionId] = useState<number | null>(null);
+  const [justCreatedNewSession, setJustCreatedNewSession] = useState(false);
 
   // Thread management functions (memoized to prevent recreating on every render)
   const handleDeleteThread = useCallback(async (threadId: number) => {
@@ -301,6 +312,105 @@ export function Thread({
 
           // First check session status and potentially create new session
           const sessionCheck = await threadsApi.checkSession(selectedThreadId);
+          
+          console.log('[THREAD] Session check result:', sessionCheck);
+
+          // Check if current session was completed and needs follow-up form
+          if (sessionCheck.sessionCompleted && sessionCheck.latestSession) {
+            console.log('[THREAD] Session completed, showing completion dialog');
+            setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
+            // Keep using the current (finished) session ID for form generation
+            setDialogSessionId(sessionCheck.latestSession.id);
+            
+            // Load messages from the just-completed session for form generation
+            const response = await client.api.chat[":sessionId"].$get({
+              param: { sessionId: String(sessionCheck.latestSession.id) },
+            });
+            
+            if (response.ok) {
+              const rawMessages = await response.json();
+              const fetchedMessages = rawMessages.map((msg: any) => ({
+                role: msg.sender === "ai" ? "model" : "user",
+                text: msg.text,
+                timestamp: msg.timestamp,
+              }));
+              
+              const sortedMessages = fetchedMessages
+                .sort((a: any, b: any) => a.timestamp - b.timestamp)
+                .map((msg: any) => ({
+                  sender: (msg.role === "model" ? "ai" : "user") as "user" | "ai",
+                  text: msg.text,
+                  timestamp: new Date(msg.timestamp),
+                  contextId: "default",
+                }));
+              
+              // Set messages from completed session
+              clearMessages();
+              
+              if (sortedMessages.length === 0) {
+                console.warn('[THREAD] Completed session has no messages, cannot generate follow-up form');
+                // Don't show the session management dialog if no messages
+                setSessionFormCompleted(true);
+                setLoadingHistory(false);
+                return;
+              }
+              
+              sortedMessages.forEach((msg) => addMessage(msg));
+            }
+            
+            // Show session completion dialog with messages from completed session
+            console.log('[THREAD] Setting session management dialog to open');
+            setSessionManagementOpen(true);
+            setSessionFormCompleted(false);
+            setLoadingHistory(false);
+            return;
+          }
+
+          // For existing sessions, determine if form is required
+          if (sessionCheck.latestSession && sessionCheck.latestSession.sessionNumber > 1 && !justCreatedNewSession) {
+            console.log('[THREAD] Checking if session requires form:', sessionCheck.latestSession.id, 'session number:', sessionCheck.latestSession.sessionNumber);
+            
+            // Check if the PREVIOUS session has a completed form
+            // Session N requires a form from Session N-1 to have been completed
+            const threadSessions = await client.api.threads[":threadId"].sessions.$get({
+              param: { threadId: String(selectedThreadId) },
+            });
+            
+            if (threadSessions.ok) {
+              const sessions = await threadSessions.json();
+              const previousSession = sessions.find((s: any) => s.sessionNumber === sessionCheck.latestSession.sessionNumber - 1);
+              
+              if (previousSession) {
+                console.log('[THREAD] Checking form status for previous session:', previousSession.id);
+                const formStatus = await threadsApi.getSessionForm(previousSession.id);
+                console.log('[THREAD] Previous session form status:', formStatus);
+                
+                setSessionFormCompleted(formStatus.hasForm);
+                setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
+                
+                // If previous session form is required but not completed, show form required state
+                if (!formStatus.hasForm) {
+                  console.log('[THREAD] Previous session form not completed, showing form required state');
+                  setLoadingHistory(false);
+                  return;
+                } else {
+                  console.log('[THREAD] Previous session form completed, proceeding to load chat');
+                }
+              } else {
+                console.log('[THREAD] No previous session found, assuming form completed');
+                setSessionFormCompleted(true);
+                setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
+              }
+            }
+          } else if (justCreatedNewSession) {
+            console.log('[THREAD] Just created new session, skipping form requirement check');
+            setSessionFormCompleted(true);
+            setCurrentSessionNumber(sessionCheck.latestSession?.sessionNumber || 1);
+          } else {
+            console.log('[THREAD] Session 1 or no session, no form required');
+            setSessionFormCompleted(true); // Session 1 doesn't need a form
+            setCurrentSessionNumber(sessionCheck.latestSession?.sessionNumber || 1);
+          }
 
           // Fetch sessions for this thread
           const threadSessions = await client.api.threads[
@@ -378,6 +488,7 @@ export function Thread({
     setThreadId,
     clearMessages,
     setInitialForm,
+    justCreatedNewSession,
   ]);
 
   // Handle session switching
@@ -865,15 +976,29 @@ export function Thread({
             <ProgressRecommendation recommendation={progressRecommendation} />
           )}
 
-          {/* Chat Interface */}
+          {/* Chat Interface or Form Required State */}
           <div className="flex-1 flex flex-col h-full">
-            <ChatInterface
-              messages={currentContext.messages}
-              onSendMessage={onSendMessage || handleSendMessage}
-              loadingState={loadingState}
-              inputVisible={selectedSessionStatus !== "finished"}
-              isImpersonateMode={false}
-            />
+            {sessionFormCompleted === false ? (
+              <FormRequiredState
+                sessionNumber={currentSessionNumber}
+                onOpenForm={() => {
+                  // Check if we have messages to generate form from
+                  if (currentContext.messages.length === 0) {
+                    toast.error("Cannot create follow-up form without conversation history. Please have a conversation first.");
+                    return;
+                  }
+                  setSessionManagementOpen(true);
+                }}
+              />
+            ) : (
+              <ChatInterface
+                messages={currentContext.messages}
+                onSendMessage={onSendMessage || handleSendMessage}
+                loadingState={loadingState}
+                inputVisible={selectedSessionStatus !== "finished"}
+                isImpersonateMode={false}
+              />
+            )}
           </div>
         </Suspense>
       </main>
@@ -897,6 +1022,84 @@ export function Thread({
         isOpen={showDevTools}
         onClose={() => setShowDevTools(false)}
       />
+
+      {/* Session Management Dialog */}
+      {sessionManagementOpen && selectedThreadId && dialogSessionId && (
+        <SessionManagementDialog
+          open={sessionManagementOpen}
+          onOpenChange={setSessionManagementOpen}
+          sessionNumber={currentSessionNumber}
+          sessionId={dialogSessionId}
+          threadId={selectedThreadId}
+          messages={currentContext.messages.map(msg => ({
+            sender: msg.sender,
+            text: msg.text
+          }))}
+          initialForm={currentSessionInitialForm || {}}
+          onFormCompleted={async (newSessionId: number) => {
+            console.log('[THREAD] Form completed, updating state for new session:', newSessionId);
+            
+            try {
+              // Set flag to prevent form requirement checks from running
+              setJustCreatedNewSession(true);
+              
+              // Clear current messages first
+              clearMessages();
+              
+              // Set the new session ID in the context
+              setSessionId(newSessionId);
+              
+              // Update the selected session in the sidebar
+              if (onSessionSelected) {
+                onSessionSelected(newSessionId);
+              }
+              
+              // Update current session number for the new session
+              setCurrentSessionNumber(currentSessionNumber + 1);
+              
+              // For the new session, form is completed (since we just came from submitting it)
+              // and we explicitly mark it as such to prevent re-checking
+              setSessionFormCompleted(true);
+              
+              // Show the chat interface immediately
+              setShowChat(true);
+              setLoadingHistory(false);
+              
+              // Close the dialog after state is set
+              setSessionManagementOpen(false);
+              
+              // Fetch and set the initial form for this thread
+              if (selectedThreadId) {
+                await fetchThreadInitialForm(selectedThreadId);
+              }
+              
+              // Invalidate queries to refresh the sidebar with new session
+              queryClient.invalidateQueries({ queryKey: ["threadSessions", selectedThreadId] });
+              queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+              
+              console.log('[THREAD] Successfully switched to new session with chat interface');
+              
+              // Reset the flag after a short delay to allow for normal operation
+              setTimeout(() => setJustCreatedNewSession(false), 1000);
+              
+            } catch (error) {
+              console.error("Error switching to new session:", error);
+              // If there's an error, still show the chat interface
+              setSessionFormCompleted(true);
+              setShowChat(true);
+              setLoadingHistory(false);
+              setSessionManagementOpen(false);
+              setJustCreatedNewSession(false);
+              
+              // Still try to invalidate queries to refresh the sidebar
+              if (selectedThreadId) {
+                queryClient.invalidateQueries({ queryKey: ["threadSessions", selectedThreadId] });
+                queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+              }
+            }
+          }}
+        />
+      )}
 
       {/* Subtle background pattern overlay */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none">

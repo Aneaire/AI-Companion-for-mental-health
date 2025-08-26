@@ -27,12 +27,22 @@ function logSystemInstructionText(systemInstructionText: string) {
 
 const generateFormRoute = new Hono().post("/", async (c) => {
   const body = await c.req.json();
+  console.log('[GENERATE FORM] Received request body:', {
+    initialForm: body.initialForm,
+    messageCount: body.messages?.length,
+    firstMessage: body.messages?.[0]
+  });
+  
   const schema = z.object({
-    initialForm: z.record(z.any()),
-    messages: z.array(z.object({ sender: z.string(), text: z.string() })),
+    initialForm: z.record(z.any()).optional().default({}),
+    messages: z.array(z.object({ 
+      sender: z.string(), 
+      text: z.string().min(1, "Message text cannot be empty") 
+    })).min(1, "At least one message is required to generate follow-up questions"),
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
+    console.error('[GENERATE FORM] Validation failed:', parsed.error);
     return c.json({ success: false, error: parsed.error }, 400);
   }
   const { initialForm, messages } = parsed.data;

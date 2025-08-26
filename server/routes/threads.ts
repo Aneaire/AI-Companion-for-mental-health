@@ -177,6 +177,8 @@ export const threadsRoute = new Hono()
     }
 
     try {
+      console.log(`[SESSION CHECK] Starting for thread ${threadId}`);
+      
       // Get all sessions for this thread
       const threadSessions = await db
         .select()
@@ -184,64 +186,99 @@ export const threadsRoute = new Hono()
         .where(eq(sessions.threadId, parseInt(threadId)))
         .orderBy(sessions.sessionNumber);
 
+      console.log(`[SESSION CHECK] Found ${threadSessions.length} sessions for thread ${threadId}`);
+
       if (threadSessions.length === 0) {
         return c.json({ error: "No sessions found for this thread" }, 404);
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const now = new Date();
+      const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000); // 4 hours ago
 
       let newSessionCreated = false;
       let latestSession = threadSessions[threadSessions.length - 1];
 
-      // Check if the latest session was created before today and has at least 7 messages
-      if (latestSession.status === "active") {
-        const sessionCreatedDate = new Date(
-          latestSession.createdAt || new Date()
-        );
-        sessionCreatedDate.setHours(0, 0, 0, 0);
+      console.log(`[SESSION CHECK] Latest session: ID=${latestSession.id}, status=${latestSession.status}, created=${latestSession.createdAt}`);
 
-        // Count messages in the latest session
+      // Check if the latest session is active and meets progression conditions
+      if (latestSession.status === "active") {
+        const sessionCreatedDate = new Date(latestSession.createdAt || new Date());
+
+        // Count messages in the latest session for main threads
         const messageCount = await db
           .select({ count: count() })
           .from(messages)
-          .where(eq(messages.sessionId, latestSession.id));
+          .where(
+            and(
+              eq(messages.sessionId, latestSession.id),
+              eq(messages.threadType, "main")
+            )
+          );
 
         const hasEnoughMessages = messageCount[0].count >= 7;
-        const isFromPreviousDay = sessionCreatedDate < today;
+        const isOldEnough = sessionCreatedDate < fourHoursAgo;
 
-        if (hasEnoughMessages && isFromPreviousDay) {
-          // Mark current session as finished
+        console.log(`[SESSION CHECK] Message count: ${messageCount[0].count}, hasEnoughMessages: ${hasEnoughMessages}`);
+        console.log(`[SESSION CHECK] Session created: ${sessionCreatedDate}, 4 hours ago: ${fourHoursAgo}, isOldEnough: ${isOldEnough}`);
+
+        if (hasEnoughMessages && isOldEnough) {
+          console.log(`[SESSION CHECK] Conditions met for session completion`);
+          
+          // Mark current session as finished but DON'T create new session yet
           await db
             .update(sessions)
             .set({ status: "finished" })
             .where(eq(sessions.id, latestSession.id));
 
-          // Create a new session if we haven't reached the limit
-          if (threadSessions.length < 5) {
-            const [newSession] = await db
-              .insert(sessions)
-              .values({
-                threadId: parseInt(threadId),
-                sessionNumber: threadSessions.length + 1,
-                sessionName: `Session ${threadSessions.length + 1}`,
-                status: "active",
-              })
-              .returning();
-
-            newSessionCreated = true;
-            latestSession = newSession;
-          }
+          console.log(`[SESSION CHECK] Marked session ${latestSession.id} as finished`);
+          
+          // Return completion status without creating new session
+          // New session will be created after form submission
+          return c.json({
+            latestSession,
+            sessionCompleted: true, // New flag to indicate session completion
+            canCreateNewSession: threadSessions.length < 5,
+            newSessionCreated: false,
+            totalSessions: threadSessions.length,
+          });
+        } else {
+          console.log(`[SESSION CHECK] Conditions not met - no new session created`);
+          console.log(`[SESSION CHECK] - hasEnoughMessages: ${hasEnoughMessages} (need >= 7)`);
+          console.log(`[SESSION CHECK] - isOldEnough: ${isOldEnough} (need > 4 hours)`);
         }
+      } else if (latestSession.status === "finished") {
+        console.log(`[SESSION CHECK] Latest session is finished, checking if follow-up form exists`);
+        
+        // Check if this finished session has a follow-up form
+        const existingForm = await db
+          .select()
+          .from(sessionForms)
+          .where(eq(sessionForms.sessionId, latestSession.id));
+
+        if (existingForm.length === 0) {
+          console.log(`[SESSION CHECK] No follow-up form found, session needs completion flow`);
+          // Session is finished but has no follow-up form - trigger completion flow
+          return c.json({
+            latestSession,
+            sessionCompleted: true,
+            canCreateNewSession: threadSessions.length < 5,
+            newSessionCreated: false,
+            totalSessions: threadSessions.length,
+          });
+        } else {
+          console.log(`[SESSION CHECK] Follow-up form exists, session is fully complete`);
+        }
+      } else {
+        console.log(`[SESSION CHECK] Latest session is not active (status: ${latestSession.status})`);
       }
+
+      console.log(`[SESSION CHECK] Returning: newSessionCreated=${newSessionCreated}, latestSessionId=${latestSession.id}`);
 
       // Return the latest active session
       return c.json({
         latestSession,
         newSessionCreated,
-        totalSessions: threadSessions.length,
+        totalSessions: newSessionCreated ? threadSessions.length + 1 : threadSessions.length,
       });
     } catch (error) {
       console.error("Error checking session status:", error);
@@ -277,39 +314,19 @@ export const threadsRoute = new Hono()
         return c.json({ error: "No sessions found for this thread" }, 404);
       }
 
-      // Mark the specified session as finished
+      // Mark the specified session as finished but DON'T create new session yet
       await db
         .update(sessions)
         .set({ status: "finished" })
         .where(eq(sessions.id, parsed.data.sessionId));
 
-      // Create a new session if we haven't reached the limit
-      let newSession = null;
-      if (threadSessions.length < 5) {
-        const [createdSession] = await db
-          .insert(sessions)
-          .values({
-            threadId: parseInt(threadId),
-            sessionNumber: threadSessions.length + 1,
-            sessionName: `Session ${threadSessions.length + 1}`,
-            status: "active",
-          })
-          .returning();
-
-        newSession = createdSession;
-      }
-
-      // Return updated sessions
-      const updatedSessions = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.threadId, parseInt(threadId)))
-        .orderBy(sessions.sessionNumber);
+      console.log(`[EXPIRE SESSION] Marked session ${parsed.data.sessionId} as finished`);
 
       return c.json({
         message: "Session expired successfully",
-        newSession,
-        sessions: updatedSessions,
+        sessionCompleted: true,
+        canCreateNewSession: threadSessions.length < 5,
+        totalSessions: threadSessions.length,
       });
     } catch (error) {
       console.error("Error expiring session:", error);
@@ -352,6 +369,76 @@ export const threadsRoute = new Hono()
         .returning();
     }
     return c.json({ success: true, form: result });
+  })
+  // Create new session after form submission
+  .post("/:threadId/create-next-session", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    try {
+      console.log(`[CREATE NEXT SESSION] Starting for thread ${threadId}`);
+      
+      // Get all sessions for this thread
+      const threadSessions = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.threadId, parseInt(threadId)))
+        .orderBy(sessions.sessionNumber);
+
+      if (threadSessions.length === 0) {
+        return c.json({ error: "No sessions found for this thread" }, 404);
+      }
+
+      if (threadSessions.length >= 5) {
+        return c.json({ error: "Maximum sessions (5) reached for this thread" }, 400);
+      }
+
+      // Create a new session
+      const [newSession] = await db
+        .insert(sessions)
+        .values({
+          threadId: parseInt(threadId),
+          sessionNumber: threadSessions.length + 1,
+          sessionName: `Session ${threadSessions.length + 1}`,
+          status: "active",
+        })
+        .returning();
+
+      console.log(`[CREATE NEXT SESSION] Created new session: ID=${newSession.id}, sessionNumber=${newSession.sessionNumber}`);
+
+      return c.json({
+        success: true,
+        newSession,
+        totalSessions: threadSessions.length + 1,
+      });
+    } catch (error) {
+      console.error("Error creating next session:", error);
+      return c.json({ error: "Failed to create next session" }, 500);
+    }
+  })
+  // Get session form status
+  .get("/sessions/:sessionId/form", async (c) => {
+    const sessionId = c.req.param("sessionId");
+    if (!sessionId) {
+      return c.json({ error: "sessionId is required" }, 400);
+    }
+
+    try {
+      const existing = await db
+        .select()
+        .from(sessionForms)
+        .where(eq(sessionForms.sessionId, parseInt(sessionId)));
+
+      return c.json({ 
+        hasForm: existing.length > 0,
+        form: existing.length > 0 ? existing[0] : null 
+      });
+    } catch (error) {
+      console.error("Error checking session form:", error);
+      return c.json({ error: "Failed to check session form" }, 500);
+    }
   })
   // Archive a thread
   .post("/:threadId/archive", async (c) => {
@@ -498,6 +585,59 @@ export const threadsRoute = new Hono()
     } catch (error) {
       console.error("Error unarchiving thread:", error);
       return c.json({ error: "Failed to unarchive thread" }, 500);
+    }
+  })
+  // Test endpoint to manually trigger session progression (for debugging)
+  .post("/:threadId/test-session-progression", async (c) => {
+    const threadId = c.req.param("threadId");
+    if (!threadId) {
+      return c.json({ error: "threadId is required" }, 400);
+    }
+
+    try {
+      console.log(`[TEST SESSION] Manual test for thread ${threadId}`);
+      
+      // Get current session info
+      const threadSessions = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.threadId, parseInt(threadId)))
+        .orderBy(sessions.sessionNumber);
+
+      if (threadSessions.length === 0) {
+        return c.json({ error: "No sessions found for this thread" }, 404);
+      }
+
+      const latestSession = threadSessions[threadSessions.length - 1];
+      
+      // Count messages
+      const messageCount = await db
+        .select({ count: count() })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.sessionId, latestSession.id),
+            eq(messages.threadType, "main")
+          )
+        );
+
+      const now = new Date();
+      const sessionAge = new Date(latestSession.createdAt || new Date());
+      const ageInHours = (now.getTime() - sessionAge.getTime()) / (1000 * 60 * 60);
+
+      return c.json({
+        threadId: parseInt(threadId),
+        currentSession: latestSession,
+        messageCount: messageCount[0].count,
+        sessionAgeHours: Math.round(ageInHours * 100) / 100,
+        canProgress: messageCount[0].count >= 7 && ageInHours >= 4,
+        totalSessions: threadSessions.length,
+        maxSessionsReached: threadSessions.length >= 5,
+        allSessions: threadSessions,
+      });
+    } catch (error) {
+      console.error("Error testing session progression:", error);
+      return c.json({ error: "Failed to test session progression" }, 500);
     }
   });
 

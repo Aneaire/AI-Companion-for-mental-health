@@ -258,17 +258,21 @@ export const Sidebar = memo(function Sidebar({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 rounded-full hover:bg-red-100 mr-2"
+                            className="h-6 w-6 rounded-full hover:bg-blue-100 mr-2"
                             onClick={(e) => {
                               e.stopPropagation();
-                              // For testing: expire current session instead of creating new one
-                              if (onExpireSession) {
-                                onExpireSession(thread.id);
+                              // Check if current session has enough messages for progression
+                              const activeSession = sessions.find(s => s.status === "active");
+                              if (activeSession) {
+                                // Manual session progression - expire current and create new
+                                if (onExpireSession) {
+                                  onExpireSession(thread.id);
+                                }
                               }
                             }}
-                            title="Expire Current Session (Testing)"
+                            title={`Progress to Session ${sessions.length + 1}`}
                           >
-                            <Plus className="text-red-600" size={12} />
+                            <Plus className="text-blue-600" size={12} />
                           </Button>
                         )}
                       </div>

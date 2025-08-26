@@ -100,6 +100,24 @@ export const threadsApi = {
     if (!res.ok) throw new Error("Failed to save session form");
     return res.json();
   },
+  async getSessionForm(sessionId: number) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/sessions/${sessionId}/form`
+    );
+    if (!res.ok) throw new Error("Failed to get session form");
+    return res.json();
+  },
+  async createNextSession(threadId: number) {
+    const res = await fetch(
+      `http://localhost:4000/api/threads/${threadId}/create-next-session`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!res.ok) throw new Error("Failed to create next session");
+    return res.json();
+  },
 };
 
 export const patientApi = {

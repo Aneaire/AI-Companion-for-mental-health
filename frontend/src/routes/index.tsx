@@ -78,6 +78,8 @@ function Index() {
     getInitialForm,
     setInitialForm,
   } = useChatStore();
+  
+  const queryClient = useQueryClient();
 
   // Use TanStack Query directly instead of duplicating in Zustand
   const {
@@ -93,7 +95,6 @@ function Index() {
   const totalThreads = threadsData?.total || 0;
   const createThread = useCreateThread();
   const moveThreadToTop = useMoveThreadToTop();
-  const queryClient = useQueryClient();
   const { addMessage, clearMessages } = useChatStore();
 
   // Use query hook for sessions instead of manual fetching
@@ -165,15 +166,9 @@ function Index() {
     return allMessages;
   };
 
-  // Patch handleExpireSession to trigger post-session dialog and generation
+  // Updated handleExpireSession to work with new session management
   const handleExpireSession = async (threadId: number) => {
     try {
-      setPostSessionDialogOpen(true);
-      setIsGeneratingForm(true);
-      setGeneratedQuestions(null);
-      setFormError(null);
-      postSessionThreadIdRef.current = threadId;
-
       // Get current sessions for this thread
       const currentSessions = threadSessions || [];
       const activeSession = currentSessions.find(
@@ -182,14 +177,24 @@ function Index() {
 
       if (!activeSession) {
         toast.error("No active session found to expire");
-        setPostSessionDialogOpen(false);
         return;
       }
 
-      // Get the initial form from the current session before expiring it
-      const currentInitialForm = getInitialForm(activeSession.id);
+      // Check if session has enough messages for progression
+      try {
+        const response = await fetch(`http://localhost:4000/api/chat/${activeSession.id}`);
+        if (response.ok) {
+          const messages = await response.json();
+          if (messages.length < 7) {
+            toast.error("Session needs at least 7 messages before progressing to next session");
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not check message count, proceeding with session progression");
+      }
 
-      // Call API to mark session as finished
+      // Call API to manually expire current session and create new one
       const response = await fetch(
         `http://localhost:4000/api/threads/${threadId}/expire-session`,
         {
@@ -205,36 +210,33 @@ function Index() {
         throw new Error("Failed to expire session");
       }
 
-      // Sessions will be refreshed automatically by the query
-
-      // Fetch all messages for all sessions
-      const allMessages = await fetchAllMessagesForThread(threadId);
-
-      // Get persona/initialForm for the thread
-      let personaForm = null;
-      if (currentSessions.length > 0) {
-        personaForm =
-          getInitialForm(currentSessions[0].id) ||
-          getInitialForm(activeSession.id);
+      const result = await response.json();
+      
+      // If session was completed, show success message and trigger form flow
+      if (result.sessionCompleted) {
+        toast.success(`Session ${activeSession.sessionNumber} completed! Please complete the follow-up form.`);
+        
+        // Refresh the thread sessions query
+        queryClient.invalidateQueries({ queryKey: ["threadSessions", threadId] });
+        
+        // If the current thread is selected, force it to re-check session status
+        // This will trigger the session completion dialog
+        if (selectedThreadId === threadId) {
+          console.log('[EXPIRE SESSION] Forcing thread re-selection to trigger completion dialog');
+          // Briefly switch away and back to trigger the Thread component's useEffect
+          setSelectedThread(null);
+          setTimeout(() => {
+            console.log('[EXPIRE SESSION] Re-selecting thread to show completion dialog');
+            setSelectedThread(threadId);
+          }, 200); // Increased timeout slightly
+        }
+      } else {
+        toast.info("Could not complete session progression.");
       }
-      // Defensive fallback: ensure personaForm is always a non-null object
-      if (
-        typeof personaForm !== "object" ||
-        personaForm === null ||
-        Array.isArray(personaForm)
-      ) {
-        personaForm = {};
-      }
-      // Call generate-form API
-      const genData = await generateFormApi.generate({
-        initialForm: personaForm,
-        messages: allMessages.map((m) => ({ sender: m.sender, text: m.text })),
-      });
-      setGeneratedQuestions(genData.questions || []);
-      setIsGeneratingForm(false);
+      
     } catch (error: any) {
-      setFormError(error.message || "Unknown error");
-      setIsGeneratingForm(false);
+      console.error("Error expiring session:", error);
+      toast.error("Failed to progress session. Please try again.");
     }
   };
 
@@ -445,6 +447,7 @@ function Index() {
             selectedSessionId={selectedSessionId ?? null}
             showFormIndicator={showFormIndicator}
             onMessageSent={moveThreadToTop}
+            onSessionSelected={handleSelectSession}
             onThreadDeleted={() => {
               // Select first available thread after deletion
               if (threadsWithoutPersona.length > 1) {
