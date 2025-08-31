@@ -1,7 +1,7 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
-import { impersonateChatApi, impostorApi, observerApi } from "@/lib/client";
+import { impersonateChatApi, impostorApi, impersonateObserverApi } from "@/lib/client";
 import { useImpostorProfile, useUserProfile } from "@/lib/queries/user";
 import {
   buildMessagesForObserver,
@@ -237,7 +237,7 @@ export function ImpersonateThread({
         message
       );
 
-      const observerRes = await observerApi.getSuggestion({
+      const observerRes = await impersonateObserverApi.getSuggestion({
         messages: messagesForObserver,
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
       });
@@ -437,7 +437,7 @@ export function ImpersonateThread({
           // Get the correct initial form for this session
           const sessionInitialForm = getInitialForm(selectedThreadId);
 
-          const res = await observerApi.getSuggestion({
+          const res = await impersonateObserverApi.getSuggestion({
             messages: buildMessagesForObserver(currentContext.messages),
             ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
           });
@@ -539,7 +539,7 @@ export function ImpersonateThread({
               lastMessage
             );
 
-            const observerRes = await observerApi.getSuggestion({
+            const observerRes = await impersonateObserverApi.getSuggestion({
               messages: messagesForObserver,
               ...(sessionInitialForm
                 ? { initialForm: sessionInitialForm }

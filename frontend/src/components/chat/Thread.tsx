@@ -3,7 +3,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import { FormRequiredState } from "@/components/chat/FormRequiredState";
 import { SessionManagementDialog } from "@/components/chat/SessionManagementDialog";
-import client, { observerApi, threadsApi } from "@/lib/client";
+import client, { mainObserverApi, threadsApi } from "@/lib/client";
 import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
@@ -203,6 +203,7 @@ export function Thread({
   const [currentSessionNumber, setCurrentSessionNumber] = useState(1);
   const [dialogSessionId, setDialogSessionId] = useState<number | null>(null);
   const [justCreatedNewSession, setJustCreatedNewSession] = useState(false);
+  const [followupFormData, setFollowupFormData] = useState<Record<string, any> | null>(null);
 
   // Thread management functions (memoized to prevent recreating on every render)
   const handleDeleteThread = useCallback(async (threadId: number) => {
@@ -388,6 +389,14 @@ export function Thread({
                 setSessionFormCompleted(formStatus.hasForm);
                 setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
                 
+                // If form exists, store the follow-up form data for observer
+                if (formStatus.hasForm && formStatus.form?.answers) {
+                  setFollowupFormData(formStatus.form.answers);
+                  console.log('[THREAD] Stored follow-up form data for observer:', formStatus.form.answers);
+                } else {
+                  setFollowupFormData(null);
+                }
+                
                 // If previous session form is required but not completed, show form required state
                 if (!formStatus.hasForm) {
                   console.log('[THREAD] Previous session form not completed, showing form required state');
@@ -400,6 +409,7 @@ export function Thread({
                 console.log('[THREAD] No previous session found, assuming form completed');
                 setSessionFormCompleted(true);
                 setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
+                setFollowupFormData(null);
               }
             }
           } else if (justCreatedNewSession) {
@@ -661,9 +671,10 @@ export function Thread({
         initialForm: sessionInitialForm,
       });
 
-      const observerRes = await observerApi.getSuggestion({
+      const observerRes = await mainObserverApi.getSuggestion({
         messages: messagesForObserver,
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
+        ...(followupFormData ? { followupForm: followupFormData } : {}),
       });
       observerStrategy = observerRes.strategy || "";
       observerRationale = observerRes.rationale || "";
@@ -902,7 +913,7 @@ export function Thread({
           // Get the correct initial form for this session
           const sessionInitialForm = getInitialForm(selectedThreadId);
 
-          const res = await observerApi.getSuggestion({
+          const res = await mainObserverApi.getSuggestion({
             messages: currentContext.messages
               .filter((msg) => msg.sender === "user" || msg.sender === "ai")
               .map((msg) => ({
@@ -912,6 +923,7 @@ export function Thread({
                 text: msg.text,
               })),
             ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
+            ...(followupFormData ? { followupForm: followupFormData } : {}),
           });
           setAgentStrategy(res.strategy || "");
           setAgentRationale(res.rationale || "");
