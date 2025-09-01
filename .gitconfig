@@ -1,0 +1,3 @@
+git config --global alias.save '!git add -A && git commit -m "WIP: $(date)"'
+git config --global alias.undo 'reset --hard HEAD~1'
+git config --global alias.ai-branch '!f(){ git checkout -b "ai-experiment-$(date +%s)"; }; f'
