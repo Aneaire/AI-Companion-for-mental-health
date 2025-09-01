@@ -175,15 +175,42 @@ const chat = new Hono()
     } = parsed.data;
     let currentSessionId = sessionId;
 
-    // Fetch session follow-up form answers if they exist
+    // Fetch session follow-up form answers from the PREVIOUS session if they exist
     let followupFormAnswers: Record<string, any> | null = null;
     if (currentSessionId) {
-      const formRows = await db
+      // First get the current session to find its thread and session number
+      const currentSession = await db
         .select()
-        .from(sessionForms)
-        .where(eq(sessionForms.sessionId, currentSessionId));
-      if (formRows.length > 0) {
-        followupFormAnswers = formRows[0].answers;
+        .from(sessions)
+        .where(eq(sessions.id, currentSessionId))
+        .limit(1);
+        
+      if (currentSession.length > 0 && currentSession[0].sessionNumber > 1) {
+        // Get the previous session in the same thread
+        const previousSession = await db
+          .select()
+          .from(sessions)
+          .where(
+            and(
+              eq(sessions.threadId, currentSession[0].threadId),
+              eq(sessions.sessionNumber, currentSession[0].sessionNumber - 1)
+            )
+          )
+          .limit(1);
+          
+        if (previousSession.length > 0) {
+          // Look for follow-up form from the previous session
+          const formRows = await db
+            .select()
+            .from(sessionForms)
+            .where(eq(sessionForms.sessionId, previousSession[0].id));
+          if (formRows.length > 0) {
+            followupFormAnswers = formRows[0].answers;
+            console.log(`[CHAT] Found follow-up form from previous session ${previousSession[0].id}:`, followupFormAnswers);
+          } else {
+            console.log(`[CHAT] No follow-up form found for previous session ${previousSession[0].id}`);
+          }
+        }
       }
     }
 
@@ -275,12 +302,21 @@ const chat = new Hono()
         initialContextString += `- Custom Response Style: ${initialForm.responseDescription}\n`;
       // Add follow-up form answers if present
       if (followupFormAnswers) {
-        initialContextString += `\nSession Follow-up Form Answers:\n`;
+        const currentSessionNum = sessionData.length > 0 ? sessionData[0].session.sessionNumber : 1;
+        const previousSessionNum = currentSessionNum - 1;
+        initialContextString += `\n**Follow-up Form from Previous Session (Session ${previousSessionNum}):**\n`;
+        initialContextString += `These answers were provided by the user after their previous therapy session to help prepare for this current session (Session ${currentSessionNum}):\n`;
         for (const [key, value] of Object.entries(followupFormAnswers)) {
-          initialContextString += `- ${key}: ${
-            typeof value === "string" ? value : JSON.stringify(value)
-          }\n`;
+          // Convert technical field names to human-readable format
+          const humanReadableKey = key
+            .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+            .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+            .replace(/_/g, ' '); // Replace underscores with spaces
+          
+          const formattedValue = typeof value === "string" ? value : JSON.stringify(value);
+          initialContextString += `- ${humanReadableKey}: ${formattedValue}\n`;
         }
+        initialContextString += `Please use these insights to personalize this session and acknowledge their progress or concerns mentioned in the follow-up form.\n`;
       }
       conversationHistory.push({
         role: "user",
@@ -415,6 +451,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 7.  **Guidance and Exploration:** Offer relevant, general coping strategies, gentle thought-provoking questions, and reflections to help the user explore their feelings and situations more deeply. Encourage self-discovery.
 8.  **Concise, Clear, and Human-like Language:** Keep responses focused, natural, and easy to understand. Avoid jargon or overly clinical language unless specifically requested by the user's persona. Your tone should be warm, compassionate, and authentic, reflecting a human therapist's mannerisms.
 9.  **Adapt to User Preferences:** Pay close attention to preferred response tone, character, or style from the initial form and subtly weave it into your communication style.
+10. **Follow-up Form Integration:** When a user's previous session follow-up form is provided, naturally reference their responses to show continuity between sessions. Acknowledge any progress, changes, or concerns they mentioned. This demonstrates you remember their previous session and are building upon their therapeutic journey.
 `;
 
     // Add conversationPreferences to the prompt if present
