@@ -12,6 +12,7 @@ lerna-debug.log*
 chat_logs/
 observer_logs/
 main_observer_logs/
+server_logs/
 
 
 # Caches
