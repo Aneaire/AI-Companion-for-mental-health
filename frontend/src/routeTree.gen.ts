@@ -11,12 +11,19 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as QualityAnalysisImport } from './routes/quality-analysis'
 import { Route as PodcastImport } from './routes/podcast'
 import { Route as ImpersonateImport } from './routes/impersonate'
-import { Route as AdminImport } from './routes/admin'
 import { Route as IndexImport } from './routes/index'
+import { Route as AdminIndexImport } from './routes/admin.index'
 
 // Create/Update Routes
+
+const QualityAnalysisRoute = QualityAnalysisImport.update({
+  id: '/quality-analysis',
+  path: '/quality-analysis',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const PodcastRoute = PodcastImport.update({
   id: '/podcast',
@@ -30,15 +37,15 @@ const ImpersonateRoute = ImpersonateImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const AdminRoute = AdminImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRoute,
-} as any)
-
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AdminIndexRoute = AdminIndexImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -51,13 +58,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminImport
       parentRoute: typeof rootRoute
     }
     '/impersonate': {
@@ -74,6 +74,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PodcastImport
       parentRoute: typeof rootRoute
     }
+    '/quality-analysis': {
+      id: '/quality-analysis'
+      path: '/quality-analysis'
+      fullPath: '/quality-analysis'
+      preLoaderRoute: typeof QualityAnalysisImport
+      parentRoute: typeof rootRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -81,47 +95,58 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
+  '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin': typeof AdminIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
+  '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin': typeof AdminIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
+  '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin/': typeof AdminIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/impersonate' | '/podcast'
+  fullPaths: '/' | '/impersonate' | '/podcast' | '/quality-analysis' | '/admin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/impersonate' | '/podcast'
-  id: '__root__' | '/' | '/admin' | '/impersonate' | '/podcast'
+  to: '/' | '/impersonate' | '/podcast' | '/quality-analysis' | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/impersonate'
+    | '/podcast'
+    | '/quality-analysis'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   ImpersonateRoute: typeof ImpersonateRoute
   PodcastRoute: typeof PodcastRoute
+  QualityAnalysisRoute: typeof QualityAnalysisRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   ImpersonateRoute: ImpersonateRoute,
   PodcastRoute: PodcastRoute,
+  QualityAnalysisRoute: QualityAnalysisRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -135,22 +160,26 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/admin",
         "/impersonate",
-        "/podcast"
+        "/podcast",
+        "/quality-analysis",
+        "/admin/"
       ]
     },
     "/": {
       "filePath": "index.tsx"
-    },
-    "/admin": {
-      "filePath": "admin.tsx"
     },
     "/impersonate": {
       "filePath": "impersonate.tsx"
     },
     "/podcast": {
       "filePath": "podcast.tsx"
+    },
+    "/quality-analysis": {
+      "filePath": "quality-analysis.tsx"
+    },
+    "/admin/": {
+      "filePath": "admin.index.tsx"
     }
   }
 }

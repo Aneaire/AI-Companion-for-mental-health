@@ -6,6 +6,39 @@ import { count, eq, sql } from "drizzle-orm";
 
 const adminRoute = new Hono()
   .use("/*", adminMiddleware) // Protect all admin routes
+  .get("/threads/anonymized", async (c) => {
+    try {
+      console.log("Fetching anonymized threads...");
+
+      // Get threads with session count, ordered randomly
+      const threadsWithSessions = await db
+        .select({
+          id: threads.id,
+          createdAt: threads.createdAt,
+          sessionCount: sql<number>`COUNT(${sessions.id})`,
+        })
+        .from(threads)
+        .leftJoin(sessions, eq(sessions.threadId, threads.id))
+        .groupBy(threads.id, threads.createdAt)
+        .orderBy(sql`RANDOM()`)
+        .limit(20); // Limit to 20 random threads
+
+      // Create anonymized thread names
+      const anonymizedThreads = threadsWithSessions.map((thread, index) => ({
+        id: thread.id,
+        displayName: `Thread ${index + 1}`,
+        sessionCount: thread.sessionCount || 0,
+        createdAt: thread.createdAt,
+      }));
+
+      console.log("Anonymized threads:", anonymizedThreads.length);
+
+      return c.json(anonymizedThreads);
+    } catch (error) {
+      console.error("Error fetching anonymized threads:", error);
+      return c.json({ error: "Failed to fetch threads" }, 500);
+    }
+  })
   .get("/metrics", async (c) => {
     try {
       console.log("Fetching admin metrics...");
