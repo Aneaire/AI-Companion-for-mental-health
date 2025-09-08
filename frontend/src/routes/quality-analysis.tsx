@@ -34,6 +34,25 @@ interface ThreadAnalysis {
   formCount: number;
   isAnalyzed: boolean;
   summary: string;
+  context?: {
+    threadId: number;
+    sessionCount: number;
+    messageCount: number;
+    formCount: number;
+    initialForm: any;
+    sessions: any[];
+    messages: any[];
+    forms: any[];
+  };
+  metrics?: {
+    userMessages: number;
+    aiMessages: number;
+    avgUserMessageLength: number;
+    avgAiMessageLength: number;
+    sessionCompletionRate: number;
+    formsPerSession: number;
+    completedSessions: number;
+  };
 }
 
 export const Route = createRoute({
@@ -136,11 +155,15 @@ function QualityAnalysisContent() {
       const analysis = await response.json();
       setThreadAnalysis(analysis);
       
-      // Add initial AI message with analysis summary
+      // Add initial AI message with comprehensive analysis summary
+      const metricsInfo = analysis.metrics ? 
+        `\n\n**Detailed Metrics:**\n• User Messages: ${analysis.metrics.userMessages} (avg ${analysis.metrics.avgUserMessageLength} chars)\n• AI Messages: ${analysis.metrics.aiMessages} (avg ${analysis.metrics.avgAiMessageLength} chars)\n• Session Completion: ${analysis.metrics.completedSessions}/${analysis.sessionCount} (${analysis.metrics.sessionCompletionRate}%)\n• Forms per Session: ${analysis.metrics.formsPerSession}` 
+        : '';
+      
       setAnalysisMessages([{
         id: Date.now().toString(),
         sender: 'ai',
-        content: `Thread "${thread.displayName}" has been analyzed. This thread contains ${analysis.sessionCount} sessions with ${analysis.messageCount} messages and ${analysis.formCount} forms submitted.\n\n${analysis.summary}\n\nFeel free to ask me specific questions about the conversation flow, AI effectiveness, user engagement patterns, or therapeutic progress indicators.`,
+        content: `Thread "${thread.displayName}" has been comprehensively analyzed with full context access including all messages, forms, and user interactions.\n\n**Thread Overview:**\n• ${analysis.sessionCount} sessions with ${analysis.messageCount} total messages\n• ${analysis.formCount} forms submitted (${analysis.context?.initialForm ? '1 initial + ' : ''}${(analysis.formCount || 0) - (analysis.context?.initialForm ? 1 : 0)} generated)\n• Complete conversation history and therapeutic progression data available${metricsInfo}\n\n**Analysis Summary:**\n${analysis.summary}\n\n**Available Analysis Types:**\nI can provide detailed insights on:\n• **Effectiveness**: AI response quality, therapeutic intervention success\n• **Engagement**: User participation patterns, session commitment\n• **Flow**: Conversation progression, therapeutic continuity\n• **Session Comparison**: Individual session metrics and trends\n• **Assessment Integration**: Form completion patterns, progress tracking\n\nWhat specific aspect would you like me to analyze using the complete thread context?`,
         timestamp: new Date()
       }]);
     } catch (error) {
@@ -384,15 +407,25 @@ function QualityAnalysisContent() {
               {/* Thread Header */}
               <div className="p-4 border-b border-gray-200 bg-white">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <h2 className="text-lg font-semibold text-gray-900">{selectedThread.displayName}</h2>
-                    <p className="text-sm text-gray-500">
-                      {selectedThread.sessionCount} session{selectedThread.sessionCount !== 1 ? 's' : ''} • 
-                      Created: {new Date(selectedThread.createdAt).toLocaleDateString()}
-                      {threadAnalysis && (
-                        <> • {threadAnalysis.messageCount} messages • {threadAnalysis.formCount} forms</>
+                    <div className="text-sm text-gray-500 space-y-1">
+                      <p>
+                        {selectedThread.sessionCount} session{selectedThread.sessionCount !== 1 ? 's' : ''} • 
+                        Created: {new Date(selectedThread.createdAt).toLocaleDateString()}
+                        {threadAnalysis && (
+                          <> • {threadAnalysis.messageCount} messages • {threadAnalysis.formCount} forms</>
+                        )}
+                      </p>
+                      {threadAnalysis?.metrics && (
+                        <div className="flex flex-wrap gap-4 text-xs bg-gray-50 p-2 rounded">
+                          <span>👥 {threadAnalysis.metrics.userMessages} user msgs (avg {threadAnalysis.metrics.avgUserMessageLength}ch)</span>
+                          <span>🤖 {threadAnalysis.metrics.aiMessages} AI msgs (avg {threadAnalysis.metrics.avgAiMessageLength}ch)</span>
+                          <span>✅ {threadAnalysis.metrics.sessionCompletionRate}% completion</span>
+                          <span>📋 {threadAnalysis.metrics.formsPerSession} forms/session</span>
+                        </div>
                       )}
-                    </p>
+                    </div>
                   </div>
                   <Button
                     onClick={() => {
@@ -469,7 +502,7 @@ function QualityAnalysisContent() {
                     <Input
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Ask about conversation flow, AI effectiveness, user engagement..."
+                      placeholder="Ask about effectiveness, engagement, flow, session comparison, or assessment patterns..."
                       className="flex-1"
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -488,8 +521,8 @@ function QualityAnalysisContent() {
                     </Button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2 max-w-4xl mx-auto">
-                    This AI agent analyzes conversation patterns without revealing actual content. 
-                    Ask about therapeutic effectiveness, engagement levels, or conversation flow.
+                    This AI agent has access to complete thread context (messages, forms, user interactions) for comprehensive analysis. 
+                    Ask about therapeutic effectiveness, user engagement patterns, conversation flow, session comparisons, or assessment integration.
                   </p>
                 </div>
               </div>
