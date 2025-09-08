@@ -1,8 +1,61 @@
 import { Hono } from "hono";
+import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
+import { streamSSE } from "hono/streaming";
 import { db } from "../db/config";
 import { sessions, threads, messages, sessionForms } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
 import { count, eq, sql } from "drizzle-orm";
+import { geminiConfig } from "../lib/config";
+
+// Initialize Gemini
+const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+// Privacy-safe context anonymization for analysis
+function createPrivacySafeAnalysisContext(
+  threadData: any,
+  sessions: any[],
+  messages: any[],
+  forms: any[]
+) {
+  const userMessages = messages.filter(m => m.sender === 'user');
+  const aiMessages = messages.filter(m => m.sender === 'ai');
+  const completedSessions = sessions.filter(s => s.status === 'finished');
+  
+  return {
+    threadMetrics: {
+      totalSessions: sessions.length,
+      completedSessions: completedSessions.length,
+      completionRate: sessions.length > 0 ? (completedSessions.length / sessions.length * 100) : 0,
+      totalMessages: messages.length,
+      userMessages: userMessages.length,
+      aiMessages: aiMessages.length,
+      formsCompleted: forms.length,
+    },
+    sessionPattern: sessions.map((s, i) => ({
+      sessionNumber: i + 1,
+      status: s.status,
+      messageCount: messages.filter(m => m.sessionId === s.id).length,
+      userMessageCount: messages.filter(m => m.sessionId === s.id && m.sender === 'user').length,
+      aiMessageCount: messages.filter(m => m.sessionId === s.id && m.sender === 'ai').length,
+    })),
+    communicationMetrics: {
+      avgUserMessageLength: userMessages.length > 0 ? 
+        Math.round(userMessages.reduce((sum, m) => sum + m.text.length, 0) / userMessages.length) : 0,
+      avgAiMessageLength: aiMessages.length > 0 ? 
+        Math.round(aiMessages.reduce((sum, m) => sum + m.text.length, 0) / aiMessages.length) : 0,
+      responseRatio: userMessages.length > 0 ? (aiMessages.length / userMessages.length).toFixed(2) : '0',
+    },
+    therapyProgressIndicators: {
+      sessionProgression: sessions.map((s, i) => ({
+        session: i + 1,
+        messageVolume: messages.filter(m => m.sessionId === s.id).length,
+        completionStatus: s.status,
+      })),
+      assessmentEngagement: forms.length,
+      longitudinalEngagement: sessions.length > 1 ? 'Multi-session' : 'Single-session',
+    }
+  };
+}
 
 const adminRoute = new Hono()
   .use("/*", adminMiddleware) // Protect all admin routes
@@ -270,38 +323,97 @@ const adminRoute = new Hono()
         };
       });
 
-      // Generate intelligent response based on the specific question and comprehensive context
-      let response = "";
-      
-      if (message.toLowerCase().includes("effectiveness") || message.toLowerCase().includes("helpful")) {
-        const responseRatio = userMessages.length > 0 ? aiMessages.length / userMessages.length : 0;
-        const avgResponseLength = Math.round(avgAiMessageLength);
-        
-        response = `AI effectiveness analysis shows excellent therapeutic engagement patterns. Response ratio: ${responseRatio.toFixed(2)}:1 AI-to-user messages (${aiMessages.length} AI responses to ${userMessages.length} user messages). Average AI response length: ${avgResponseLength} characters, indicating ${avgResponseLength > 500 ? 'comprehensive' : avgResponseLength > 200 ? 'detailed' : 'concise'} therapeutic responses. Session completion rate of ${Math.round(sessionCompletionRate)}% suggests ${sessionCompletionRate > 80 ? 'excellent' : sessionCompletionRate > 60 ? 'good' : 'developing'} AI effectiveness in maintaining user engagement through full sessions. Form generation effectiveness: ${threadGeneratedForms.length} dynamic assessments across ${completedSessions} completed sessions (${threadGeneratedForms.length > 0 ? (threadGeneratedForms.length / Math.max(completedSessions, 1)).toFixed(1) : '0'} forms per completed session).`;
-        
-      } else if (message.toLowerCase().includes("engagement") || message.toLowerCase().includes("participation")) {
-        const avgUserMsgLength = Math.round(avgUserMessageLength);
-        const messagesToSessionRatio = threadSessions.length > 0 ? userMessages.length / threadSessions.length : 0;
-        
-        response = `User engagement analysis reveals strong participation patterns. User contribution: ${userMessages.length} messages across ${threadSessions.length} sessions (${messagesToSessionRatio.toFixed(1)} messages per session). Average user message length: ${avgUserMsgLength} characters, indicating ${avgUserMsgLength > 100 ? 'detailed' : avgUserMsgLength > 50 ? 'moderate' : 'brief'} communication style. Session commitment: ${completedSessions}/${threadSessions.length} sessions completed (${Math.round(sessionCompletionRate)}% completion rate). Form engagement: ${totalForms} total assessments completed (${initialFormExists ? 'initial assessment + ' : ''}${threadGeneratedForms.length} dynamic forms), showing ${totalForms > threadSessions.length ? 'excellent' : totalForms >= threadSessions.length * 0.5 ? 'good' : 'developing'} participation in therapeutic tools.`;
-        
-      } else if (message.toLowerCase().includes("flow") || message.toLowerCase().includes("progression")) {
-        const sessionProgression = sessionAnalysis.map((s, i) => `S${s.sessionNumber}(${s.messageCount}msg,${s.formsGenerated}forms,${s.status})`).join(' → ');
-        
-        response = `Conversation flow analysis shows structured therapeutic progression. Session sequence: ${sessionProgression}. Message distribution per session: ${sessionAnalysis.map(s => s.messageCount).join(', ')} messages respectively. User engagement trajectory: ${sessionAnalysis.map(s => s.userMessageCount).join(', ')} user messages per session, showing ${sessionAnalysis[sessionAnalysis.length - 1]?.userMessageCount > sessionAnalysis[0]?.userMessageCount ? 'increasing' : 'consistent'} participation. Form completion pattern: ${sessionAnalysis.map(s => s.formsGenerated).join(', ')} forms generated per session, indicating ${threadGeneratedForms.length > 0 ? 'active' : 'developing'} therapeutic assessment integration. Overall progression demonstrates ${sessionCompletionRate > 75 ? 'excellent' : sessionCompletionRate > 50 ? 'good' : 'developing'} therapeutic continuity.`;
-        
-      } else if (message.toLowerCase().includes("session") && (message.toLowerCase().includes("comparison") || message.toLowerCase().includes("compare"))) {
-        const sessionComparison = sessionAnalysis.map(s => 
-          `Session ${s.sessionNumber}: ${s.messageCount} total messages (${s.userMessageCount} user, ${s.aiMessageCount} AI), avg lengths: user ${Math.round(s.avgUserMsgLength)}chars, AI ${Math.round(s.avgAiMsgLength)}chars, ${s.formsGenerated} forms, status: ${s.status}`
-        ).join('\n');
-        
-        response = `Session-by-session comparison analysis:\n\n${sessionComparison}\n\nKey patterns: ${sessionAnalysis.length > 1 ? (sessionAnalysis[sessionAnalysis.length - 1].messageCount > sessionAnalysis[0].messageCount ? 'Messages increasing over time, indicating growing engagement' : 'Consistent message levels across sessions') : 'Single session analysis'}. ${sessionAnalysis.every(s => s.status === 'finished') ? 'All sessions completed successfully' : `${completedSessions} of ${threadSessions.length} sessions completed`}. Form generation pattern: ${sessionAnalysis.some(s => s.formsGenerated > 0) ? 'Active therapeutic assessment integration' : 'No dynamic forms generated'}.`;
-        
-      } else {
-        response = `I can provide detailed analysis of this ${threadSessions.length}-session therapeutic thread. Available insights include:\n\n• **Effectiveness**: AI response patterns, therapeutic engagement quality, intervention success rates\n• **User Engagement**: Participation levels, message patterns, session completion rates\n• **Conversation Flow**: Session progression, therapeutic continuity, communication evolution\n• **Session Comparison**: Individual session metrics, progression patterns, engagement trends\n• **Assessment Integration**: Form completion patterns, therapeutic tool usage, progress tracking\n\nThis thread contains ${threadMessages.length} total messages (${userMessages.length} user, ${aiMessages.length} AI) across ${threadSessions.length} sessions with ${totalForms} completed assessments. What specific aspect would you like me to analyze?`;
-      }
+      // Create privacy-safe analysis context
+      const analysisContext = createPrivacySafeAnalysisContext(
+        thread[0],
+        threadSessions,
+        threadMessages,
+        threadGeneratedForms
+      );
 
-      return c.json({ response });
+      // Build analysis context for AI
+      const analysisHistory: Content[] = [{
+        role: "user",
+        parts: [{
+          text: `Thread Analysis Context (Privacy-Protected):
+
+**Therapeutic Session Overview:**
+- Total Sessions: ${analysisContext.threadMetrics.totalSessions} (${analysisContext.threadMetrics.completedSessions} completed, ${analysisContext.threadMetrics.completionRate.toFixed(1)}% completion rate)
+- Message Distribution: ${analysisContext.threadMetrics.totalMessages} total messages (${analysisContext.threadMetrics.userMessages} user, ${analysisContext.threadMetrics.aiMessages} AI)
+- Assessment Engagement: ${analysisContext.threadMetrics.formsCompleted} therapeutic assessments completed
+- Communication Patterns: User avg ${analysisContext.communicationMetrics.avgUserMessageLength} chars/message, AI avg ${analysisContext.communicationMetrics.avgAiMessageLength} chars/message
+- Response Ratio: ${analysisContext.communicationMetrics.responseRatio}:1 (AI:User)
+
+**Session Progression Pattern:**
+${analysisContext.sessionPattern.map(s => `Session ${s.sessionNumber}: ${s.messageCount} messages (${s.userMessageCount} user, ${s.aiMessageCount} AI), status: ${s.status}`).join('\n')}
+
+**Therapeutic Progress Indicators:**
+- Engagement Type: ${analysisContext.therapyProgressIndicators.longitudinalEngagement}
+- Assessment Participation: ${analysisContext.therapyProgressIndicators.assessmentEngagement} forms completed
+- Session Volume Trend: ${analysisContext.therapyProgressIndicators.sessionProgression.map(s => `S${s.session}(${s.messageVolume}msg)`).join(' → ')}
+
+Previous conversation context: ${(conversationHistory || []).slice(-5).map((msg: any) => `Analyst: [Previous analysis context]`).join('\n')}
+
+CRITICAL: This is a privacy-protected analysis context. Do not reference specific user content or personal information. Focus only on therapeutic patterns and quality metrics.`
+        }]
+      }];
+
+      // Enhanced system instructions for analysis AI
+      const systemInstructionText = `You are an AI therapeutic conversation quality analyst providing professional insights for quality assessment and improvement.
+
+**CRITICAL PRIVACY REQUIREMENTS:**
+- DO NOT leak, mention, or reference any specific user information, names, personal details, or identifiable content
+- DO NOT quote or reproduce exact user messages or AI responses
+- Focus ONLY on patterns, metrics, and therapeutic quality indicators
+- Use generic references like "the user," "the conversation," or "the therapeutic interaction"
+- Provide analysis sufficient for quality assessment without compromising privacy
+
+**Your Expertise Areas:**
+- Therapeutic Effectiveness: AI response quality, intervention appropriateness, therapeutic goal achievement
+- User Engagement: Participation patterns, session commitment, communication depth
+- Conversation Flow: Therapeutic continuity, session progression, intervention timing
+- Session Quality: Individual session assessment, comparative analysis, improvement opportunities
+- Assessment Integration: Form utilization patterns, progress tracking effectiveness
+
+**Response Style:**
+Provide professional, clinical analysis with specific metrics and actionable insights. Focus on measurable therapeutic outcomes and quality improvement recommendations while maintaining complete privacy protection.
+
+**Analysis Context Available:**
+You have access to comprehensive thread metrics, session patterns, communication analytics, and therapeutic progress indicators for professional quality assessment.`;
+
+      // Initialize Gemini model for streaming analysis
+      const model = gemini.getGenerativeModel({
+        model: geminiConfig.twoPoint5FlashLite,
+        systemInstruction: {
+          role: "model",
+          parts: [{ text: systemInstructionText }],
+        },
+      });
+
+      const chatSession = model.startChat({
+        history: analysisHistory,
+        generationConfig: {
+          maxOutputTokens: 2000,
+        },
+      });
+
+      // Stream the AI analysis response
+      return streamSSE(c, async (stream) => {
+        let aiResponseText = "";
+        try {
+          const result = await chatSession.sendMessageStream(message);
+          for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            aiResponseText += chunkText;
+            await stream.writeSSE({ data: chunkText });
+          }
+        } catch (error) {
+          console.error("Error during AI streaming:", error);
+          await stream.writeSSE({
+            data: `Analysis Error: ${error instanceof Error ? error.message : 'Unknown error occurred during analysis'}`,
+          });
+        }
+      });
     } catch (error) {
       console.error("Error in analysis chat:", error);
       return c.json({ error: "Failed to process analysis request" }, 500);

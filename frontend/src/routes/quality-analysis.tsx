@@ -260,16 +260,62 @@ function QualityAnalysisContent() {
         throw new Error("Failed to get analysis response");
       }
 
-      const data = await response.json();
-      
+      // Handle streaming response from Gemini
+      let aiResponseText = "";
       const aiMessage: AnalysisMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        content: data.response,
+        content: "",
         timestamp: new Date()
       };
       
+      // Add the AI message immediately and update it as chunks come in
       setAnalysisMessages(prev => [...prev, aiMessage]);
+      
+      if (response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const chunkText = line.slice(6);
+                if (chunkText && chunkText !== '[DONE]') {
+                  aiResponseText += chunkText;
+                  // Update the AI message content in real-time
+                  setAnalysisMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === aiMessage.id 
+                        ? { ...msg, content: aiResponseText }
+                        : msg
+                    )
+                  );
+                }
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      } else {
+        // Fallback for non-streaming response
+        const data = await response.json();
+        aiResponseText = data.response || "Analysis completed.";
+        setAnalysisMessages(prev => 
+          prev.map(msg => 
+            msg.id === aiMessage.id 
+              ? { ...msg, content: aiResponseText }
+              : msg
+          )
+        );
+      }
     } catch (error) {
       console.error("Error sending analysis message:", error);
       const errorMessage: AnalysisMessage = {
