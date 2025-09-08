@@ -311,7 +311,24 @@ const adminRoute = new Hono()
     try {
       console.log("Fetching anonymized threads...");
 
-      // Get threads with session count, ordered randomly
+      // Get pagination parameters
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const offset = (page - 1) * limit;
+
+      console.log("Pagination:", { page, limit, offset });
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({
+          total: count(threads.id),
+        })
+        .from(threads);
+
+      const totalThreads = totalCountResult[0]?.total || 0;
+      const totalPages = Math.ceil(totalThreads / limit);
+
+      // Get threads with session count, ordered by creation date (newest first)
       const threadsWithSessions = await db
         .select({
           id: threads.id,
@@ -321,20 +338,31 @@ const adminRoute = new Hono()
         .from(threads)
         .leftJoin(sessions, eq(sessions.threadId, threads.id))
         .groupBy(threads.id, threads.createdAt)
-        .orderBy(sql`RANDOM()`)
-        .limit(20); // Limit to 20 random threads
+        .orderBy(sql`${threads.createdAt} DESC`)
+        .limit(limit)
+        .offset(offset);
 
       // Create anonymized thread names
       const anonymizedThreads = threadsWithSessions.map((thread, index) => ({
         id: thread.id,
-        displayName: `Thread ${index + 1}`,
+        displayName: `Thread ${offset + index + 1}`,
         sessionCount: thread.sessionCount || 0,
         createdAt: thread.createdAt,
       }));
 
-      console.log("Anonymized threads:", anonymizedThreads.length);
+      console.log("Anonymized threads:", anonymizedThreads.length, "of", totalThreads);
 
-      return c.json(anonymizedThreads);
+      return c.json({
+        threads: anonymizedThreads,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalThreads: totalThreads,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit: limit,
+        }
+      });
     } catch (error) {
       console.error("Error fetching anonymized threads:", error);
       return c.json({ error: "Failed to fetch threads" }, 500);
