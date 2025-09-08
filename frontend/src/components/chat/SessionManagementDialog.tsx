@@ -56,7 +56,6 @@ interface SessionManagementDialogProps {
 }
 
 type DialogState = 
-  | "completion" 
   | "generating" 
   | "form" 
   | "error";
@@ -71,12 +70,19 @@ export function SessionManagementDialog({
   onFormCompleted,
   threadId,
 }: SessionManagementDialogProps) {
-  const [dialogState, setDialogState] = useState<DialogState>("completion");
+  const [dialogState, setDialogState] = useState<DialogState>("generating");
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm();
+
+  // Auto-generate form when dialog opens
+  useEffect(() => {
+    if (open && dialogState === "generating") {
+      generateForm();
+    }
+  }, [open]);
 
   const generateForm = async () => {
     setDialogState("generating");
@@ -151,61 +157,6 @@ export function SessionManagementDialog({
 
   const renderDialogContent = () => {
     switch (dialogState) {
-      case "completion":
-        return (
-          <>
-            <DialogHeader>
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-                  <CheckCircle size={32} className="text-white" />
-                </div>
-              </div>
-              <DialogTitle className="text-center text-xl">
-                Session {sessionNumber} Complete!
-              </DialogTitle>
-              <DialogDescription className="text-center text-gray-600 mt-2">
-                Great work! You've successfully completed this therapy session.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <Star size={16} className="text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-blue-900 mb-1">What's Next?</h4>
-                    <p className="text-sm text-blue-800 leading-relaxed">
-                      To start Session {sessionNumber + 1}, we'll create a personalized follow-up form 
-                      based on your session conversation. This helps us understand your progress 
-                      and prepare relevant questions.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={generateForm}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                >
-                  <MessageSquare size={16} className="mr-2" />
-                  Create Follow-up Form
-                </Button>
-                
-                <Button
-                  onClick={() => onOpenChange(false)}
-                  variant="outline"
-                  className="w-full"
-                >
-                  I'll do this later
-                </Button>
-              </div>
-            </div>
-          </>
-        );
-
       case "generating":
         return (
           <>
