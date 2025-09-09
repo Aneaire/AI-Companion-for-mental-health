@@ -17,7 +17,14 @@ const app = new Hono();
 
 // Middleware
 app.use("*", cors({
-  origin: ["http://localhost:3000", "http://localhost:3001"],
+  origin: (origin) => {
+    // Allow localhost for development
+    if (origin?.includes('localhost')) return origin;
+    // Allow Vercel domains
+    if (origin?.includes('vercel.app')) return origin;
+    // Allow any origin in production (you can be more restrictive)
+    return origin || '*';
+  },
   credentials: true,
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "x-admin-token"],

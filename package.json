@@ -19,6 +19,7 @@
     "@types/pg": "^8.15.4",
     "@types/react": "18.2.66",
     "@types/react-dom": "18.2.22",
+    "@vercel/node": "^3.0.0",
     "concurrently": "^8.2.2"
   },
   "peerDependencies": {

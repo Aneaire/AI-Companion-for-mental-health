@@ -6,7 +6,9 @@ This guide will walk you through deploying your AI Smart Therapist application t
 
 Your application has been prepared for Vercel deployment with the following changes:
 - ✅ Fixed missing dependencies (zustand, hono, react-markdown)
-- ✅ Created `vercel.json` configuration file
+- ✅ Created `vercel.json` configuration file using serverless functions approach
+- ✅ Created `api/index.ts` Vercel-compatible API handler
+- ✅ Updated CORS configuration to allow Vercel domains
 - ✅ Updated build scripts to skip TypeScript checks
 - ✅ Optimized build configuration with code splitting
 - ✅ Tested successful frontend build
@@ -39,6 +41,7 @@ Your application has been prepared for Vercel deployment with the following chan
    - **Build Command:** `cd frontend && bun run build`
    - **Output Directory:** `frontend/dist`
    - **Install Command:** `bun install`
+   - **Node.js Version:** 18.x (recommended)
 
 ### Step 4: Configure Environment Variables
 
