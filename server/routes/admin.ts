@@ -10,6 +10,8 @@ import { geminiConfig } from "../lib/config";
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
+// Using same streaming approach as working chat - no chunk processing needed
+
 // Privacy-safe context anonymization for analysis
 function createPrivacySafeAnalysisContext(
   threadData: any,
@@ -375,8 +377,31 @@ CRITICAL: This is a privacy-protected analysis context. Do not reference specifi
 - Session Quality: Individual session assessment, comparative analysis, improvement opportunities
 - Assessment Integration: Form utilization patterns, progress tracking effectiveness
 
-**Response Style:**
-Provide professional, clinical analysis with specific metrics and actionable insights. Focus on measurable therapeutic outcomes and quality improvement recommendations while maintaining complete privacy protection.
+**CRITICAL FORMATTING REQUIREMENTS:**
+- ALWAYS start each major section on a new line
+- ALWAYS put a blank line between different sections
+- ALWAYS put each bullet point on its own line
+- ALWAYS put each numbered item on its own line
+- Use **bold text** (not heavy/medium weight) for key findings only
+- Keep text regular weight except for emphasis
+- End each paragraph with a line break before starting the next
+
+**Response Structure - FOLLOW EXACTLY:**
+
+## Analysis Summary
+[Main findings here]
+
+**Key Metrics:**
+• Metric 1
+• Metric 2
+• Metric 3
+
+**Recommendations:**
+1. First recommendation
+2. Second recommendation
+3. Third recommendation
+
+**IMPORTANT:** Put actual line breaks (newlines) between each section, bullet point, and paragraph. Do not write everything in one continuous block.
 
 **Analysis Context Available:**
 You have access to comprehensive thread metrics, session patterns, communication analytics, and therapeutic progress indicators for professional quality assessment.`;
@@ -397,20 +422,25 @@ You have access to comprehensive thread metrics, session patterns, communication
         },
       });
 
-      // Stream the AI analysis response
+      // Stream the AI analysis response using the same pattern as working chat
       return streamSSE(c, async (stream) => {
         let aiResponseText = "";
+        
         try {
           const result = await chatSession.sendMessageStream(message);
+          
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
             aiResponseText += chunkText;
+            
+            // Send chunk directly without modification (same as working chat)
             await stream.writeSSE({ data: chunkText });
           }
+          
         } catch (error) {
           console.error("Error during AI streaming:", error);
           await stream.writeSSE({
-            data: `Analysis Error: ${error instanceof Error ? error.message : 'Unknown error occurred during analysis'}`,
+            data: `Error: ${error instanceof Error ? error.message : String(error)}`,
           });
         }
       });

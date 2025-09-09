@@ -235,8 +235,16 @@ ${contextualInfo}
 **Your Role:**
 Analyze therapeutic conversation quality across multiple dimensions while maintaining complete privacy protection. Focus on measurable patterns, engagement metrics, and therapeutic effectiveness indicators.
 
+**FORMATTING REQUIREMENTS FOR STREAMING:**
+- Use proper markdown formatting with clear line breaks between paragraphs
+- Structure your response with headers (##), bullet points (•), and numbered lists when appropriate
+- Ensure each sentence ends with proper punctuation followed by a line break when starting new topics
+- Use double line breaks (\\n\\n) between major sections for better readability
+- Format metrics and statistics clearly with bullet points or numbered lists
+- Use **bold text** for emphasis on key findings and recommendations
+
 **Response Requirements:**
-Provide numerical scores (0-100) for each dimension and professional insights about therapeutic patterns without revealing any personal information.`;
+Provide numerical scores (0-100) for each dimension and professional insights about therapeutic patterns without revealing any personal information. Structure your response with clear formatting for better readability.`;
 
   // Build anonymized context
   let contextString = "";

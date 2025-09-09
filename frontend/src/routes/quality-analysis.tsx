@@ -82,6 +82,9 @@ function QualityAnalysis() {
   );
 }
 
+// Note: Using same streaming approach as working chat implementation
+// No chunk processing needed - preserving original Gemini formatting
+
 function QualityAnalysisContent() {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -208,7 +211,25 @@ function QualityAnalysisContent() {
       setAnalysisMessages([{
         id: Date.now().toString(),
         sender: 'ai',
-        content: `Thread "${thread.displayName}" has been comprehensively analyzed with full context access including all messages, forms, and user interactions.\n\n**Thread Overview:**\n• ${analysis.sessionCount} sessions with ${analysis.messageCount} total messages\n• ${analysis.formCount} forms submitted (${analysis.context?.initialForm ? '1 initial + ' : ''}${(analysis.formCount || 0) - (analysis.context?.initialForm ? 1 : 0)} generated)\n• Complete conversation history and therapeutic progression data available${metricsInfo}\n\n**Analysis Summary:**\n${analysis.summary}\n\n**Available Analysis Types:**\nI can provide detailed insights on:\n• **Effectiveness**: AI response quality, therapeutic intervention success\n• **Engagement**: User participation patterns, session commitment\n• **Flow**: Conversation progression, therapeutic continuity\n• **Session Comparison**: Individual session metrics and trends\n• **Assessment Integration**: Form completion patterns, progress tracking\n\nWhat specific aspect would you like me to analyze using the complete thread context?`,
+        content: `Thread "${thread.displayName}" has been comprehensively analyzed with full context access including all messages, forms, and user interactions.
+
+**Thread Overview:**
+• ${analysis.sessionCount} sessions with ${analysis.messageCount} total messages
+• ${analysis.formCount} forms submitted (${analysis.context?.initialForm ? '1 initial + ' : ''}${(analysis.formCount || 0) - (analysis.context?.initialForm ? 1 : 0)} generated)
+• Complete conversation history and therapeutic progression data available${metricsInfo}
+
+**Analysis Summary:**
+${analysis.summary}
+
+**Available Analysis Types:**
+I can provide detailed insights on:
+• **Effectiveness**: AI response quality, therapeutic intervention success
+• **Engagement**: User participation patterns, session commitment
+• **Flow**: Conversation progression, therapeutic continuity
+• **Session Comparison**: Individual session metrics and trends
+• **Assessment Integration**: Form completion patterns, progress tracking
+
+What specific aspect would you like me to analyze using the complete thread context?`,
         timestamp: new Date()
       }]);
     } catch (error) {
@@ -275,31 +296,49 @@ function QualityAnalysisContent() {
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let buffer = ""; // Buffer for incomplete lines (same as working chat)
 
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
+            buffer += decoder.decode(value);
+            let lines = buffer.split('\n');
+            buffer = lines.pop() || ""; // Keep incomplete line in buffer (same as working chat)
             
             for (const line of lines) {
               if (line.startsWith('data: ')) {
-                const chunkText = line.slice(6);
-                if (chunkText && chunkText !== '[DONE]') {
-                  aiResponseText += chunkText;
-                  // Update the AI message content in real-time
-                  setAnalysisMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === aiMessage.id 
-                        ? { ...msg, content: aiResponseText }
-                        : msg
-                    )
-                  );
+                const content = line.substring('data: '.length);
+                // Skip session_id events and empty content (same as working chat)
+                if (content.trim() === "" || (!isNaN(Number(content.trim())) && content.trim().length < 10)) {
+                  continue;
                 }
+                // Add newline like working chat does
+                aiResponseText += content + "\n";
+                
+                // Update the AI message content in real-time
+                setAnalysisMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === aiMessage.id 
+                      ? { ...msg, content: aiResponseText }
+                      : msg
+                  )
+                );
               }
             }
+          }
+          
+          // Handle remaining buffer content (same as working chat)
+          if (buffer) {
+            aiResponseText += buffer;
+            setAnalysisMessages(prev => 
+              prev.map(msg => 
+                msg.id === aiMessage.id 
+                  ? { ...msg, content: aiResponseText }
+                  : msg
+              )
+            );
           }
         } finally {
           reader.releaseLock();
@@ -598,7 +637,7 @@ function QualityAnalysisContent() {
                               : 'bg-white text-gray-800 border border-gray-200/50 rounded-bl-md'
                           }`}
                         >
-                          <div className={`prose prose-sm max-w-none ${
+                          <div className={`prose prose-sm max-w-none font-normal ${
                             message.sender === 'user' 
                               ? 'prose-invert prose-headings:text-blue-50 prose-strong:text-blue-50' 
                               : 'prose-gray prose-headings:text-gray-800 prose-strong:text-gray-800'
@@ -615,28 +654,56 @@ function QualityAnalysisContent() {
                                     <>
                                       {parts.map((part, partIndex) => 
                                         partIndex % 2 === 1 ? (
-                                          <strong key={partIndex} className={`font-semibold ${
+                                          <strong key={partIndex} className={`font-bold ${
                                             message.sender === 'user' ? 'text-blue-100' : 'text-gray-900'
                                           }`}>
                                             {part}
                                           </strong>
                                         ) : (
-                                          <span key={partIndex}>{part}</span>
+                                          <span key={partIndex} className="font-normal">{part}</span>
                                         )
                                       )}
                                     </>
                                   );
                                 };
 
-                                // Handle bullet points (with possible bold text inside)
-                                if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
-                                  const bulletContent = line.replace(/^[•\-]\s*/, '');
+                                // Handle markdown headers
+                                if (line.trim().startsWith('##')) {
+                                  const headerText = line.replace(/^#+\s*/, '');
                                   return (
-                                    <div key={index} className="flex items-start gap-2 my-1">
+                                    <h3 key={index} className={`text-lg font-bold mt-4 mb-2 ${
+                                      message.sender === 'user' ? 'text-blue-50' : 'text-gray-800'
+                                    }`}>
+                                      <span className="font-normal">{renderTextWithBold(headerText)}</span>
+                                    </h3>
+                                  );
+                                }
+
+                                // Handle numbered lists
+                                if (line.trim().match(/^\d+\.\s/)) {
+                                  const listContent = line.replace(/^\d+\.\s*/, '');
+                                  const listNumber = line.match(/^(\d+)\./)?.[1] || '1';
+                                  return (
+                                    <div key={index} className="flex items-start gap-2 my-1 ml-4">
+                                      <span className={`inline-block w-6 h-6 rounded-full text-xs font-normal flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                                        message.sender === 'user' ? 'bg-blue-200 text-blue-800' : 'bg-blue-500 text-white'
+                                      }`}>
+                                        {listNumber}
+                                      </span>
+                                      <span className="font-normal">{renderTextWithBold(listContent)}</span>
+                                    </div>
+                                  );
+                                }
+
+                                // Handle bullet points (with possible bold text inside)
+                                if (line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*')) {
+                                  const bulletContent = line.replace(/^[•\-\*]\s*/, '');
+                                  return (
+                                    <div key={index} className="flex items-start gap-2 my-1 ml-2">
                                       <span className={`inline-block w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${
                                         message.sender === 'user' ? 'bg-blue-200' : 'bg-blue-500'
                                       }`}></span>
-                                      <span>{renderTextWithBold(bulletContent)}</span>
+                                      <span className="font-normal">{renderTextWithBold(bulletContent)}</span>
                                     </div>
                                   );
                                 }
@@ -644,14 +711,19 @@ function QualityAnalysisContent() {
                                 // Handle lines with bold text (non-bullet)
                                 if (line.includes('**')) {
                                   return (
-                                    <div key={index} className="my-2">
+                                    <div key={index} className="my-2 font-normal">
                                       {renderTextWithBold(line)}
                                     </div>
                                   );
                                 }
                                 
+                                // Handle empty lines for proper spacing
+                                if (!line.trim()) {
+                                  return <div key={index} className="h-3"></div>;
+                                }
+                                
                                 // Handle regular lines
-                                return line ? <div key={index} className="my-1">{line}</div> : <div key={index} className="h-2"></div>;
+                                return <div key={index} className="my-1 font-normal">{line}</div>;
                               })}
                             </div>
                           </div>
