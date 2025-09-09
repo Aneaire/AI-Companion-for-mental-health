@@ -59,3 +59,4 @@ function Slider({
 }
 
 export { Slider }
+

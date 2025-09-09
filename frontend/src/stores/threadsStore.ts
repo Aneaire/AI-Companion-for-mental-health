@@ -35,3 +35,4 @@ export const useThreadsStore = create<ThreadsState>((set) => ({
   setSelectedThread: (threadId) => set({ selectedThreadId: threadId }),
   setSelectedSession: (sessionId) => set({ selectedSessionId: sessionId }),
 }));
+

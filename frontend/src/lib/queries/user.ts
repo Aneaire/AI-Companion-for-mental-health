@@ -28,3 +28,4 @@ export function useImpostorProfile(userId: number | null) {
     enabled: !!userId,
   });
 }
+

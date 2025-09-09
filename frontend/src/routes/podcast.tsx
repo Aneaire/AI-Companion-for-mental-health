@@ -7,3 +7,4 @@ export const Route = createFileRoute("/podcast")({
 function RouteComponent() {
   return <div>Hello "/podcast"!</div>;
 }
+

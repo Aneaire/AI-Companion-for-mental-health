@@ -10,3 +10,4 @@ export function ProgressRationaleCard({ rationale }: { rationale: string }) {
     </Card>
   );
 }
+

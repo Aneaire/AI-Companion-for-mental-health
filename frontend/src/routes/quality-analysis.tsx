@@ -116,7 +116,7 @@ function QualityAnalysisContent() {
         throw new Error("No authentication token available");
       }
       
-      const url = new URL("http://localhost:4000/api/admin/threads/anonymized");
+      const url = new URL("/api/admin/threads/anonymized");
       url.searchParams.set("page", pageParam.toString());
       url.searchParams.set("limit", threadsPerPage.toString());
       
@@ -190,7 +190,7 @@ function QualityAnalysisContent() {
         throw new Error("No authentication token available");
       }
       
-      const response = await fetch(`http://localhost:4000/api/admin/threads/${thread.id}/analyze`, {
+      const response = await fetch(`/api/admin/threads/${thread.id}/analyze`, {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
@@ -265,7 +265,7 @@ What specific aspect would you like me to analyze using the complete thread cont
         throw new Error("No authentication token available");
       }
       
-      const response = await fetch(`http://localhost:4000/api/admin/threads/${threadAnalysis.threadId}/chat`, {
+      const response = await fetch(`/api/admin/threads/${threadAnalysis.threadId}/chat`, {
         method: 'POST',
         headers: {
           "Authorization": `Bearer ${token}`,

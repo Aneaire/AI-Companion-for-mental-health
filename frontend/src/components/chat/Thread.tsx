@@ -208,7 +208,7 @@ export function Thread({
   // Thread management functions (memoized to prevent recreating on every render)
   const handleDeleteThread = useCallback(async (threadId: number) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/threads/${threadId}`, {
+      const response = await fetch(`/api/threads/${threadId}`, {
         method: 'DELETE',
       });
       
@@ -237,7 +237,7 @@ export function Thread({
 
   const handleArchiveThread = useCallback(async (threadId: number) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/threads/${threadId}/archive`, {
+      const response = await fetch(`/api/threads/${threadId}/archive`, {
         method: 'POST',
       });
       
@@ -1127,3 +1127,4 @@ export function Thread({
 }
 
 export default memo(Thread);
+

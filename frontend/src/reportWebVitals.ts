@@ -11,3 +11,4 @@ const reportWebVitals = (onPerfEntry?: () => void) => {
 }
 
 export default reportWebVitals
+

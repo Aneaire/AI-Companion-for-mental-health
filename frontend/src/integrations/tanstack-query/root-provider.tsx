@@ -13,3 +13,4 @@ export function Provider({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }
+

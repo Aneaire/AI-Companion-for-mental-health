@@ -1,8 +1,11 @@
 import { hc } from "hono/client";
 import type { AppType } from "../../../server/app";
+import { API_BASE_URL, apiFetch } from "./config";
 
 // Create a client with the app type
-const client = hc<AppType>("http://localhost:4000");
+// In development: /api (proxied to localhost:4000)
+// In production: /api (handled by Vercel serverless functions)
+const client = hc<AppType>(API_BASE_URL === '/api' ? '' : API_BASE_URL);
 
 // Export the client and its type
 export type Client = typeof client;
@@ -62,22 +65,19 @@ export const threadsApi = {
     return res.json();
   },
   async createSession(threadId: number, data: { sessionName?: string }) {
-    const res = await fetch(
-      `http://localhost:4000/api/threads/${threadId}/sessions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      }
-    );
+    const res = await apiFetch(`threads/${threadId}/sessions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
     if (!res.ok) throw new Error("Failed to create session");
     return res.json();
   },
   async checkSession(threadId: number) {
     const res = await fetch(
-      `http://localhost:4000/api/threads/${threadId}/check-session`,
+      `threads/${threadId}/check-session`,
       {
         method: "POST",
         headers: {
@@ -90,7 +90,7 @@ export const threadsApi = {
   },
   async saveSessionForm(sessionId: number, answers: Record<string, any>) {
     const res = await fetch(
-      `http://localhost:4000/api/threads/sessions/${sessionId}/form`,
+      `threads/sessions/${sessionId}/form`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,14 +102,14 @@ export const threadsApi = {
   },
   async getSessionForm(sessionId: number) {
     const res = await fetch(
-      `http://localhost:4000/api/threads/sessions/${sessionId}/form`
+      `threads/sessions/${sessionId}/form`
     );
     if (!res.ok) throw new Error("Failed to get session form");
     return res.json();
   },
   async createNextSession(threadId: number) {
     const res = await fetch(
-      `http://localhost:4000/api/threads/${threadId}/create-next-session`,
+      `threads/${threadId}/create-next-session`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -284,7 +284,7 @@ export const impostorApi = {
     threadType: "impersonate" = "impersonate"
   ) {
     const res = await fetch(
-      `http://localhost:4000/api/impostor/messages?sessionId=${sessionId}&threadType=${threadType}`
+      `impostor/messages?sessionId=${sessionId}&threadType=${threadType}`
     );
     if (!res.ok) throw new Error("Failed to fetch impersonate messages");
     return res.json();
@@ -295,7 +295,7 @@ export const impostorApi = {
     sender: "user" | "ai" | "therapist" | "impostor";
     text: string;
   }) {
-    const res = await fetch(`http://localhost:4000/api/impostor/messages`, {
+    const res = await apiFetch(`impostor/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -449,3 +449,7 @@ export const generateFormApi = {
     return res.json();
   },
 };
+
+
+
+

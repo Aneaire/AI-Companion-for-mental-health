@@ -180,7 +180,7 @@ function Index() {
     for (const session of sessions) {
       try {
         const response = await fetch(
-          `http://localhost:4000/api/chat/${session.id}`
+          `/api/chat/${session.id}`
         );
         if (response.ok) {
           const sessionMessages = await response.json();
@@ -210,7 +210,7 @@ function Index() {
       // Check if session has enough messages for progression
       try {
         const response = await fetch(
-          `http://localhost:4000/api/chat/${activeSession.id}`
+          `/api/chat/${activeSession.id}`
         );
         if (response.ok) {
           const messages = await response.json();
@@ -229,7 +229,7 @@ function Index() {
 
       // Call API to manually expire current session and create new one
       const response = await fetch(
-        `http://localhost:4000/api/threads/${threadId}/expire-session`,
+        `/api/threads/${threadId}/expire-session`,
         {
           method: "POST",
           headers: {
@@ -636,3 +636,4 @@ function Index() {
 }
 
 export default Route.options.component;
+

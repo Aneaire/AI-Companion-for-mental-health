@@ -58,3 +58,4 @@ export function ProgressLevelDisplay({ progress }: { progress: number }) {
     </div>
   );
 }
+

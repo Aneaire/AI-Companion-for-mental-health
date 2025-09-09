@@ -179,7 +179,7 @@ export const useArchivedThreads = (enabled = true) => {
     queryKey: ["archivedThreads", userProfile?.id, limit, offset],
     queryFn: async () => {
       if (!userProfile?.id) throw new Error("User not authenticated");
-      const response = await fetch(`http://localhost:4000/api/threads/archived?userId=${userProfile.id}&limit=${limit}&offset=${offset}`);
+      const response = await fetch(`/api/threads/archived?userId=${userProfile.id}&limit=${limit}&offset=${offset}`);
       if (!response.ok) throw new Error("Failed to fetch archived threads");
       return response.json();
     },
@@ -190,3 +190,4 @@ export const useArchivedThreads = (enabled = true) => {
   
   return { ...query, limit, setLimit, offset, setOffset };
 };
+

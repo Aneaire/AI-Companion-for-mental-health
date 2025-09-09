@@ -70,7 +70,7 @@ function AdminDashboardContent() {
         throw new Error("No authentication token available");
       }
       
-      const response = await fetch("http://localhost:4000/api/admin/metrics", {
+      const response = await fetch("/api/admin/metrics", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },

@@ -141,7 +141,7 @@ export function ImpersonateThread({
     try {
       // For impersonate threads, fetch from impostor API
       const response = await fetch(
-        `http://localhost:4000/api/impostor/threads/${threadId}`
+        `/api/impostor/threads/${threadId}`
       );
       if (response.ok) {
         const threadData = await response.json();
@@ -791,3 +791,4 @@ export function ImpersonateThread({
 }
 
 export default memo(ImpersonateThread);
+

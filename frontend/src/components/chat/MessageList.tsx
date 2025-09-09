@@ -479,3 +479,4 @@ export const MessageList = memo(function MessageList({
     </div>
   );
 });
+

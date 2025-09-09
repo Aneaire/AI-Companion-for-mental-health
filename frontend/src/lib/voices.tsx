@@ -17,3 +17,4 @@ export function speak(text: string) {
   window.speechSynthesis.cancel(); // Cancel any current speech
   window.speechSynthesis.speak(utterance);
 }
+
