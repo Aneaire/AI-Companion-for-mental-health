@@ -318,12 +318,12 @@ export function Thread({
 
           // Check if current session was completed and needs follow-up form
           if (sessionCheck.sessionCompleted && sessionCheck.latestSession) {
-            console.log('[THREAD] Session completed, showing completion dialog');
+            console.log('[THREAD] Session completed, storing completion info for later use');
             setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
             // Keep using the current (finished) session ID for form generation
             setDialogSessionId(sessionCheck.latestSession.id);
             
-            // Load messages from the just-completed session for form generation
+            // Load messages from the just-completed session for form generation but don't show dialog yet
             const response = await client.api.chat[":sessionId"].$get({
               param: { sessionId: String(sessionCheck.latestSession.id) },
             });
@@ -350,7 +350,7 @@ export function Thread({
               
               if (sortedMessages.length === 0) {
                 console.warn('[THREAD] Completed session has no messages, cannot generate follow-up form');
-                // Don't show the session management dialog if no messages
+                // Mark session form as completed since no form can be generated
                 setSessionFormCompleted(true);
                 setLoadingHistory(false);
                 return;
@@ -359,9 +359,8 @@ export function Thread({
               sortedMessages.forEach((msg) => addMessage(msg));
             }
             
-            // Show session completion dialog with messages from completed session
-            console.log('[THREAD] Setting session management dialog to open');
-            setSessionManagementOpen(true);
+            // Don't auto-open the dialog, just mark that form is required
+            console.log('[THREAD] Session completed, form required but not auto-opening dialog');
             setSessionFormCompleted(false);
             setLoadingHistory(false);
             return;

@@ -11,11 +11,19 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as QualityAnalysisImport } from './routes/quality-analysis'
 import { Route as PodcastImport } from './routes/podcast'
 import { Route as ImpersonateImport } from './routes/impersonate'
 import { Route as IndexImport } from './routes/index'
+import { Route as AdminIndexImport } from './routes/admin.index'
 
 // Create/Update Routes
+
+const QualityAnalysisRoute = QualityAnalysisImport.update({
+  id: '/quality-analysis',
+  path: '/quality-analysis',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const PodcastRoute = PodcastImport.update({
   id: '/podcast',
@@ -32,6 +40,12 @@ const ImpersonateRoute = ImpersonateImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AdminIndexRoute = AdminIndexImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -60,6 +74,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PodcastImport
       parentRoute: typeof rootRoute
     }
+    '/quality-analysis': {
+      id: '/quality-analysis'
+      path: '/quality-analysis'
+      fullPath: '/quality-analysis'
+      preLoaderRoute: typeof QualityAnalysisImport
+      parentRoute: typeof rootRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -69,12 +97,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
+  '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin': typeof AdminIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
+  '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin': typeof AdminIndexRoute
 }
 
 export interface FileRoutesById {
@@ -82,14 +114,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
   '/podcast': typeof PodcastRoute
+  '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin/': typeof AdminIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/impersonate' | '/podcast'
+  fullPaths: '/' | '/impersonate' | '/podcast' | '/quality-analysis' | '/admin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/impersonate' | '/podcast'
-  id: '__root__' | '/' | '/impersonate' | '/podcast'
+  to: '/' | '/impersonate' | '/podcast' | '/quality-analysis' | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/impersonate'
+    | '/podcast'
+    | '/quality-analysis'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 
@@ -97,12 +137,16 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ImpersonateRoute: typeof ImpersonateRoute
   PodcastRoute: typeof PodcastRoute
+  QualityAnalysisRoute: typeof QualityAnalysisRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ImpersonateRoute: ImpersonateRoute,
   PodcastRoute: PodcastRoute,
+  QualityAnalysisRoute: QualityAnalysisRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -117,7 +161,9 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/impersonate",
-        "/podcast"
+        "/podcast",
+        "/quality-analysis",
+        "/admin/"
       ]
     },
     "/": {
@@ -128,6 +174,12 @@ export const routeTree = rootRoute
     },
     "/podcast": {
       "filePath": "podcast.tsx"
+    },
+    "/quality-analysis": {
+      "filePath": "quality-analysis.tsx"
+    },
+    "/admin/": {
+      "filePath": "admin.index.tsx"
     }
   }
 }

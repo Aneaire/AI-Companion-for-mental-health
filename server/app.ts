@@ -11,11 +11,19 @@ import progressRoute from "./routes/progress";
 import quality from "./routes/quality";
 import threadsRoute from "./routes/threads";
 import user from "./routes/user";
+import adminRoute from "./routes/admin";
 
 const app = new Hono();
 
 // Middleware
-app.use("*", cors());
+app.use("*", cors({
+  origin: ["http://localhost:3000", "http://localhost:3001"],
+  credentials: true,
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "x-admin-token"],
+  exposeHeaders: ["Content-Length", "X-Total-Count"],
+  maxAge: 86400,
+}));
 
 // Routes
 const routes = app
@@ -29,7 +37,8 @@ const routes = app
   .route("/api/impersonate-observer", impersonateObserver) // New impersonate observer
   .route("/api/quality", quality)
   .route("/api/impostor", impostorRoute)
-  .route("/api/generate-form", generateFormRoute);
+  .route("/api/generate-form", generateFormRoute)
+  .route("/api/admin", adminRoute);
 
 export default app;
 export type AppType = typeof routes;

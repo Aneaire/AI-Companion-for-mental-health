@@ -202,6 +202,28 @@ const MessageBubble = memo(({
                       {children}
                     </pre>
                   ),
+                  // Custom bullet point rendering
+                  ul: ({ children }) => (
+                    <ul className="space-y-1 my-2">
+                      {children}
+                    </ul>
+                  ),
+                  li: ({ children }) => (
+                    <li className="flex items-start gap-2 my-1">
+                      <span 
+                        className={`inline-block w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${
+                          isUser ? 'bg-blue-200' : 'bg-blue-500'
+                        }`}
+                      />
+                      <span className="flex-1">{children}</span>
+                    </li>
+                  ),
+                  // Custom numbered list rendering
+                  ol: ({ children }) => (
+                    <ol className="space-y-1 my-2">
+                      {children}
+                    </ol>
+                  ),
                 }}
               >
                 {message.text}
