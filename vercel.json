@@ -5,7 +5,5 @@
       "destination": "/api/index"
     }
   ],
-  "outputDirectory": "frontend/dist",
-  "installCommand": "bun install",
-  "buildCommand": "cd frontend && bun run build"
+  "outputDirectory": "frontend/dist"
 }

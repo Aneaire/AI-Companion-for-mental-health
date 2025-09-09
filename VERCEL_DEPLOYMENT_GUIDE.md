@@ -38,9 +38,9 @@ Your application has been prepared for Vercel deployment with the following chan
 4. Configure the import settings:
    - **Framework Preset:** Other
    - **Root Directory:** Leave empty (uses root)
-   - **Build Command:** `cd frontend && bun run build`
+   - **Build Command:** Leave empty (will use package.json script)
    - **Output Directory:** `frontend/dist`
-   - **Install Command:** `bun install`
+   - **Install Command:** Leave empty (will use package.json script)
    - **Node.js Version:** 18.x (recommended)
 
 ### Step 4: Configure Environment Variables

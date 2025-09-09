@@ -4,6 +4,8 @@
   "scripts": {
     "start": "bun server/index.ts",
     "dev": "bun --watch server/index.ts",
+    "build": "cd frontend && bun install && bun run build",
+    "install": "bun install && cd frontend && bun install",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit generate && drizzle-kit push",
