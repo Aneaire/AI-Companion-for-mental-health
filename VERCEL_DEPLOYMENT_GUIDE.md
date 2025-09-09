@@ -154,6 +154,15 @@ After successful deployment:
 - Check Clerk dashboard for domain configuration
 - Ensure Vercel domain is added to Clerk allowed origins
 
+#### 5. HTTP 500 Server Errors
+**Problem:** API calls return 500 Internal Server Error
+**Solution:**
+- Check Vercel function logs in your dashboard
+- Verify all environment variables are set correctly
+- Ensure `DATABASE_URL` is properly configured
+- Check that database connection is working
+- Look for detailed error messages in Vercel logs
+
 #### 5. Environment Variables Not Loading
 **Problem:** App can't access environment variables
 **Solution:**

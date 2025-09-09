@@ -1,10 +1,63 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import app from '../server/app';
+
+// Import Hono app directly and handle routing
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import chat from '../server/routes/chat';
+import generateFormRoute from '../server/routes/generate-form';
+import impostorRoute from '../server/routes/impostor';
+import observer from '../server/routes/observer';
+import mainObserver from '../server/routes/mainObserver';
+import impersonateObserver from '../server/routes/impersonateObserver';
+import patientRoute from '../server/routes/patient';
+import progressRoute from '../server/routes/progress';
+import quality from '../server/routes/quality';
+import threadsRoute from '../server/routes/threads';
+import user from '../server/routes/user';
+import adminRoute from '../server/routes/admin';
+
+// Create app instance for Vercel
+const app = new Hono();
+
+// Middleware
+app.use("*", cors({
+  origin: (origin) => {
+    // Allow localhost for development
+    if (origin?.includes('localhost')) return origin;
+    // Allow Vercel domains
+    if (origin?.includes('vercel.app')) return origin;
+    // Allow any origin in production (you can be more restrictive)
+    return origin || '*';
+  },
+  credentials: true,
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "x-admin-token"],
+  exposeHeaders: ["Content-Length", "X-Total-Count"],
+  maxAge: 86400,
+}));
+
+// Routes - Note: Remove /api prefix since Vercel routing already handles it
+const routes = app
+  .route("/chat", chat)
+  .route("/user", user)
+  .route("/threads", threadsRoute)
+  .route("/patient", patientRoute)
+  .route("/progress", progressRoute)
+  .route("/observer", observer)
+  .route("/main-observer", mainObserver)
+  .route("/impersonate-observer", impersonateObserver)
+  .route("/quality", quality)
+  .route("/impostor", impostorRoute)
+  .route("/generate-form", generateFormRoute)
+  .route("/admin", adminRoute);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Build the full URL with the API path
-    const url = `https://${req.headers.host}${req.url}`;
+    console.log('API Handler - Method:', req.method);
+    console.log('API Handler - URL:', req.url);
+    
+    // Create a proper URL for the request
+    const url = `https://${req.headers.host || 'localhost'}${req.url || '/'}`;
     
     // Create headers object
     const headers = new Headers();
@@ -18,7 +71,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let body: string | undefined;
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
       body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-      headers.set('content-type', 'application/json');
+      if (!headers.has('content-type')) {
+        headers.set('content-type', 'application/json');
+      }
     }
 
     // Create the request
@@ -28,31 +83,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body,
     });
 
+    console.log('API Handler - Processing with Hono app');
     // Process with Hono app
     const response = await app.fetch(request);
     
-    // Set response status
-    res.status(response.status);
+    console.log('API Handler - Response status:', response.status);
+    
+    // Handle the response
+    const responseBody = await response.text();
     
     // Set response headers
     response.headers.forEach((value, key) => {
       res.setHeader(key, value);
     });
 
-    // Handle different content types
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      const json = await response.json();
-      res.json(json);
-    } else if (contentType?.includes('text/')) {
-      const text = await response.text();
-      res.send(text);
-    } else {
-      const buffer = await response.arrayBuffer();
-      res.end(Buffer.from(buffer));
-    }
+    res.status(response.status).send(responseBody);
+    
   } catch (error) {
     console.error('API handler error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      url: req.url,
+      method: req.method
+    });
   }
 }
