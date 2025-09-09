@@ -36,20 +36,20 @@ app.use("*", cors({
   maxAge: 86400,
 }));
 
-// Routes - Note: Remove /api prefix since Vercel routing already handles it
+// Routes - Keep /api prefix to match the original server app
 const routes = app
-  .route("/chat", chat)
-  .route("/user", user)
-  .route("/threads", threadsRoute)
-  .route("/patient", patientRoute)
-  .route("/progress", progressRoute)
-  .route("/observer", observer)
-  .route("/main-observer", mainObserver)
-  .route("/impersonate-observer", impersonateObserver)
-  .route("/quality", quality)
-  .route("/impostor", impostorRoute)
-  .route("/generate-form", generateFormRoute)
-  .route("/admin", adminRoute);
+  .route("/api/chat", chat)
+  .route("/api/user", user)
+  .route("/api/threads", threadsRoute)
+  .route("/api/patient", patientRoute)
+  .route("/api/progress", progressRoute)
+  .route("/api/observer", observer)
+  .route("/api/main-observer", mainObserver)
+  .route("/api/impersonate-observer", impersonateObserver)
+  .route("/api/quality", quality)
+  .route("/api/impostor", impostorRoute)
+  .route("/api/generate-form", generateFormRoute)
+  .route("/api/admin", adminRoute);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

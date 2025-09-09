@@ -3,9 +3,9 @@ import type { AppType } from "../../../server/app";
 import { API_BASE_URL, apiFetch } from "./config";
 
 // Create a client with the app type
-// In development: /api (proxied to localhost:4000)
-// In production: /api (handled by Vercel serverless functions)
-const client = hc<AppType>(API_BASE_URL === '/api' ? '' : API_BASE_URL);
+// In development: '' (Vite proxy handles /api -> localhost:4000)
+// In production: '' (Vercel handles /api -> serverless function)
+const client = hc<AppType>('');
 
 // Export the client and its type
 export type Client = typeof client;
