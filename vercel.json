@@ -24,10 +24,5 @@
   ],
   "outputDirectory": "frontend/dist",
   "installCommand": "bun install",
-  "buildCommand": "cd frontend && bun run build",
-  "functions": {
-    "server/index.ts": {
-      "runtime": "bun"
-    }
-  }
+  "buildCommand": "cd frontend && bun run build"
 }
