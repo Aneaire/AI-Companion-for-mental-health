@@ -1,0 +1,24 @@
+{
+  "buildCommand": "bun install && cd frontend && bun install && bun run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "bun install",
+  "framework": null,
+  "functions": {
+    "server/index.ts": {
+      "runtime": "@vercel/bun"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/server/index.ts"
+    },
+    {
+      "source": "/((?!api).*)",
+      "destination": "/frontend/dist/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

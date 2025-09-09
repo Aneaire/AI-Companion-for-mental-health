@@ -3,6 +3,7 @@
   "module": "server/index.ts",
   "scripts": {
     "start": "bun server/index.ts",
+    "build": "cd frontend && bun install && bun run build",
     "dev": "bun --watch server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
