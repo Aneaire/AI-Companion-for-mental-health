@@ -1,0 +1,33 @@
+{
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "server/index.ts",
+      "use": "@vercel/bun"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/dist/$1"
+    }
+  ],
+  "outputDirectory": "frontend/dist",
+  "installCommand": "bun install",
+  "buildCommand": "cd frontend && bun run build",
+  "functions": {
+    "server/index.ts": {
+      "runtime": "bun"
+    }
+  }
+}

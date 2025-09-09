@@ -30,10 +30,15 @@ export default defineConfig({
     include: ["@formkit/auto-animate/react"],
   },
   build: {
-    typescript: {
-      tsconfig: "./tsconfig.json",
-      // Here, we specify to ignore errors
-    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-accordion'],
+          routing: ['@tanstack/react-router', '@tanstack/react-query']
+        }
+      }
+    }
   },
   server: {
     proxy: {
