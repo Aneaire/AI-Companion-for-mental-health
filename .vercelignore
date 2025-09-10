@@ -1,0 +1,10 @@
+# Ignore server directory for Vercel deployment
+server/
+backend-package.json
+dev-setup.bat
+fix-docker.bat
+deploy-docker.sh
+deploy-docker.bat
+*.backup.*
+.env.local
+.env.development
