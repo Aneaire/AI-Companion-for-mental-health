@@ -76,21 +76,17 @@ export const threadsApi = {
     return res.json();
   },
   async checkSession(threadId: number) {
-    const res = await fetch(
-      `threads/${threadId}/check-session`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const res = await apiFetch(`threads/${threadId}/check-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
     if (!res.ok) throw new Error("Failed to check session status");
     return res.json();
   },
   async saveSessionForm(sessionId: number, answers: Record<string, any>) {
-    const res = await fetch(
-      `threads/sessions/${sessionId}/form`,
+    const res = await apiFetch(`threads/sessions/${sessionId}/form`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,15 +97,13 @@ export const threadsApi = {
     return res.json();
   },
   async getSessionForm(sessionId: number) {
-    const res = await fetch(
-      `threads/sessions/${sessionId}/form`
+    const res = await apiFetch(`threads/sessions/${sessionId}/form`
     );
     if (!res.ok) throw new Error("Failed to get session form");
     return res.json();
   },
   async createNextSession(threadId: number) {
-    const res = await fetch(
-      `threads/${threadId}/create-next-session`,
+    const res = await apiFetch(`threads/${threadId}/create-next-session`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -283,8 +277,7 @@ export const impostorApi = {
     sessionId: number,
     threadType: "impersonate" = "impersonate"
   ) {
-    const res = await fetch(
-      `impostor/messages?sessionId=${sessionId}&threadType=${threadType}`
+    const res = await apiFetch(`impostor/messages?sessionId=${sessionId}&threadType=${threadType}`
     );
     if (!res.ok) throw new Error("Failed to fetch impersonate messages");
     return res.json();
@@ -449,6 +442,7 @@ export const generateFormApi = {
     return res.json();
   },
 };
+
 
 
 

@@ -13,6 +13,7 @@ chat_logs/
 observer_logs/
 main_observer_logs/
 server_logs/
+impersonate_observer_logs/
 
 
 # Caches

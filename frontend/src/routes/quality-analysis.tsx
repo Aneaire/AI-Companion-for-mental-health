@@ -116,7 +116,7 @@ function QualityAnalysisContent() {
         throw new Error("No authentication token available");
       }
       
-      const url = new URL("/api/admin/threads/anonymized");
+      const url = new URL("/api/admin/threads/anonymized", window.location.origin);
       url.searchParams.set("page", pageParam.toString());
       url.searchParams.set("limit", threadsPerPage.toString());
       
