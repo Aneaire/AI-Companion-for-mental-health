@@ -12,6 +12,7 @@ import quality from "./routes/quality";
 import threadsRoute from "./routes/threads";
 import user from "./routes/user";
 import adminRoute from "./routes/admin";
+import testRoute from "./routes/test";
 
 const app = new Hono();
 
@@ -45,7 +46,8 @@ const routes = app
   .route("/api/quality", quality)
   .route("/api/impostor", impostorRoute)
   .route("/api/generate-form", generateFormRoute)
-  .route("/api/admin", adminRoute);
+  .route("/api/admin", adminRoute)
+  .route("/api/test", testRoute);
 
 export default app;
 export type AppType = typeof routes;

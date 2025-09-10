@@ -15,6 +15,7 @@ import quality from '../server/routes/quality';
 import threadsRoute from '../server/routes/threads';
 import user from '../server/routes/user';
 import adminRoute from '../server/routes/admin';
+import testRoute from '../server/routes/test';
 
 // Create app instance for Vercel
 const app = new Hono();
@@ -49,7 +50,8 @@ const routes = app
   .route("/api/quality", quality)
   .route("/api/impostor", impostorRoute)
   .route("/api/generate-form", generateFormRoute)
-  .route("/api/admin", adminRoute);
+  .route("/api/admin", adminRoute)
+  .route("/api/test", testRoute);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
