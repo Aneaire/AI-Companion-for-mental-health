@@ -37,6 +37,17 @@ app.use("*", cors({
   maxAge: 86400,
 }));
 
+// Health check endpoint
+app.get("/api/health", (c) => {
+  return c.json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.env.npm_package_version || "unknown"
+  });
+});
+
 // Routes - Keep /api prefix to match the original server app
 const routes = app
   .route("/api/chat", chat)

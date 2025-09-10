@@ -6,6 +6,6 @@
     }
   ],
   "outputDirectory": "frontend/dist",
-  "installCommand": "bun install",
-  "buildCommand": "bun run build"
+  "installCommand": "bun install && cd frontend && bun install",
+  "buildCommand": "cd frontend && bun run build"
 }
