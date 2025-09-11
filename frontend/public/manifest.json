@@ -1,7 +1,7 @@
 {
-  "short_name": "AI Therapy",
-  "name": "AI Smart Therapy",
-  "description": "AI Smart Therapy is a web-based application that provides personalized therapy sessions using advanced AI technology.",
+  "short_name": "MindfulChat",
+  "name": "MindfulChat - AI Mental Health Support",
+  "description": "Get personalized mental health support with our AI-powered chat platform. Safe, confidential, and available 24/7 to help improve your wellbeing.",
   "icons": [
     {
       "src": "favicon.ico",

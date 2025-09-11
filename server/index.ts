@@ -1,8 +1,10 @@
 import app from "./app";
 
+const port = process.env.PORT || 4000;
+
 Bun.serve({
   fetch: app.fetch,
-  port: 4000,
+  port: port,
 });
 
-console.log("Server is running on port 4000");
+console.log(`Server is running on port ${port}`);
