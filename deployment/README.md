@@ -1,27 +1,17 @@
 # Deployment Documentation
 
-This directory contains comprehensive deployment guides for your Mental Health AI Chat application across different platforms and methods.
+This directory contains comprehensive deployment guides for your Mental Health AI Chat application across different cloud platforms.
 
 ## 📁 Available Deployment Guides
 
 ### Cloud Platforms
-- **[Vercel](./vercel.md)** - Full-stack deployment with integrated database
+- **[Render](./render.md)** - Native Bun support with Supabase database (Currently Deployed) ⭐
 - **[Railway](./railway.md)** - Native Bun support with PostgreSQL
 - **[DigitalOcean](./digitalocean.md)** - App Platform with managed services
 
-### Containerization
-- **[Docker](./docker.md)** - Complete containerization guide with Docker Compose
+## 🚀 Current Deployment
 
-## 🚀 Quick Start Recommendations
-
-### For Beginners
-**Vercel** - Easiest setup with automatic deployments and built-in database support.
-
-### For Production
-**Railway** or **DigitalOcean** - Better scaling options and more control over infrastructure.
-
-### For Custom Infrastructure
-**Docker** - Maximum flexibility and portability across any cloud provider.
+**Render** - Currently deployed at https://mental-health-ai-chat.onrender.com with native Bun runtime and Supabase database integration.
 
 ## 📋 Pre-Deployment Checklist
 
@@ -33,8 +23,8 @@ This directory contains comprehensive deployment guides for your Mental Health A
 - `NODE_ENV` - Environment (production/development)
 
 ### Database Setup
-1. Choose a PostgreSQL provider (Vercel Postgres, Railway, Supabase, etc.)
-2. Create database and note connection details
+1. Using Supabase PostgreSQL (current setup)
+2. Get connection string from Supabase dashboard
 3. Run database migrations: `bun run db:migrate`
 
 ### Authentication Setup
@@ -68,10 +58,9 @@ This directory contains comprehensive deployment guides for your Mental Health A
 
 | Platform | Ease of Use | Cost | Scaling | Bun Support | Database |
 |----------|-------------|------|---------|-------------|----------|
-| **Vercel** | ⭐⭐⭐⭐⭐ | $ | ⭐⭐⭐ | ✅ | Included |
+| **Render** | ⭐⭐⭐⭐ | $ | ⭐⭐⭐ | ✅ | External (Supabase) |
 | **Railway** | ⭐⭐⭐⭐ | $$ | ⭐⭐⭐⭐ | ✅ | Included |
 | **DigitalOcean** | ⭐⭐⭐ | $$ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Included |
-| **Docker** | ⭐⭐ | $$$ | ⭐⭐⭐⭐⭐ | ✅ | External |
 
 ## 🛠️ Development vs Production
 

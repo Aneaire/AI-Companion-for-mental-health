@@ -22,7 +22,6 @@
     "@types/pg": "^8.15.4",
     "@types/react": "18.2.66",
     "@types/react-dom": "18.2.22",
-    "@vercel/node": "^3.0.0",
     "concurrently": "^8.2.2"
   },
   "peerDependencies": {
@@ -32,7 +31,6 @@
     "@clerk/backend": "^2.12.1",
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@google/generative-ai": "^0.24.1",
-    "@hono/node-server": "^1.14.4",
     "@hono/zod-validator": "^0.5.0",
     "@supabase/supabase-js": "^2.49.10",
     "drizzle-kit": "^0.31.1",

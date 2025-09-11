@@ -22,8 +22,8 @@ app.use("*", cors({
   origin: (origin) => {
     // Allow localhost for development
     if (origin?.includes('localhost')) return origin;
-    // Allow Vercel domains
-    if (origin?.includes('vercel.app')) return origin;
+    // Allow Render domains
+    if (origin?.includes('onrender.com')) return origin;
     // Allow any origin in production (you can be more restrictive)
     return origin || '*';
   },
@@ -51,8 +51,13 @@ const routes = app
   .route("/api/test", testRoute);
 
 // Serve static files from frontend build
-app.use('/assets/*', serveStatic({ root: './frontend/dist' }));
-app.use('/favicon.ico', serveStatic({ path: './frontend/dist/favicon.ico' }));
+app.use('/*', serveStatic({ 
+  root: './frontend/dist',
+  onNotFound: (path, c) => {
+    // If static file not found, continue to next middleware (for SPA routing)
+    return undefined;
+  }
+}));
 
 // Health check endpoint
 app.get('/api/health', (c) => {
