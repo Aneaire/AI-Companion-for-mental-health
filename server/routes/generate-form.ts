@@ -8,7 +8,7 @@ import { logger } from "../lib/logger";
 
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function logSystemInstructionText(systemInstructionText: string) {
+async function logSystemInstructionText(systemInstructionText: string) {
   try {
     const now = new Date();
     const timestamp = now
@@ -17,10 +17,10 @@ function logSystemInstructionText(systemInstructionText: string) {
       .replace(/\..+/, "");
     const logDir = path.join(process.cwd(), "server_logs", "generate-form");
     const logFile = path.join(logDir, `generate-form-${timestamp}.txt`);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-    fs.writeFileSync(logFile, systemInstructionText, "utf8");
+    
+    // Create directory if it doesn't exist
+    await fs.promises.mkdir(logDir, { recursive: true });
+    await fs.promises.writeFile(logFile, systemInstructionText, "utf8");
   } catch (logErr) {
     logger.error("Failed to log systemInstructionText:", logErr);
   }

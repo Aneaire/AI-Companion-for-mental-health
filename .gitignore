@@ -15,6 +15,10 @@ main_observer_logs/
 server_logs/
 impersonate_observer_logs/
 
+# General pattern for any future log directories
+*_logs/
+logs/
+
 
 # Caches
 

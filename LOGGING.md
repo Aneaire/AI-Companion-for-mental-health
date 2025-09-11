@@ -2,9 +2,9 @@
 
 ## Overview
 
-This project now uses environment-aware logging that respects production vs development environments.
+This project uses environment-aware logging that respects production vs development environments, plus comprehensive file logging for debugging and analysis.
 
-## How it Works
+## Console Logging (Environment-Aware)
 
 ### Logger Utility (`server/lib/logger.ts`)
 
@@ -26,9 +26,35 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 - `logger.info()` - Info logging (development only)
 - `logger.debug()` - Debug logging (development only)
 
-## File Logging
+## File Logging (Always Active)
 
-File logging operations (like conversation saving) still use `console.error` for critical file operation errors since these need to be captured regardless of environment.
+### Log Directories
+
+The following directories are automatically created for file logging:
+
+- `chat_logs/` - Conversation logs from therapy sessions
+- `observer_logs/` - User strategy analysis logs
+- `main_observer_logs/` - Main chat therapy analysis logs  
+- `impersonate_observer_logs/` - Impersonation analysis logs
+- `server_logs/generate-form/` - Form generation system logs
+
+### File Logging Features
+
+- **Automatic Directory Creation**: All log directories created with `await fs.promises.mkdir(dir, { recursive: true })`
+- **Consistent Async Operations**: All file operations use `await fs.promises.writeFile()`
+- **Error Handling**: File operation errors still use `console.error` for critical debugging
+- **Git Ignored**: All log directories are in `.gitignore` to prevent log file commits
+
+### File Logging Patterns
+
+```typescript
+// Directory creation (standardized across all routes)
+const logsDir = path.join(process.cwd(), "log_directory_name");
+await fs.promises.mkdir(logsDir, { recursive: true });
+
+// File writing
+await fs.promises.writeFile(filepath, content, "utf8");
+```
 
 ## Usage
 
@@ -45,7 +71,8 @@ logger.log("Processing request...");
 
 ## Files Updated
 
-The following server files have been updated to use the new logger:
+### Console Logging Updates
+All server files updated to use environment-aware logger:
 
 - `server/db/config.ts`
 - `server/index.ts`
@@ -62,9 +89,20 @@ The following server files have been updated to use the new logger:
 - `server/routes/threads.ts`
 - `server/routes/user.ts`
 
+### File Logging Standardization
+All file logging operations standardized to use async patterns:
+
+- `server/routes/chat.ts` - Conversation logging
+- `server/routes/generate-form.ts` - Form generation logs
+- `server/routes/observer.ts` - Strategy analysis logs
+- `server/routes/mainObserver.ts` - Therapy analysis logs
+- `server/routes/impersonateObserver.ts` - Impersonation analysis logs
+
 ## Benefits
 
 1. **Clean Production Logs**: No console clutter in production
-2. **Development Visibility**: Full logging available during development
-3. **File Logging Preserved**: Critical file operations still logged
-4. **Easy Toggle**: Single environment variable controls behavior
+2. **Development Visibility**: Full logging available during development  
+3. **Comprehensive File Logging**: Detailed logs for debugging and analysis
+4. **Consistent Async Operations**: No more ENOENT directory errors
+5. **Easy Toggle**: Single environment variable controls console behavior
+6. **Automatic Setup**: Log directories created automatically when needed

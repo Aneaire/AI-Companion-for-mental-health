@@ -5,6 +5,7 @@ import { and, count, eq } from "drizzle-orm";
 import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import path from "path";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
@@ -29,7 +30,12 @@ const saveConversationToFile = async (
   conversationHistory: Content[]
 ) => {
   try {
-    const fileName = `chat_logs/conversation_${sessionId}_${Date.now()}.md`;
+    const logDir = "chat_logs";
+    const fileName = path.join(logDir, `conversation_${sessionId}_${Date.now()}.md`);
+    
+    // Create directory if it doesn't exist
+    await fs.promises.mkdir(logDir, { recursive: true });
+    
     const content = `# Chat Conversation - Session ${sessionId}
 
 ## System Instructions

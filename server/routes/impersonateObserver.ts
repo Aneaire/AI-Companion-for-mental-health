@@ -31,10 +31,7 @@ const logImpersonateObserverCall = async (
   try {
     // Create impersonate_observer_logs directory if it doesn't exist
     const logsDir = path.join(process.cwd(), "impersonate_observer_logs");
-
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
+    await fs.promises.mkdir(logsDir, { recursive: true });
 
     // Generate filename with current date and time
     const now = new Date();
