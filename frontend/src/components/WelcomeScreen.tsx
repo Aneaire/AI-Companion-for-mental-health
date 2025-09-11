@@ -59,7 +59,10 @@ export const WelcomeScreen = () => {
             <div className="flex justify-center mb-2">
               <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center p-2">
                 {/* <Brain className="h-6 w-6 text-blue-600" /> */}
-                <img src="/logo2.png" alt="logo" />
+                <img
+                  src="https://mental-health-ai-chat.onrender.com/logo2.png"
+                  alt="logo"
+                />
               </div>
             </div>
             <CardTitle className="text-2xl font-bold tracking-tight">
@@ -162,4 +165,3 @@ export const WelcomeScreen = () => {
     </div>
   );
 };
-

@@ -30,7 +30,6 @@ import {
 } from "@/lib/queries/threads";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
-import { useUser } from "@clerk/clerk-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
@@ -53,31 +52,31 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  // Admin check logging
-  const { user } = useUser();
+  // // Admin check logging
+  // const { user } = useUser();
 
-  // Log admin status on component mount and user changes
-  useEffect(() => {
-    if (user) {
-      const isAdmin = user.publicMetadata?.role === "admin";
-      console.log("=== ADMIN CHECK ===");
-      console.log("User ID:", user.id);
-      console.log("User email:", user.primaryEmailAddress?.emailAddress);
-      console.log("Is Admin:", isAdmin);
-      console.log("Private metadata:", user.publicMetadata);
-      console.log("==================");
+  // // Log admin status on component mount and user changes
+  // useEffect(() => {
+  //   if (user) {
+  //     const isAdmin = user.publicMetadata?.role === "admin";
+  //     console.log("=== ADMIN CHECK ===");
+  //     console.log("User ID:", user.id);
+  //     console.log("User email:", user.primaryEmailAddress?.emailAddress);
+  //     console.log("Is Admin:", isAdmin);
+  //     console.log("Private metadata:", user.publicMetadata);
+  //     console.log("==================");
 
-      if (isAdmin) {
-        console.log("🔑 ADMIN ACCESS GRANTED - User has admin privileges");
-      } else {
-        console.log("👤 REGULAR USER - No admin privileges");
-      }
-    } else {
-      console.log("=== ADMIN CHECK ===");
-      console.log("No user logged in");
-      console.log("==================");
-    }
-  }, [user]);
+  //     if (isAdmin) {
+  //       console.log("🔑 ADMIN ACCESS GRANTED - User has admin privileges");
+  //     } else {
+  //       console.log("👤 REGULAR USER - No admin privileges");
+  //     }
+  //   } else {
+  //     console.log("=== ADMIN CHECK ===");
+  //     console.log("No user logged in");
+  //     console.log("==================");
+  //   }
+  // }, [user]);
 
   // Use optimized thread selection from threadsStore
   const {
@@ -179,9 +178,7 @@ function Index() {
     let allMessages: any[] = [];
     for (const session of sessions) {
       try {
-        const response = await fetch(
-          `/api/chat/${session.id}`
-        );
+        const response = await fetch(`/api/chat/${session.id}`);
         if (response.ok) {
           const sessionMessages = await response.json();
           allMessages = allMessages.concat(sessionMessages);
@@ -209,9 +206,7 @@ function Index() {
 
       // Check if session has enough messages for progression
       try {
-        const response = await fetch(
-          `/api/chat/${activeSession.id}`
-        );
+        const response = await fetch(`/api/chat/${activeSession.id}`);
         if (response.ok) {
           const messages = await response.json();
           if (messages.length < 7) {
@@ -228,16 +223,13 @@ function Index() {
       }
 
       // Call API to manually expire current session and create new one
-      const response = await fetch(
-        `/api/threads/${threadId}/expire-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ sessionId: activeSession.id }),
-        }
-      );
+      const response = await fetch(`/api/threads/${threadId}/expire-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sessionId: activeSession.id }),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to expire session");
@@ -636,4 +628,3 @@ function Index() {
 }
 
 export default Route.options.component;
-
