@@ -92,7 +92,7 @@ function Impersonate() {
       background: formData.background,
       personality: formData.personality,
     };
-    console.log("[impostorApi.upsertProfile] Sending data:", payload);
+
     const persona = await impostorApi.upsertProfile(payload);
 
     // Invalidate the impostor profile query to fetch the newly created profile
