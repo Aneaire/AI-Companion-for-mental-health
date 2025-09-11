@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import path from "path";
 import { z } from "zod";
 import { geminiConfig } from "../lib/config";
+import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -118,8 +119,8 @@ ${geminiResponse.next_steps
     // Write to file
     await fs.promises.writeFile(filepath, logContent, "utf8");
   } catch (error) {
-    console.error("❌ Error saving main observer log:", error);
-    console.error(
+    logger.error("❌ Error saving main observer log:", error);
+    logger.error(
       "❌ Error details:",
       error instanceof Error ? error.message : String(error)
     );
@@ -160,7 +161,7 @@ const mainObserver = new Hono().post(
   async (c) => {
     const parsed = mainObserverRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      console.error("Main Observer Zod validation error:", parsed.error.errors);
+      logger.error("Main Observer Zod validation error:", parsed.error.errors);
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
@@ -186,7 +187,7 @@ const mainObserver = new Hono().post(
 
       return c.json({ sentiment, strategy, rationale, next_steps });
     } catch (error) {
-      console.error("Error in main observer analysis:", error);
+      logger.error("Error in main observer analysis:", error);
       return c.json({
         sentiment: "neutral",
         strategy: "Continue with supportive therapeutic conversation",
@@ -315,8 +316,8 @@ Focus on evidence-based therapeutic approaches like CBT, DBT, mindfulness, valid
         : ["Continue active listening and therapeutic support"],
     };
   } catch (parseError) {
-    console.error("Error parsing Main Gemini response:", parseError);
-    console.error("Raw response:", response);
+    logger.error("Error parsing Main Gemini response:", parseError);
+    logger.error("Raw response:", response);
 
     // Fallback to therapeutic analysis
     return {
