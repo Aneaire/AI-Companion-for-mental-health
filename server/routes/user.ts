@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/config";
 import { users } from "../db/schema";
+import { logger } from "../lib/logger";
 
 // Define the schemas
 const createProfileSchema = z.object({
@@ -77,7 +78,7 @@ const user = new Hono()
         return c.json(profileResponseSchema.parse(newUser[0]));
       }
     } catch (error) {
-      console.error("Error handling user profile:", error);
+      logger.error("Error handling user profile:", error);
       return c.json({ error: "Failed to handle user profile" }, 500);
     }
   })
@@ -95,7 +96,7 @@ const user = new Hono()
 
       return c.json(profileResponseSchema.parse(user[0]));
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      logger.error("Error fetching user profile:", error);
       return c.json({ error: "Failed to fetch user profile" }, 500);
     }
   });

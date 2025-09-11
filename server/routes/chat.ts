@@ -5,6 +5,7 @@ import { and, count, eq } from "drizzle-orm";
 import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import path from "path";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
@@ -15,6 +16,7 @@ import {
   sessions,
   threads,
 } from "../db/schema";
+import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -28,7 +30,12 @@ const saveConversationToFile = async (
   conversationHistory: Content[]
 ) => {
   try {
-    const fileName = `chat_logs/conversation_${sessionId}_${Date.now()}.md`;
+    const logDir = "chat_logs";
+    const fileName = path.join(logDir, `conversation_${sessionId}_${Date.now()}.md`);
+    
+    // Create directory if it doesn't exist
+    await fs.promises.mkdir(logDir, { recursive: true });
+    
     const content = `# Chat Conversation - Session ${sessionId}
 
 ## System Instructions
@@ -51,6 +58,8 @@ ${response}
 
     await fs.promises.writeFile(fileName, content, "utf8");
   } catch (error) {
+    // File logging errors should still be logged for debugging
+    // Keep this as console.error since it's about file operations
     console.error("Error saving conversation to file:", error);
   }
 };
@@ -154,7 +163,7 @@ const chat = new Hono()
     const rawBody = await c.req.json();
     const parsed = chatRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
-      console.error("Zod validation error:", parsed.error.errors);
+      logger.error("Zod validation error:", parsed.error.errors);
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
@@ -206,9 +215,9 @@ const chat = new Hono()
             .where(eq(sessionForms.sessionId, previousSession[0].id));
           if (formRows.length > 0) {
             followupFormAnswers = formRows[0].answers;
-            console.log(`[CHAT] Found follow-up form from previous session ${previousSession[0].id}:`, followupFormAnswers);
+            logger.log(`[CHAT] Found follow-up form from previous session ${previousSession[0].id}:`, followupFormAnswers);
           } else {
-            console.log(`[CHAT] No follow-up form found for previous session ${previousSession[0].id}`);
+            logger.log(`[CHAT] No follow-up form found for previous session ${previousSession[0].id}`);
           }
         }
       }
@@ -374,7 +383,7 @@ const chat = new Hono()
             .where(eq(threads.id, sessionData[0].thread.id));
         }
       } catch (error) {
-        console.error("Error saving user message:", error);
+        logger.error("Error saving user message:", error);
       }
       // Count messages and run summary logic if needed
       const msgCountRes = await db
@@ -408,7 +417,7 @@ const chat = new Hono()
             .set({ summary: summaryText })
             .where(eq(sessions.id, sessionIdNum));
         } catch (err) {
-          console.error("Error generating or saving summary:", err);
+          logger.error("Error generating or saving summary:", err);
         }
       }
     }
@@ -432,7 +441,7 @@ const chat = new Hono()
           .set({ summary: summaryText })
           .where(eq(sessions.id, sessionIdNum));
       } catch (err) {
-        console.error("Error generating or saving initial summary:", err);
+        logger.error("Error generating or saving initial summary:", err);
       }
     }
 
@@ -572,7 +581,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           );
         }
       } catch (error) {
-        console.error(
+        logger.error(
           "Error during AI streaming or saving AI response:",
           error
         );
@@ -592,7 +601,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       const rawBody = await c.req.json();
       const parsed = impersonateChatRequestSchema.safeParse(rawBody);
       if (!parsed.success) {
-        console.error("Zod validation error:", parsed.error.errors);
+        logger.error("Zod validation error:", parsed.error.errors);
         return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
       }
 
@@ -720,7 +729,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             .set({ updatedAt: new Date() })
             .where(eq(impersonateThread.id, threadId));
         } catch (error) {
-          console.error("Error saving user message:", error);
+          logger.error("Error saving user message:", error);
         }
       }
 
@@ -854,11 +863,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 conversationHistory
               );
             } catch (error) {
-              console.error("Error saving AI response:", error);
+              logger.error("Error saving AI response:", error);
             }
           }
         } catch (error) {
-          console.error(
+          logger.error(
             "Error during AI streaming or saving AI response:",
             error
           );
@@ -879,7 +888,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       const rawBody = await c.req.json();
       const parsed = impersonateChatRequestSchema.safeParse(rawBody);
       if (!parsed.success) {
-        console.error("Zod validation error:", parsed.error.errors);
+        logger.error("Zod validation error:", parsed.error.errors);
         return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
       }
 
@@ -919,7 +928,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           }))
         );
       } catch (error) {
-        console.error("Error fetching chat session messages:", error);
+        logger.error("Error fetching chat session messages:", error);
         return c.json({ error: "Failed to fetch chat session messages." }, 500);
       }
     }
@@ -951,7 +960,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           }))
         );
       } catch (error) {
-        console.error("Error fetching impersonate thread messages:", error);
+        logger.error("Error fetching impersonate thread messages:", error);
         return c.json(
           { error: "Failed to fetch impersonate thread messages." },
           500

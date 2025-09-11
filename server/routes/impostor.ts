@@ -6,6 +6,7 @@ import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
 import { impersonateThread, messages, persona } from "../db/schema";
+import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -153,7 +154,7 @@ ${message}
         }
       });
     } catch (error) {
-      console.error("Error generating impostor response:", error);
+      logger.error("Error generating impostor response:", error);
       return c.json({ error: "Failed to generate response" }, 500);
     }
   })

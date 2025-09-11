@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/config";
 import { messages, sessionForms, sessions, threads } from "../db/schema";
+import { logger } from "../lib/logger";
 
 export const threadsRoute = new Hono()
   .get("/", async (c) => {
@@ -177,7 +178,7 @@ export const threadsRoute = new Hono()
     }
 
     try {
-      console.log(`[SESSION CHECK] Starting for thread ${threadId}`);
+      logger.log(`[SESSION CHECK] Starting for thread ${threadId}`);
       
       // Get all sessions for this thread
       const threadSessions = await db
@@ -186,7 +187,7 @@ export const threadsRoute = new Hono()
         .where(eq(sessions.threadId, parseInt(threadId)))
         .orderBy(sessions.sessionNumber);
 
-      console.log(`[SESSION CHECK] Found ${threadSessions.length} sessions for thread ${threadId}`);
+      logger.log(`[SESSION CHECK] Found ${threadSessions.length} sessions for thread ${threadId}`);
 
       if (threadSessions.length === 0) {
         return c.json({ error: "No sessions found for this thread" }, 404);
@@ -198,7 +199,7 @@ export const threadsRoute = new Hono()
       let newSessionCreated = false;
       let latestSession = threadSessions[threadSessions.length - 1];
 
-      console.log(`[SESSION CHECK] Latest session: ID=${latestSession.id}, status=${latestSession.status}, created=${latestSession.createdAt}`);
+      logger.log(`[SESSION CHECK] Latest session: ID=${latestSession.id}, status=${latestSession.status}, created=${latestSession.createdAt}`);
 
       // Check if the latest session is active and meets progression conditions
       if (latestSession.status === "active") {
@@ -218,11 +219,11 @@ export const threadsRoute = new Hono()
         const hasEnoughMessages = messageCount[0].count >= 7;
         const isOldEnough = sessionCreatedDate < fourHoursAgo;
 
-        console.log(`[SESSION CHECK] Message count: ${messageCount[0].count}, hasEnoughMessages: ${hasEnoughMessages}`);
-        console.log(`[SESSION CHECK] Session created: ${sessionCreatedDate}, 4 hours ago: ${fourHoursAgo}, isOldEnough: ${isOldEnough}`);
+        logger.log(`[SESSION CHECK] Message count: ${messageCount[0].count}, hasEnoughMessages: ${hasEnoughMessages}`);
+        logger.log(`[SESSION CHECK] Session created: ${sessionCreatedDate}, 4 hours ago: ${fourHoursAgo}, isOldEnough: ${isOldEnough}`);
 
         if (hasEnoughMessages && isOldEnough) {
-          console.log(`[SESSION CHECK] Conditions met for session completion`);
+          logger.log(`[SESSION CHECK] Conditions met for session completion`);
           
           // Mark current session as finished but DON'T create new session yet
           await db
@@ -230,7 +231,7 @@ export const threadsRoute = new Hono()
             .set({ status: "finished" })
             .where(eq(sessions.id, latestSession.id));
 
-          console.log(`[SESSION CHECK] Marked session ${latestSession.id} as finished`);
+          logger.log(`[SESSION CHECK] Marked session ${latestSession.id} as finished`);
           
           // Return completion status without creating new session
           // New session will be created after form submission
@@ -242,12 +243,12 @@ export const threadsRoute = new Hono()
             totalSessions: threadSessions.length,
           });
         } else {
-          console.log(`[SESSION CHECK] Conditions not met - no new session created`);
-          console.log(`[SESSION CHECK] - hasEnoughMessages: ${hasEnoughMessages} (need >= 7)`);
-          console.log(`[SESSION CHECK] - isOldEnough: ${isOldEnough} (need > 4 hours)`);
+          logger.log(`[SESSION CHECK] Conditions not met - no new session created`);
+          logger.log(`[SESSION CHECK] - hasEnoughMessages: ${hasEnoughMessages} (need >= 7)`);
+          logger.log(`[SESSION CHECK] - isOldEnough: ${isOldEnough} (need > 4 hours)`);
         }
       } else if (latestSession.status === "finished") {
-        console.log(`[SESSION CHECK] Latest session is finished, checking if follow-up form exists`);
+        logger.log(`[SESSION CHECK] Latest session is finished, checking if follow-up form exists`);
         
         // Check if this finished session has a follow-up form
         const existingForm = await db
@@ -256,7 +257,7 @@ export const threadsRoute = new Hono()
           .where(eq(sessionForms.sessionId, latestSession.id));
 
         if (existingForm.length === 0) {
-          console.log(`[SESSION CHECK] No follow-up form found, session needs completion flow`);
+          logger.log(`[SESSION CHECK] No follow-up form found, session needs completion flow`);
           // Session is finished but has no follow-up form - trigger completion flow
           return c.json({
             latestSession,
@@ -266,13 +267,13 @@ export const threadsRoute = new Hono()
             totalSessions: threadSessions.length,
           });
         } else {
-          console.log(`[SESSION CHECK] Follow-up form exists, session is fully complete`);
+          logger.log(`[SESSION CHECK] Follow-up form exists, session is fully complete`);
         }
       } else {
-        console.log(`[SESSION CHECK] Latest session is not active (status: ${latestSession.status})`);
+        logger.log(`[SESSION CHECK] Latest session is not active (status: ${latestSession.status})`);
       }
 
-      console.log(`[SESSION CHECK] Returning: newSessionCreated=${newSessionCreated}, latestSessionId=${latestSession.id}`);
+      logger.log(`[SESSION CHECK] Returning: newSessionCreated=${newSessionCreated}, latestSessionId=${latestSession.id}`);
 
       // Return the latest active session
       return c.json({
@@ -281,7 +282,7 @@ export const threadsRoute = new Hono()
         totalSessions: newSessionCreated ? threadSessions.length + 1 : threadSessions.length,
       });
     } catch (error) {
-      console.error("Error checking session status:", error);
+      logger.error("Error checking session status:", error);
       return c.json({ error: "Failed to check session status" }, 500);
     }
   })
@@ -320,7 +321,7 @@ export const threadsRoute = new Hono()
         .set({ status: "finished" })
         .where(eq(sessions.id, parsed.data.sessionId));
 
-      console.log(`[EXPIRE SESSION] Marked session ${parsed.data.sessionId} as finished`);
+      logger.log(`[EXPIRE SESSION] Marked session ${parsed.data.sessionId} as finished`);
 
       return c.json({
         message: "Session expired successfully",
@@ -329,7 +330,7 @@ export const threadsRoute = new Hono()
         totalSessions: threadSessions.length,
       });
     } catch (error) {
-      console.error("Error expiring session:", error);
+      logger.error("Error expiring session:", error);
       return c.json({ error: "Failed to expire session" }, 500);
     }
   })
@@ -378,7 +379,7 @@ export const threadsRoute = new Hono()
     }
 
     try {
-      console.log(`[CREATE NEXT SESSION] Starting for thread ${threadId}`);
+      logger.log(`[CREATE NEXT SESSION] Starting for thread ${threadId}`);
       
       // Get all sessions for this thread
       const threadSessions = await db
@@ -406,7 +407,7 @@ export const threadsRoute = new Hono()
         })
         .returning();
 
-      console.log(`[CREATE NEXT SESSION] Created new session: ID=${newSession.id}, sessionNumber=${newSession.sessionNumber}`);
+      logger.log(`[CREATE NEXT SESSION] Created new session: ID=${newSession.id}, sessionNumber=${newSession.sessionNumber}`);
 
       return c.json({
         success: true,
@@ -414,7 +415,7 @@ export const threadsRoute = new Hono()
         totalSessions: threadSessions.length + 1,
       });
     } catch (error) {
-      console.error("Error creating next session:", error);
+      logger.error("Error creating next session:", error);
       return c.json({ error: "Failed to create next session" }, 500);
     }
   })
@@ -436,7 +437,7 @@ export const threadsRoute = new Hono()
         form: existing.length > 0 ? existing[0] : null 
       });
     } catch (error) {
-      console.error("Error checking session form:", error);
+      logger.error("Error checking session form:", error);
       return c.json({ error: "Failed to check session form" }, 500);
     }
   })
@@ -474,7 +475,7 @@ export const threadsRoute = new Hono()
         thread: updatedThread,
       });
     } catch (error) {
-      console.error("Error archiving thread:", error);
+      logger.error("Error archiving thread:", error);
       return c.json({ error: "Failed to archive thread" }, 500);
     }
   })
@@ -506,7 +507,7 @@ export const threadsRoute = new Hono()
         message: "Thread deleted successfully",
       });
     } catch (error) {
-      console.error("Error deleting thread:", error);
+      logger.error("Error deleting thread:", error);
       return c.json({ error: "Failed to delete thread" }, 500);
     }
   })
@@ -541,7 +542,7 @@ export const threadsRoute = new Hono()
         threads: archivedThreads,
       });
     } catch (error) {
-      console.error("Error fetching archived threads:", error);
+      logger.error("Error fetching archived threads:", error);
       return c.json({ error: "Failed to fetch archived threads" }, 500);
     }
   })
@@ -583,7 +584,7 @@ export const threadsRoute = new Hono()
         thread: updatedThread,
       });
     } catch (error) {
-      console.error("Error unarchiving thread:", error);
+      logger.error("Error unarchiving thread:", error);
       return c.json({ error: "Failed to unarchive thread" }, 500);
     }
   })
@@ -595,7 +596,7 @@ export const threadsRoute = new Hono()
     }
 
     try {
-      console.log(`[TEST SESSION] Manual test for thread ${threadId}`);
+      logger.log(`[TEST SESSION] Manual test for thread ${threadId}`);
       
       // Get current session info
       const threadSessions = await db
@@ -636,7 +637,7 @@ export const threadsRoute = new Hono()
         allSessions: threadSessions,
       });
     } catch (error) {
-      console.error("Error testing session progression:", error);
+      logger.error("Error testing session progression:", error);
       return c.json({ error: "Failed to test session progression" }, 500);
     }
   });

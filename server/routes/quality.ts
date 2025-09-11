@@ -7,6 +7,7 @@ import { z } from "zod";
 import { geminiConfig } from "../lib/config";
 import { db } from "../db/config";
 import { messages, sessionForms, sessions, threads } from "../db/schema";
+import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -57,7 +58,7 @@ const quality = new Hono().post(
   async (c) => {
     const parsed = qualityRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      console.error("Zod validation error:", parsed.error.errors);
+      logger.error("Zod validation error:", parsed.error.errors);
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
@@ -74,7 +75,7 @@ const quality = new Hono().post(
       const analysisResult = await analyzeMessageQuality(messages, initialForm, threadContext);
       return c.json(analysisResult);
     } catch (error) {
-      console.error("Error in quality analysis:", error);
+      logger.error("Error in quality analysis:", error);
       return c.json(
         {
           error: "Failed to analyze message quality",
@@ -157,7 +158,7 @@ async function getThreadContext(sessionId: number) {
       forms: allForms,
     };
   } catch (error) {
-    console.error("Error getting thread context:", error);
+    logger.error("Error getting thread context:", error);
     return null;
   }
 }
@@ -359,7 +360,7 @@ Focus on professional therapeutic assessment without revealing any personal info
       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : ["Continue therapeutic engagement"],
     };
   } catch (parseError) {
-    console.error("Error parsing Gemini response:", parseError);
+    logger.error("Error parsing Gemini response:", parseError);
 
     // Enhanced fallback with basic metrics
     const userMsgCount = userMessages.length;

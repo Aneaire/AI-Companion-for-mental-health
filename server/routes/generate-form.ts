@@ -4,10 +4,11 @@ import { Hono } from "hono";
 import path from "path";
 import { z } from "zod";
 import { geminiConfig } from "../lib/config";
+import { logger } from "../lib/logger";
 
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-function logSystemInstructionText(systemInstructionText: string) {
+async function logSystemInstructionText(systemInstructionText: string) {
   try {
     const now = new Date();
     const timestamp = now
@@ -16,18 +17,18 @@ function logSystemInstructionText(systemInstructionText: string) {
       .replace(/\..+/, "");
     const logDir = path.join(process.cwd(), "server_logs", "generate-form");
     const logFile = path.join(logDir, `generate-form-${timestamp}.txt`);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-    fs.writeFileSync(logFile, systemInstructionText, "utf8");
+    
+    // Create directory if it doesn't exist
+    await fs.promises.mkdir(logDir, { recursive: true });
+    await fs.promises.writeFile(logFile, systemInstructionText, "utf8");
   } catch (logErr) {
-    console.error("Failed to log systemInstructionText:", logErr);
+    logger.error("Failed to log systemInstructionText:", logErr);
   }
 }
 
 const generateFormRoute = new Hono().post("/", async (c) => {
   const body = await c.req.json();
-  console.log('[GENERATE FORM] Received request body:', {
+  logger.log('[GENERATE FORM] Received request body:', {
     initialForm: body.initialForm,
     messageCount: body.messages?.length,
     firstMessage: body.messages?.[0]
@@ -42,12 +43,12 @@ const generateFormRoute = new Hono().post("/", async (c) => {
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    console.error('[GENERATE FORM] Validation failed:', parsed.error);
+    logger.error('[GENERATE FORM] Validation failed:', parsed.error);
     return c.json({ success: false, error: parsed.error }, 400);
   }
   const { initialForm, messages } = parsed.data;
-  // console.log("Check form", initialForm);
-  // console.log("Check messages", messages);
+  // logger.log("Check form", initialForm);
+  // logger.log("Check messages", messages);
   // Compose a prompt for Gemini
   const prompt = `You are an AI assistant tasked with generating personalized questions for a therapy session form.
 
@@ -119,7 +120,7 @@ Generate the questions now:`;
     }
     return c.json({ success: true, questions, raw: text });
   } catch (error) {
-    console.error("Error generating session form questions:", error);
+    logger.error("Error generating session form questions:", error);
     return c.json(
       { success: false, error: "Failed to generate questions" },
       500

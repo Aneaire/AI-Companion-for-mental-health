@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { geminiConfig } from "server/lib/config";
+import { logger } from "../lib/logger";
 
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -200,7 +201,7 @@ const patientRoute = new Hono().post("/", async (c) => {
         await stream.writeSSE({ data: chunkText });
       }
     } catch (error) {
-      console.error("Patient AI stream error:", error);
+      logger.error("Patient AI stream error:", error);
       await stream.writeSSE({
         data: `Patient AI Error: ${
           error instanceof Error ? error.message : String(error)

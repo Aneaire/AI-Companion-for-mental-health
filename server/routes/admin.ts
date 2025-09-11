@@ -6,6 +6,7 @@ import { sessions, threads, messages, sessionForms } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
 import { count, eq, sql } from "drizzle-orm";
 import { geminiConfig } from "../lib/config";
+import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -64,7 +65,7 @@ const adminRoute = new Hono()
   .get("/threads/:threadId/analyze", async (c) => {
     try {
       const threadId = parseInt(c.req.param("threadId"));
-      console.log("Analyzing thread:", threadId);
+      logger.log("Analyzing thread:", threadId);
 
       // Get comprehensive thread data with all related information
       const thread = await db
@@ -208,9 +209,9 @@ const adminRoute = new Hono()
 
       return c.json(analysis);
     } catch (error) {
-      console.error("Error analyzing thread:", error);
-      console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
-      console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+      logger.error("Error analyzing thread:", error);
+      logger.error("Error details:", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
       return c.json({ 
         error: "Failed to analyze thread", 
         details: error instanceof Error ? error.message : "Unknown error" 
@@ -222,7 +223,7 @@ const adminRoute = new Hono()
       const threadId = parseInt(c.req.param("threadId"));
       const { message, conversationHistory } = await c.req.json();
       
-      console.log("Analysis chat for thread:", threadId, "Message:", message);
+      logger.log("Analysis chat for thread:", threadId, "Message:", message);
 
       // Get comprehensive thread context for intelligent analysis
       const thread = await db
@@ -438,27 +439,27 @@ You have access to comprehensive thread metrics, session patterns, communication
           }
           
         } catch (error) {
-          console.error("Error during AI streaming:", error);
+          logger.error("Error during AI streaming:", error);
           await stream.writeSSE({
             data: `Error: ${error instanceof Error ? error.message : String(error)}`,
           });
         }
       });
     } catch (error) {
-      console.error("Error in analysis chat:", error);
+      logger.error("Error in analysis chat:", error);
       return c.json({ error: "Failed to process analysis request" }, 500);
     }
   })
   .get("/threads/anonymized", async (c) => {
     try {
-      console.log("Fetching anonymized threads...");
+      logger.log("Fetching anonymized threads...");
 
       // Get pagination parameters
       const page = parseInt(c.req.query("page") || "1");
       const limit = parseInt(c.req.query("limit") || "20");
       const offset = (page - 1) * limit;
 
-      console.log("Pagination:", { page, limit, offset });
+      logger.log("Pagination:", { page, limit, offset });
 
       // Get total count for pagination
       const totalCountResult = await db
@@ -492,7 +493,7 @@ You have access to comprehensive thread metrics, session patterns, communication
         createdAt: thread.createdAt,
       }));
 
-      console.log("Anonymized threads:", anonymizedThreads.length, "of", totalThreads);
+      logger.log("Anonymized threads:", anonymizedThreads.length, "of", totalThreads);
 
       return c.json({
         threads: anonymizedThreads,
@@ -506,13 +507,13 @@ You have access to comprehensive thread metrics, session patterns, communication
         }
       });
     } catch (error) {
-      console.error("Error fetching anonymized threads:", error);
+      logger.error("Error fetching anonymized threads:", error);
       return c.json({ error: "Failed to fetch threads" }, 500);
     }
   })
   .get("/metrics", async (c) => {
     try {
-      console.log("Fetching admin metrics...");
+      logger.log("Fetching admin metrics...");
 
       // Get threads with sessions metrics
       const threadMetrics = await db
@@ -527,7 +528,7 @@ You have access to comprehensive thread metrics, session patterns, communication
         })
         .from(threads);
 
-      console.log("Thread metrics:", threadMetrics);
+      logger.log("Thread metrics:", threadMetrics);
 
       // Get session metrics
       const sessionMetrics = await db
@@ -539,7 +540,7 @@ You have access to comprehensive thread metrics, session patterns, communication
         })
         .from(sessions);
 
-      console.log("Session metrics:", sessionMetrics);
+      logger.log("Session metrics:", sessionMetrics);
 
       // Get message metrics
       const messageMetrics = await db
@@ -561,7 +562,7 @@ You have access to comprehensive thread metrics, session patterns, communication
         ? messageMetrics[0].totalMessages / uniqueSessionsWithMessages[0].uniqueSessions
         : 0;
 
-      console.log("Message metrics:", messageMetrics);
+      logger.log("Message metrics:", messageMetrics);
 
       // Get form completion metrics
       const formMetrics = await db
@@ -574,7 +575,7 @@ You have access to comprehensive thread metrics, session patterns, communication
         .from(sessions)
         .leftJoin(sessionForms, eq(sessions.id, sessionForms.sessionId));
 
-      console.log("Form metrics:", formMetrics);
+      logger.log("Form metrics:", formMetrics);
 
       return c.json({
         threadMetrics: {
@@ -600,7 +601,7 @@ You have access to comprehensive thread metrics, session patterns, communication
         },
       });
     } catch (error) {
-      console.error("Error fetching admin metrics:", error);
+      logger.error("Error fetching admin metrics:", error);
       return c.json({ error: "Failed to fetch metrics" }, 500);
     }
   });

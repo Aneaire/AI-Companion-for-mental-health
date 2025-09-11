@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import path from "path";
 import { z } from "zod";
 import { geminiConfig } from "../lib/config";
+import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -30,10 +31,7 @@ const logObserverCall = async (
   try {
     // Create observer_logs directory if it doesn't exist
     const logsDir = path.join(process.cwd(), "observer_logs");
-
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
+    await fs.promises.mkdir(logsDir, { recursive: true });
 
     // Generate filename with current date and time
     const now = new Date();
@@ -100,8 +98,8 @@ ${geminiResponse.next_steps
     // Write to file
     await fs.promises.writeFile(filepath, logContent, "utf8");
   } catch (error) {
-    console.error("❌ Error saving observer log:", error);
-    console.error(
+    logger.error("❌ Error saving observer log:", error);
+    logger.error(
       "❌ Error details:",
       error instanceof Error ? error.message : String(error)
     );
@@ -141,7 +139,7 @@ const agent = new Hono().post(
   async (c) => {
     const parsed = agentRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      console.error("Zod validation error:", parsed.error.errors);
+      logger.error("Zod validation error:", parsed.error.errors);
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
@@ -166,7 +164,7 @@ const agent = new Hono().post(
 
       return c.json({ sentiment, strategy, rationale, next_steps });
     } catch (error) {
-      console.error("Error in agent analysis:", error);
+      logger.error("Error in agent analysis:", error);
       return c.json({
         sentiment: "neutral",
         strategy: "Continue with supportive conversation",
@@ -270,8 +268,8 @@ Focus on being empathetic, practical, and actionable. If the user seems in crisi
         : ["Continue listening and providing support"],
     };
   } catch (parseError) {
-    console.error("Error parsing Gemini response:", parseError);
-    console.error("Raw response:", response);
+    logger.error("Error parsing Gemini response:", parseError);
+    logger.error("Raw response:", response);
 
     // Fallback to basic analysis
     return {
