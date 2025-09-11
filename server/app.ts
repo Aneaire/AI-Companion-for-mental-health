@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { serveStatic } from "hono/bun";
 import chat from "./routes/chat";
 import generateFormRoute from "./routes/generate-form";
 import impostorRoute from "./routes/impostor";
@@ -33,7 +34,7 @@ app.use("*", cors({
   maxAge: 86400,
 }));
 
-// Routes
+// API Routes
 const routes = app
   .route("/api/chat", chat)
   .route("/api/user", user)
@@ -48,6 +49,22 @@ const routes = app
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
   .route("/api/test", testRoute);
+
+// Serve static files from frontend build
+app.use('/assets/*', serveStatic({ root: './frontend/dist' }));
+app.use('/favicon.ico', serveStatic({ path: './frontend/dist/favicon.ico' }));
+
+// Health check endpoint
+app.get('/api/health', (c) => {
+  return c.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    service: 'mental-health-ai-chat'
+  });
+});
+
+// Serve index.html for all non-API routes (SPA routing)
+app.get('*', serveStatic({ path: './frontend/dist/index.html' }));
 
 export default app;
 export type AppType = typeof routes;

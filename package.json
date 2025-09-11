@@ -5,6 +5,7 @@
     "start": "bun server/index.ts",
     "dev": "bun --watch server/index.ts",
     "build": "cd frontend && bun install && bun run build",
+    "render-build": "bun install && cd frontend && bun install && bun run build",
     "postinstall": "cd frontend && bun install",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
