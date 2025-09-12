@@ -85,6 +85,118 @@ function QualityAnalysis() {
 // Note: Using same streaming approach as working chat implementation
 // No chunk processing needed - preserving original Gemini formatting
 
+// Robust markdown renderer component
+function MarkdownRenderer({ content, isUser }: { content: string; isUser: boolean }) {
+  // Function to render text with bold formatting
+  const renderTextWithBold = (text: string) => {
+    if (!text.includes('**')) {
+      return <span>{text}</span>;
+    }
+    const parts = text.split('**');
+    return (
+      <>
+        {parts.map((part, partIndex) => 
+          partIndex % 2 === 1 ? (
+            <strong key={partIndex} className={`font-bold ${
+              isUser ? 'text-blue-100' : 'text-gray-900'
+            }`}>
+              {part}
+            </strong>
+          ) : (
+            <span key={partIndex} className="font-normal">{part}</span>
+          )
+        )}
+      </>
+    );
+  };
+
+  // Split content into lines and process
+  const lines = content.split('\n');
+  
+  return (
+    <div>
+      {lines.map((line, index) => {
+        // Trim the line but preserve the original for pattern matching
+        const trimmedLine = line.trim();
+        
+        // Handle empty lines for proper spacing
+        if (!trimmedLine) {
+          return <div key={index} className="h-3"></div>;
+        }
+        
+        // Handle markdown headers
+        if (trimmedLine.startsWith('#')) {
+          const headerText = trimmedLine.replace(/^#+\s*/, '').trim();
+          const headerLevel = (trimmedLine.match(/^#+/) || [''])[0].length;
+          const headerClass = headerLevel === 1 ? 'text-xl' : headerLevel === 2 ? 'text-lg' : 'text-base';
+          
+          if (headerLevel === 1) {
+            return (
+              <h2 key={index} className={`${headerClass} font-bold mt-4 mb-2 ${
+                isUser ? 'text-blue-50' : 'text-gray-800'
+              }`}>
+                {renderTextWithBold(headerText)}
+              </h2>
+            );
+          } else if (headerLevel === 2) {
+            return (
+              <h3 key={index} className={`${headerClass} font-bold mt-4 mb-2 ${
+                isUser ? 'text-blue-50' : 'text-gray-800'
+              }`}>
+                {renderTextWithBold(headerText)}
+              </h3>
+            );
+          } else {
+            return (
+              <h4 key={index} className={`${headerClass} font-bold mt-4 mb-2 ${
+                isUser ? 'text-blue-50' : 'text-gray-800'
+              }`}>
+                {renderTextWithBold(headerText)}
+              </h4>
+            );
+          }
+        }
+
+        // Handle numbered lists
+        if (trimmedLine.match(/^\d+\.\s/)) {
+          const listContent = trimmedLine.replace(/^\d+\.\s*/, '');
+          const listNumber = trimmedLine.match(/^(\d+)\./)?.[1] || '1';
+          return (
+            <div key={index} className="flex items-start gap-2 my-1 ml-4">
+              <span className={`inline-block w-6 h-6 rounded-full text-xs font-normal flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                isUser ? 'bg-blue-200 text-blue-800' : 'bg-blue-500 text-white'
+              }`}>
+                {listNumber}
+              </span>
+              <span className="font-normal">{renderTextWithBold(listContent)}</span>
+            </div>
+          );
+        }
+
+        // Handle bullet points - including asterisk at start of line
+        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
+          const bulletContent = trimmedLine.replace(/^[•\-\*]\s*/, '');
+          return (
+            <div key={index} className="flex items-start gap-2 my-1 ml-2">
+              <span className={`inline-block w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${
+                isUser ? 'bg-blue-200' : 'bg-blue-500'
+              }`}></span>
+              <span className="font-normal">{renderTextWithBold(bulletContent)}</span>
+            </div>
+          );
+        }
+        
+        // Handle regular text lines
+        return (
+          <div key={index} className="my-1 font-normal">
+            {renderTextWithBold(trimmedLine)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function QualityAnalysisContent() {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -643,88 +755,7 @@ What specific aspect would you like me to analyze using the complete thread cont
                               : 'prose-gray prose-headings:text-gray-800 prose-strong:text-gray-800'
                           }`}>
                             <div className="whitespace-pre-wrap leading-relaxed">
-                              {message.content.split('\n').map((line, index) => {
-                                // Function to render text with bold formatting
-                                const renderTextWithBold = (text: string) => {
-                                  if (!text.includes('**')) {
-                                    return <span>{text}</span>;
-                                  }
-                                  const parts = text.split('**');
-                                  return (
-                                    <>
-                                      {parts.map((part, partIndex) => 
-                                        partIndex % 2 === 1 ? (
-                                          <strong key={partIndex} className={`font-bold ${
-                                            message.sender === 'user' ? 'text-blue-100' : 'text-gray-900'
-                                          }`}>
-                                            {part}
-                                          </strong>
-                                        ) : (
-                                          <span key={partIndex} className="font-normal">{part}</span>
-                                        )
-                                      )}
-                                    </>
-                                  );
-                                };
-
-                                // Handle markdown headers
-                                if (line.trim().startsWith('##')) {
-                                  const headerText = line.replace(/^#+\s*/, '');
-                                  return (
-                                    <h3 key={index} className={`text-lg font-bold mt-4 mb-2 ${
-                                      message.sender === 'user' ? 'text-blue-50' : 'text-gray-800'
-                                    }`}>
-                                      <span className="font-normal">{renderTextWithBold(headerText)}</span>
-                                    </h3>
-                                  );
-                                }
-
-                                // Handle numbered lists
-                                if (line.trim().match(/^\d+\.\s/)) {
-                                  const listContent = line.replace(/^\d+\.\s*/, '');
-                                  const listNumber = line.match(/^(\d+)\./)?.[1] || '1';
-                                  return (
-                                    <div key={index} className="flex items-start gap-2 my-1 ml-4">
-                                      <span className={`inline-block w-6 h-6 rounded-full text-xs font-normal flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                                        message.sender === 'user' ? 'bg-blue-200 text-blue-800' : 'bg-blue-500 text-white'
-                                      }`}>
-                                        {listNumber}
-                                      </span>
-                                      <span className="font-normal">{renderTextWithBold(listContent)}</span>
-                                    </div>
-                                  );
-                                }
-
-                                // Handle bullet points (with possible bold text inside)
-                                if (line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*')) {
-                                  const bulletContent = line.replace(/^[•\-\*]\s*/, '');
-                                  return (
-                                    <div key={index} className="flex items-start gap-2 my-1 ml-2">
-                                      <span className={`inline-block w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${
-                                        message.sender === 'user' ? 'bg-blue-200' : 'bg-blue-500'
-                                      }`}></span>
-                                      <span className="font-normal">{renderTextWithBold(bulletContent)}</span>
-                                    </div>
-                                  );
-                                }
-                                
-                                // Handle lines with bold text (non-bullet)
-                                if (line.includes('**')) {
-                                  return (
-                                    <div key={index} className="my-2 font-normal">
-                                      {renderTextWithBold(line)}
-                                    </div>
-                                  );
-                                }
-                                
-                                // Handle empty lines for proper spacing
-                                if (!line.trim()) {
-                                  return <div key={index} className="h-3"></div>;
-                                }
-                                
-                                // Handle regular lines
-                                return <div key={index} className="my-1 font-normal">{line}</div>;
-                              })}
+                              <MarkdownRenderer content={message.content} isUser={message.sender === 'user'} />
                             </div>
                           </div>
                           <div className="flex items-center justify-between mt-3 pt-2 border-t border-opacity-20">
@@ -781,11 +812,12 @@ What specific aspect would you like me to analyze using the complete thread cont
                     <div className="mb-4">
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { label: "💡 Effectiveness", query: "How effective was the AI in this conversation?" },
-                          { label: "👥 User Engagement", query: "Analyze user engagement patterns" },
-                          { label: "🔄 Conversation Flow", query: "How was the conversation flow and progression?" },
-                          { label: "📊 Session Comparison", query: "Compare individual sessions" },
-                          { label: "📋 Assessment Integration", query: "How well were assessments integrated?" }
+                          { label: "💡 Quick Check", query: "How was this conversation overall?" },
+                          { label: "📊 Show Metrics", query: "Show me all the engagement metrics and statistics" },
+                          { label: "❤️ User Feelings", query: "How did the user feel throughout the therapeutic process?" },
+                          { label: "🔍 Session 3", query: "How was session 3 specifically?" },
+                          { label: "📈 Progression", query: "Compare session 1 to the final session - any improvement?" },
+                          { label: "🎯 AI Effectiveness", query: "Was the AI therapeutically effective and appropriate?" }
                         ].map((button) => (
                           <button
                             key={button.label}
@@ -805,7 +837,7 @@ What specific aspect would you like me to analyze using the complete thread cont
                         <Input
                           value={inputMessage}
                           onChange={(e) => setInputMessage(e.target.value)}
-                          placeholder="Ask about effectiveness, engagement, flow, session comparison, or assessment patterns..."
+                          placeholder="Ask for quick insights, specific metrics, user feelings, session analysis, or effectiveness assessment..."
                           className="pr-12 py-3 text-sm border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none"
                           onKeyPress={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {

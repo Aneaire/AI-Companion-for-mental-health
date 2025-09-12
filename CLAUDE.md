@@ -62,9 +62,29 @@ Key relationships:
 1. **Real-time Streaming**: Uses ReadableStream for AI response streaming
 2. **Session Management**: Automatic session creation and management (max 5 sessions per thread)
 3. **Form Generation**: Dynamic form creation based on conversation context
-4. **Quality Analysis**: AI-powered conversation quality assessment
+4. **Quality Analysis**: AI-powered conversation quality assessment with flexible analysis
 5. **Observer Mode**: AI suggestions for conversation improvement
 6. **Impersonation**: Role-play mode with persona-based conversations
+
+#### Quality Analysis Enhancement (Latest Update)
+The Quality Analysis system now features an intelligent, adaptive AI analyst that automatically detects the type of analysis needed:
+
+**Flexible Query Detection:**
+- **Simple/Quick Responses**: For straightforward questions like "How was the engagement?" - provides brief, direct answers
+- **Metrics/Quantitative**: For data-driven questions like "Show me statistics" - returns structured numerical data
+- **Sentiment/Qualitative**: For in-depth questions like "What do you think about therapeutic effectiveness?" - provides detailed professional insights
+- **Hybrid Responses**: Automatically combines multiple analysis types for complex queries
+
+**Benefits:**
+- Natural language interaction - admins can ask questions however they want
+- AI automatically adapts response format and depth based on question intent
+- Maintains privacy protection while providing comprehensive analysis
+- Single system handles all query types without frontend complexity
+
+**Usage Examples:**
+- Quick: "Was the user engaged?" → Brief professional summary with key points
+- Metrics: "What are the completion rates?" → Structured data with percentages and statistics
+- Deep: "Analyze the therapeutic relationship development" → Detailed clinical assessment with professional insights
 
 ### State Management Patterns
 - **Chat State**: Zustand store with localStorage persistence for preferences only
