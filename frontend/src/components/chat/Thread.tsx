@@ -955,6 +955,7 @@ export function Thread({
             preferences={conversationPreferences}
             onPreferencesChange={setConversationPreferences}
             selectedThreadId={selectedThreadId}
+            selectedSessionId={selectedSessionId}
             threadTitle={threadTitle}
             onDeleteThread={handleDeleteThread}
             onArchiveThread={handleArchiveThread}

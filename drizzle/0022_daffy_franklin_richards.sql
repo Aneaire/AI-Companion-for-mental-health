@@ -1,0 +1,1 @@
+ALTER TABLE "sessions" ADD COLUMN "crisis_detected" boolean DEFAULT false;
