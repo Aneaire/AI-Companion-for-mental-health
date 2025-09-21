@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ConversationPreferences } from "@/stores/chatStore";
-import { BrainCircuit, Settings, Sparkles } from "lucide-react";
+import { BrainCircuit, Settings, Sparkles, Play } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import type { JSX } from "react";
 import { useState } from "react";
 import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
@@ -60,8 +61,18 @@ export function ChatHeader({
             </div>
           </div>
 
-          {/* Right side - Actions */}
+{/* Right side - Actions */}
           <div className="flex items-center gap-2">
+            <Link to="/demo">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border-green-200 hover:border-green-300"
+              >
+                <Play size={16} className="mr-2" />
+                Live Demo
+              </Button>
+            </Link>
             <Button
               variant="ghost"
               size="sm"

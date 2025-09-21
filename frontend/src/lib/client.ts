@@ -443,6 +443,44 @@ export const generateFormApi = {
   },
 };
 
+// Demo chat API client for simulated AI responses
+export const demoChatApi = {
+  async sendMessage({
+    message,
+    sessionId,
+    userId,
+    context,
+    sender,
+    initialForm,
+    signal,
+    ...rest
+  }: {
+    message: string;
+    sessionId: number;
+    userId: string;
+    context?: any[];
+    sender?: "user" | "ai" | "therapist" | "impostor";
+    initialForm?: any;
+    signal?: AbortSignal;
+    [key: string]: any;
+  }) {
+    const res = await client.api["demo-chat"].$post({
+      json: {
+        message,
+        sessionId,
+        userId,
+        context,
+        sender,
+        initialForm,
+        ...rest,
+      },
+      ...(signal ? { fetch: { signal } } : {}),
+    });
+    if (!res.ok) throw new Error("Failed to send demo message");
+    return res;
+  },
+};
+
 
 
 
