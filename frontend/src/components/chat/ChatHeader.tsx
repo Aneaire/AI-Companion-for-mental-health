@@ -4,12 +4,14 @@ import type { ConversationPreferences } from "@/stores/chatStore";
 import { BrainCircuit, Settings, Sparkles } from "lucide-react";
 import type { JSX } from "react";
 import { useState } from "react";
+import { CrisisInterventionButton } from "./CrisisInterventionButton";
 import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
 
 interface ChatHeaderProps {
   preferences: ConversationPreferences;
   onPreferencesChange: (preferences: ConversationPreferences) => void;
   selectedThreadId?: number | null;
+  selectedSessionId?: number | null;
   threadTitle?: string;
   onDeleteThread?: (threadId: number) => void;
   onArchiveThread?: (threadId: number) => void;
@@ -19,6 +21,7 @@ export function ChatHeader({
   preferences,
   onPreferencesChange,
   selectedThreadId,
+  selectedSessionId,
   threadTitle,
   onDeleteThread,
   onArchiveThread,
@@ -62,6 +65,7 @@ export function ChatHeader({
 
           {/* Right side - Actions */}
           <div className="flex items-center gap-2">
+            <CrisisInterventionButton sessionId={selectedSessionId} />
             <Button
               variant="ghost"
               size="sm"

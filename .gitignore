@@ -263,6 +263,9 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Notes
+note/
+
 # Helper
 git config --global alias.save '!git add -A && git commit -m "WIP: $(date)"'
 git config --global alias.undo 'reset --hard HEAD~1'
