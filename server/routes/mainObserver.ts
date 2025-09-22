@@ -278,13 +278,14 @@ Analyze the user's current emotional state and provide strategic guidance for th
 - If follow-up form data reveals new concerns or setbacks, address them with appropriate therapeutic interventions
 - Use follow-up form insights to personalize the therapeutic approach and show session-to-session continuity
 - Consider how the user's previous session experiences should inform the current session strategy
+- **IMPORTANT:** When providing crisis intervention guidance, instruct the AI therapist to mention the "Crisis Support" button only once per conversation, and only when appropriate for the user's current state
 
 **CRITICAL:** If you detect ANY signs of suicidal thoughts, self-harm, harm to others, or severe crisis, set sentiment to "crisis_risk" immediately.
 
 Respond in this exact JSON format:
 {
   "sentiment": "positive|negative|neutral|urgent|confused|crisis_risk",
-  "strategy": "A clear, therapeutic strategy for the AI therapist focusing on evidence-based approaches, incorporating follow-up form insights if available",
+  "strategy": "A clear, therapeutic strategy for the AI therapist focusing on evidence-based approaches, incorporating follow-up form insights if available. When crisis intervention is needed, include guidance to mention the Crisis Support button only if it hasn't been mentioned recently in the conversation",
   "rationale": "Why this therapeutic strategy is appropriate given the user's current state, therapeutic needs, and any progress or concerns from their follow-up form",
   "next_steps": ["Specific therapeutic intervention 1", "Specific therapeutic intervention 2", "Specific therapeutic intervention 3", "Follow-up action"]
 }

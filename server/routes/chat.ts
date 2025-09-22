@@ -499,7 +499,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
     }
     // Add conditional instructions based on sentiment
     if (sentiment === "urgent" || sentiment === "crisis_risk") {
-      systemInstructionText += `\n**URGENT USER STATE DETECTED!**\nThe user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety.\n1.  Immediately acknowledge their distress with empathy.\n2.  State clearly: "I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please contact [LOCAL EMERGENCY NUMBER, e.g., 911 in the US, or a national crisis hotline like the National Suicide Prevention Lifeline: 988 or Crisis Text Line: Text HOME to 741741 (US)]."\n3.  Gently encourage them to seek professional help.\n4.  Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose."\n5.  Do NOT end the conversation abruptly, but ensure the crisis information is provided.\n`;
+      systemInstructionText += `\n**URGENT USER STATE DETECTED!**\nThe user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety.\n1.  Immediately acknowledge their distress with empathy and provide supportive listening.\n2.  If this is the first time mentioning crisis resources in the conversation, gently mention that professional help is available through the "Crisis Support" button at the top of the chat.\n3.  Focus on validation and emotional support rather than directing to resources unless they express immediate danger.\n4.  Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose."\n5.  Continue the therapeutic conversation normally while being mindful of their safety.\n`;
     } else if (sentiment === "negative") {
       systemInstructionText += `\n**User Sentiment: Negative.** Focus on empathetic listening, validation, and gently exploring their feelings. Offer comfort and reassurance.\n`;
     } else if (sentiment === "positive") {
@@ -510,12 +510,18 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
     systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
 
-    // Crisis protocol: stream a crisis message before the AI response if needed
+    // Mark session as having crisis detected if needed
     if (sentiment === "urgent" || sentiment === "crisis_risk") {
-      const crisisMessage = `\nIt sounds like you're going through an incredibly difficult time, and I want you to know that support is available. I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please reach out to trained professionals:\n\n* **National Suicide Prevention Lifeline:** Call or text 988 (US and Canada)\n* **Crisis Text Line:** Text HOME to 741741 (US)\n* **Emergency Services:** Call your local emergency number (e.g., 911 in the US, 999 in UK, 112 in EU, etc.)\n\nPlease reach out to one of these resources. They are there to help you.\n`;
-      return streamSSE(c, async (stream) => {
-        await stream.writeSSE({ event: "crisis", data: crisisMessage });
-      });
+      if (currentSessionId) {
+        try {
+          await db
+            .update(sessions)
+            .set({ crisisDetected: true })
+            .where(eq(sessions.id, sessionIdNum));
+        } catch (error) {
+          logger.error("Error marking session as crisis detected:", error);
+        }
+      }
     }
 
     const model = gemini.getGenerativeModel({
@@ -733,12 +739,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         }
       }
 
-      let systemInstructionText = `
+    let systemInstructionText = `
 You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
 
 **Crucial Ethical and Professional Guidelines:**
 1.  **Strictly Adhere to Boundaries:** You are an AI and explicitly **not** a human therapist, medical professional, or crisis counselor. You **must** clearly state this disclaimer at the beginning of the session and if the user expresses a need for professional help or indicates a crisis.
-2.  **Safety First (Crisis Protocol):** If the user expresses any indication of suicidal thoughts, self-harm, harm to others, or severe distress requiring immediate intervention, you **must** interrupt the conversation to provide emergency contact information (e.g., "If you are in immediate danger, please contact 911 or a crisis hotline like the National Suicide Prevention Lifeline at 988."). Do not attempt to "treat" or "diagnose" a crisis; instead, prioritize immediate safety resources.
+2.  **Safety First (Crisis Protocol):** If the user expresses any indication of suicidal thoughts, self-harm, harm to others, or severe distress requiring immediate intervention, you **must** prioritize their safety and guide them to professional help. Do not attempt to "treat" or "diagnose" a crisis; instead, provide appropriate support and direct them to professional resources when needed.
 3.  **No Diagnosis or Medical Advice:** You **do not diagnose mental health conditions, prescribe medication, or offer specific medical treatments.** Your role is supportive and educational.
 4.  **Confidentiality (Simulation Context):** In this simulation, you operate under the understanding that user data is being processed *for the purpose of this simulation only* and *is not real client data*. Acknowledge that in a real-world scenario, privacy and data security are paramount.
 5.  **Personalization with Care:** Refer to the user's preferred name occasionally if available(${
@@ -786,7 +792,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
       // Add conditional instructions based on sentiment
       if (sentiment === "urgent" || sentiment === "crisis_risk") {
-        systemInstructionText += `\n**URGENT USER STATE DETECTED!**\nThe user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety.\n1.  Immediately acknowledge their distress with empathy.\n2.  State clearly: "I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please contact [LOCAL EMERGENCY NUMBER, e.g., 911 in the US, or a national crisis hotline like the National Suicide Prevention Lifeline: 988 or Crisis Text Line: Text HOME to 741741 (US)]."\n3.  Gently encourage them to seek professional help.\n4.  Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose."\n5.  Do NOT end the conversation abruptly, but ensure the crisis information is provided.\n`;
+        systemInstructionText += `\n**URGENT USER STATE DETECTED!**\nThe user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety.\n1.  Immediately acknowledge their distress with empathy and provide supportive listening.\n2.  If this is the first time mentioning crisis resources in the conversation, gently mention that professional help is available through the "Crisis Support" button at the top of the chat.\n3.  Focus on validation and emotional support rather than directing to resources unless they express immediate danger.\n4.  Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose."\n5.  Continue the therapeutic conversation normally while being mindful of their safety.\n`;
       } else if (sentiment === "negative") {
         systemInstructionText += `\n**User Sentiment: Negative.** Focus on empathetic listening, validation, and gently exploring their feelings. Offer comfort and reassurance.\n`;
       } else if (sentiment === "positive") {
@@ -797,13 +803,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
 systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
 
-      // Crisis protocol: stream a crisis message before the AI response if needed
-      if (sentiment === "urgent" || sentiment === "crisis_risk") {
-        const crisisMessage = `\nIt sounds like you're going through an incredibly difficult time, and I want you to know that support is available. I am an AI and cannot provide professional medical or crisis support. If you are in immediate danger or need urgent help, please reach out to trained professionals:\n\n* **National Suicide Prevention Lifeline:** Call or text 988 (US and Canada)\n* **Crisis Text Line:** Text HOME to 741741 (US)\n* **Emergency Services:** Call your local emergency number (e.g., 911 in the US, 999 in UK, 112 in EU, etc.)\n\nPlease reach out to one of these resources. They are there to help you.\n`;
-        return streamSSE(c, async (stream) => {
-          await stream.writeSSE({ event: "crisis", data: crisisMessage });
-        });
-      }
+
 
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,
@@ -965,6 +965,31 @@ systemInstructionText += `\n**Expected Response Structure:**\nYour response shou
           { error: "Failed to fetch impersonate thread messages." },
           500
         );
+      }
+    }
+  )
+  // Check if session has crisis detected
+  .get(
+    "/crisis/:sessionId",
+    zValidator("param", z.object({ sessionId: z.string().transform(Number) })),
+    async (c) => {
+      const { sessionId } = c.req.valid("param");
+
+      try {
+        const session = await db
+          .select({ crisisDetected: sessions.crisisDetected })
+          .from(sessions)
+          .where(eq(sessions.id, sessionId))
+          .limit(1);
+
+        if (session.length === 0) {
+          return c.json({ error: "Session not found" }, 404);
+        }
+
+        return c.json({ crisisDetected: session[0].crisisDetected });
+      } catch (error) {
+        logger.error("Error checking crisis status:", error);
+        return c.json({ error: "Failed to check crisis status" }, 500);
       }
     }
   );

@@ -37,6 +37,9 @@ interface ChatState {
   contexts: Map<string, ConversationContext>;
   loadingState: "idle" | "observer" | "generating" | "streaming";
 
+  // Crisis detection state
+  crisisDetected: boolean;
+
   // User preferences (persisted)
   conversationPreferences: ConversationPreferences;
   impersonateMaxExchanges: number;
@@ -63,6 +66,8 @@ interface ChatState {
   setMessages: (messages: Message[]) => void;
   setImpersonateMaxExchanges: (val: number) => void;
   setConversationPreferences: (preferences: ConversationPreferences) => void;
+  setCrisisDetected: (detected: boolean) => void;
+  checkCrisisStatus: (sessionId: number) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -76,6 +81,7 @@ export const useChatStore = create<ChatState>()(
       },
       contexts: new Map(),
       loadingState: "idle",
+      crisisDetected: false,
       conversationPreferences: {
         briefAndConcise: 50, // Default to middle value
         empatheticAndSupportive: false,
@@ -217,6 +223,18 @@ export const useChatStore = create<ChatState>()(
         set({ impersonateMaxExchanges: val }),
       setConversationPreferences: (preferences: ConversationPreferences) =>
         set({ conversationPreferences: preferences }),
+      setCrisisDetected: (detected: boolean) => set({ crisisDetected: detected }),
+      checkCrisisStatus: async (sessionId: number) => {
+        try {
+          const response = await fetch(`/api/chat/crisis/${sessionId}`);
+          if (response.ok) {
+            const data = await response.json();
+            set({ crisisDetected: data.crisisDetected });
+          }
+        } catch (error) {
+          console.error("Error checking crisis status:", error);
+        }
+      },
     }),
     {
       name: "chat-storage",
@@ -263,9 +281,9 @@ export const useChatStore = create<ChatState>()(
             empatheticAndSupportive: false,
             solutionFocused: false,
             casualAndFriendly: false,
-            professionalAndFormal: false,
           },
           initialForms: new Map(persistedState.initialForms || []),
+          crisisDetected: false, // Always start with false, will be checked from server
         };
       },
     }

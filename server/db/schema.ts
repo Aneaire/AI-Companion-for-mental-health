@@ -60,6 +60,7 @@ export const sessions = pgTable("sessions", {
   status: varchar("status", {
     enum: ["active", "finished"],
   }).default("active"),
+  crisisDetected: boolean("crisis_detected").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

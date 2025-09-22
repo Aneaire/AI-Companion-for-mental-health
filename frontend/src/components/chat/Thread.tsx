@@ -7,6 +7,7 @@ import client, { mainObserverApi, threadsApi } from "@/lib/client";
 import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
+import { StreamingMessageProcessor, MessageFormattingUtils } from "@/lib/messageFormatter";
 import { useChatStore } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
 import type { Message } from "@/types/chat";
@@ -15,7 +16,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Brain, Lightbulb, Loader2, Settings, X } from "lucide-react";
 import { memo, Suspense, useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
-import { patchMarkdown } from "./MessageList";
 
 interface ErrorResponse {
   error: string;
@@ -807,11 +807,6 @@ export function Thread({
         throw new Error(errorData.error || "Failed to get response");
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No reader available");
-      }
-
       if (message.trim() || currentContext.messages.length) {
         const tempId = Date.now();
         const aiMessage: Message = {
@@ -827,64 +822,31 @@ export function Thread({
       // Set loading state to streaming when streaming starts
       setLoadingState("streaming");
 
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value);
-
-        let lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete last line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith("event: crisis")) {
-            // Crisis event received
-            const crisisDataMatch = line.match(/^data: (.*)$/);
-            if (crisisDataMatch) {
-              const crisisMsg = crisisDataMatch[1];
-              updateLastMessage(crisisMsg);
-            }
-            return;
-          }
-          if (line.startsWith("data: ")) {
-            const content = line.substring("data: ".length);
-            // Skip session_id events and empty content
-            if (
-              content.trim() === "" ||
-              (!isNaN(Number(content.trim())) && content.trim().length < 10)
-            ) {
-              continue;
-            }
-            fullResponse += content + "\n";
-          }
+      // Use the new StreamingMessageProcessor for cleaner streaming logic
+      const processor = new StreamingMessageProcessor(
+        (text: string, isComplete: boolean) => {
+          updateLastMessage(text);
+        },
+        (error: Error) => {
+          console.error("Streaming error:", error);
+          const errorText = MessageFormattingUtils.extractErrorMessage(error.message);
+          const errorMessage: Message = {
+            sender: "ai",
+            text: `I apologize, but I encountered an error: ${errorText}. Please try again.`,
+            timestamp: new Date(),
+            contextId: "default",
+            status: "failed",
+            error: error.message,
+          };
+          addMessage(errorMessage);
+        },
+        (finalText: string) => {
+          // Final text is already processed by the formatter
+          updateLastMessage(finalText);
         }
+      );
 
-        if (
-          fullResponse !==
-          currentContext.messages[currentContext.messages.length - 1]?.text
-        ) {
-          updateLastMessage(patchMarkdown(fullResponse));
-        }
-      }
-      // After the loop, the last chunk might not have ended with a newline.
-      if (buffer) {
-        fullResponse += buffer;
-      }
-      // Clean up leading/trailing punctuation and whitespace
-      fullResponse = fullResponse
-        .replace(/\n+/g, "\n")
-        .replace(/^\n+|\n+$/g, "");
-      // Normalize multiple newlines to a single newline
-      fullResponse = fullResponse.replace(/\n{2,}/g, "\n");
-      // Ensure the message ends with a newline for markdown rendering
-      if (!fullResponse.endsWith("\n")) {
-        fullResponse += "\n";
-      }
-      updateLastMessage(patchMarkdown(fullResponse));
+      await processor.processStream(response);
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = {
@@ -964,6 +926,7 @@ export function Thread({
             preferences={conversationPreferences}
             onPreferencesChange={setConversationPreferences}
             selectedThreadId={selectedThreadId}
+            selectedSessionId={selectedSessionId}
             threadTitle={threadTitle}
             onDeleteThread={handleDeleteThread}
             onArchiveThread={handleArchiveThread}
