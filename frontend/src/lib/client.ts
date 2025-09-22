@@ -378,7 +378,7 @@ export const impersonateChatApi = {
     signal?: AbortSignal;
     [key: string]: any;
   }) {
-    const res = await client.api.chat.impersonate.$post({
+    const res = await client.api["impersonate-chat"].impersonate.$post({
       json: {
         message,
         threadId,
@@ -394,7 +394,7 @@ export const impersonateChatApi = {
     return res;
   },
   async getMessages(threadId: number) {
-    const res = await client.api.chat.impersonate[":threadId"].$get({
+    const res = await client.api["impersonate-chat"].impersonate[":threadId"].$get({
       param: { threadId: threadId.toString() },
     });
     if (!res.ok) throw new Error("Failed to fetch impersonate messages");

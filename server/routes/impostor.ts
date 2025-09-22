@@ -134,7 +134,8 @@ ${
 8.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
 9.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and a varied sentence structure like a real person in conversation. Avoid overly formal or perfectly structured sentences.
 10. **Don't "Solve" Too Quickly:** Therapy is a process. Don't jump to solutions or resolve your issues instantly. Allow for back-and-forth and exploration. You might have moments of clarity, but also moments of confusion or resistance.
-11. **Vary Response Lengths:** Some messages might be short, others longer, depending on the emotional weight or the depth of the therapist's question.
+11. **Keep Responses Concise:** Limit responses to 2-4 sentences maximum. Focus on emotional expression rather than lengthy explanations. If you have a lot to say, prioritize the most important feelings or thoughts.
+12. **Natural Conversation Flow:** End responses at natural stopping points. Don't continue rambling - let the therapist respond.
 
 The following is a message from your therapist. Respond naturally as **${userProfile.fullName}**:
 
@@ -142,14 +143,28 @@ ${message}
 `;
 
     try {
-      // Get response from Gemini (streaming)
+      // Get response from Gemini (streaming) with token limits for concise responses
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,
+        generationConfig: {
+          maxOutputTokens: 400, // Limit impostor responses to prevent long monologues
+        },
       });
       const chatStream = await model.generateContentStream(systemPrompt);
       return streamSSE(c, async (stream) => {
+        let responseLength = 0;
+        const maxResponseLength = 500; // Character limit for early truncation
+
         for await (const chunk of chatStream.stream) {
           const chunkText = chunk.text();
+          responseLength += chunkText.length;
+
+          // Early truncation if response is getting too long
+          if (responseLength > maxResponseLength) {
+            console.log(`[IMPOSTOR] Response truncated at ${responseLength} characters`);
+            break;
+          }
+
           await stream.writeSSE({ data: chunkText });
         }
       });
