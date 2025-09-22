@@ -18,7 +18,7 @@ import { Brain, Loader2, Settings } from "lucide-react";
 import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
 import { ImpersonateInput } from "./ImpersonateInput";
-import { patchMarkdown } from "./MessageList";
+import { MessageFormattingUtils, StreamingMessageProcessor } from "@/lib/messageFormatter";
 
 interface ErrorResponse {
   error: string;
@@ -324,11 +324,6 @@ export function ImpersonateThread({
         throw new Error(errorData.error || "Failed to get response");
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No reader available");
-      }
-
       if (message.trim() || currentContext.messages.length) {
         const tempId = Date.now();
         const aiMessage: Message = {
@@ -344,64 +339,31 @@ export function ImpersonateThread({
       // Set loading state to streaming when streaming starts
       setLoadingState("streaming");
 
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value);
-
-        let lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete last line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith("event: crisis")) {
-            // Crisis event received
-            const crisisDataMatch = line.match(/^data: (.*)$/);
-            if (crisisDataMatch) {
-              const crisisMsg = crisisDataMatch[1];
-              updateLastMessage(crisisMsg);
-            }
-            return;
-          }
-          if (line.startsWith("data: ")) {
-            const content = line.substring("data: ".length);
-            // Skip session_id events and empty content
-            if (
-              content.trim() === "" ||
-              (!isNaN(Number(content.trim())) && content.trim().length < 10)
-            ) {
-              continue;
-            }
-            fullResponse += content + "\n";
-          }
+      // Use the new StreamingMessageProcessor for cleaner streaming logic
+      const processor = new StreamingMessageProcessor(
+        (text: string, isComplete: boolean) => {
+          updateLastMessage(text);
+        },
+        (error: Error) => {
+          console.error("Streaming error:", error);
+          const errorText = MessageFormattingUtils.extractErrorMessage(error.message);
+          const errorMessage: Message = {
+            sender: "ai",
+            text: `I apologize, but I encountered an error: ${errorText}. Please try again.`,
+            timestamp: new Date(),
+            contextId: "impersonate",
+            status: "failed",
+            error: error.message,
+          };
+          addMessage(errorMessage);
+        },
+        (finalText: string) => {
+          // Final text is already processed by the formatter
+          updateLastMessage(finalText);
         }
+      );
 
-        if (
-          fullResponse !==
-          currentContext.messages[currentContext.messages.length - 1]?.text
-        ) {
-          updateLastMessage(patchMarkdown(fullResponse));
-        }
-      }
-      // After the loop, the last chunk might not have ended with a newline.
-      if (buffer) {
-        fullResponse += buffer;
-      }
-      // Clean up leading/trailing punctuation and whitespace
-      fullResponse = fullResponse
-        .replace(/\n+/g, "\n")
-        .replace(/^\n+|\n+$/g, "");
-      // Normalize multiple newlines to a single newline
-      fullResponse = fullResponse.replace(/\n{2,}/g, "\n");
-      // Ensure the message ends with a newline for markdown rendering
-      if (!fullResponse.endsWith("\n")) {
-        fullResponse += "\n";
-      }
-      updateLastMessage(patchMarkdown(fullResponse));
+      await processor.processStream(response);
       if (typeof onThreadActivity === "function" && selectedThreadId) {
         onThreadActivity(selectedThreadId);
       }
@@ -617,8 +579,7 @@ export function ImpersonateThread({
 
             therapistFullResponse = await processStreamingResponse(
               reader,
-              updateLastMessage,
-              patchMarkdown
+              updateLastMessage
             );
           }
 
@@ -659,8 +620,7 @@ export function ImpersonateThread({
 
             impostorFullResponse = await processStreamingResponse(
               reader,
-              updateLastMessage,
-              patchMarkdown
+              updateLastMessage
             );
           }
 

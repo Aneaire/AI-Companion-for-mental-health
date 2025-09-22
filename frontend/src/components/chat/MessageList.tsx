@@ -5,6 +5,7 @@ import type { Message } from "@/types/chat";
 import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { MessageFormattingUtils } from "@/lib/messageFormatter";
 
 interface MessageListProps {
   messages: Message[];
@@ -12,42 +13,8 @@ interface MessageListProps {
   onRetryMessage?: (message: Message) => void;
 }
 
-// Enhanced patchMarkdown to handle more streaming edge cases
-export function patchMarkdown(text: string): string {
-  let patched = text;
-
-  // Handle incomplete code blocks
-  const codeBlockMatches = (patched.match(/```/g) || []).length;
-  if (codeBlockMatches % 2 !== 0) {
-    patched += "\n```";
-  }
-
-  // Handle incomplete lists
-  const lines = patched.split("\n");
-  if (lines.length > 0) {
-    const lastLine = lines[lines.length - 1];
-    if (lastLine.match(/^\s*[-+*]\s+\S+.*$/) && !lastLine.endsWith("\n")) {
-      patched += "\n";
-    }
-  }
-
-  // Remove 4-space indents for non-code content
-  let inCodeBlock = false;
-  const processedLines: string[] = [];
-  for (const line of patched.split("\n")) {
-    if (line.trim().startsWith("```")) {
-      inCodeBlock = !inCodeBlock;
-      processedLines.push(line);
-    } else if (!inCodeBlock && line.startsWith("    ")) {
-      processedLines.push(line.substring(4));
-    } else {
-      processedLines.push(line);
-    }
-  }
-  patched = processedLines.join("\n");
-
-  return patched;
-}
+// Message formatting is now handled by MessageFormatter class
+// Keeping this for backward compatibility during transition
 
 // Memoized Message Component for better performance
 const MessageBubble = memo(({ 
@@ -277,7 +244,7 @@ export const MessageList = memo(function MessageList({
       setStabilizedMessages(
         messages.map((msg) => ({
           ...msg,
-          text: patchMarkdown(msg.text || ""),
+          text: MessageFormattingUtils.normalizeMessage(msg.text || ""),
         }))
       );
     }, 50);

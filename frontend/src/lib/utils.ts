@@ -1,6 +1,7 @@
 import type { Message } from "@/types/chat";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { MessageFormattingUtils } from "./messageFormatter";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -63,8 +64,7 @@ export function cleanUpImpersonateTempMessages(
  */
 export async function processStreamingResponse(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  updateLastMessage: (text: string) => void,
-  patchMarkdown: (text: string) => string
+  updateLastMessage: (text: string) => void
 ): Promise<string> {
   const decoder = new TextDecoder();
   let fullResponse = "";
@@ -102,7 +102,7 @@ export async function processStreamingResponse(
       }
     }
 
-    updateLastMessage(patchMarkdown(fullResponse));
+    updateLastMessage(MessageFormattingUtils.normalizeMessage(fullResponse));
   }
 
   // After the loop, the last chunk might not have ended with a newline
@@ -119,7 +119,7 @@ export async function processStreamingResponse(
     fullResponse += "\n";
   }
 
-  updateLastMessage(patchMarkdown(fullResponse));
+  updateLastMessage(MessageFormattingUtils.normalizeMessage(fullResponse));
   return fullResponse;
 }
 
