@@ -198,21 +198,16 @@ export const impersonateChatRequestSchema = z.object({
   message: z.string(), // The actual new message from the user
   userId: z.string().optional(), // Now accepts string userId
   threadId: z.number().optional(), // Thread ID for impersonate chats
-  strategy: z.string().optional(), // Added for strategy from the agent
-  nextSteps: z.array(z.string()).optional(), // Added for next steps from the agent
-  observerRationale: z.string().optional(), // Added for observer rationale
-  observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
-   sentiment: z.string().optional(), // Added for sentiment analysis
-   sender: z.string().optional(), // Added for sender
-   conversationPreferences: z
-     .object({
-       briefAndConcise: z.number().min(0).max(100).optional(),
-       empatheticAndSupportive: z.boolean().optional(),
-       solutionFocused: z.boolean().optional(),
-       casualAndFriendly: z.boolean().optional(),
-       professionalAndFormal: z.boolean().optional(),
-     })
-     .optional(),
+  sender: z.string().optional(), // Added for sender
+  conversationPreferences: z
+    .object({
+      briefAndConcise: z.number().min(0).max(100).optional(),
+      empatheticAndSupportive: z.boolean().optional(),
+      solutionFocused: z.boolean().optional(),
+      casualAndFriendly: z.boolean().optional(),
+      professionalAndFormal: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const chat = new Hono()
@@ -675,11 +670,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         message,
         userId,
         threadId,
-        strategy,
-        nextSteps,
-        observerRationale,
-        observerNextSteps,
-        sentiment,
         sender,
         conversationPreferences,
       } = parsed.data;
@@ -828,7 +818,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 5.  **Personalization with Care:** Refer to the user's preferred name occasionally if available(${
         initialForm?.preferredName ? initialForm.preferredName : "you"
       }). Use this naturally, not robotically.
-6.  **Empathetic and Reflective Listening:** Acknowledge the user's feelings briefly and naturally. Show understanding without being overly formal. Use simple, direct language like "That sounds tough" or "I understand" rather than lengthy therapeutic phrases.
+6.  **Empathetic and Reflective Listening:** Acknowledge the user's feelings briefly and naturally. Show understanding without being overly formal. Vary your empathetic responses - use different phrases like "That sounds tough", "I can hear how hard that is", "It seems really challenging", "That must feel heavy", "I understand this is difficult" rather than repeating the same acknowledgments.
 7.  **Guidance and Exploration:** Offer relevant, general coping strategies, gentle thought-provoking questions, and reflections to help the user explore their feelings and situations more deeply. Encourage self-discovery.
 8.  **Concise, Clear, and Human-like Language:** Keep responses focused, natural, and easy to understand. Avoid jargon or overly clinical language unless specifically requested by the user's persona. Your tone should be warm, compassionate, and authentic, reflecting a human therapist's mannerisms.
 9.  **Adapt to User Preferences:** Pay close attention to preferred response tone, character, or style from the initial form and subtly weave it into your communication style.
@@ -857,33 +847,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         systemInstructionText += prefsText;
       }
 
-      // Incorporate observer's strategic guidance dynamically
-      if (strategy && nextSteps && nextSteps.length > 0) {
-        systemInstructionText += `\n**Strategic Guidance from the User Observer (HIGH PRIORITY):**\nThe observer has analyzed the user's current state and recommends the following approach for your response:\n**Overall Strategy:** "${strategy}"\n**Specific Actions/Goals for this response:**\n${nextSteps
-          .map((step) => `- ${step}`)
-          .join("\n")}\n`;
-      }
-      if (observerRationale) {
-        systemInstructionText += `\n**Observer Rationale for Strategy:**\n${observerRationale}\n`;
-      }
-      if (observerNextSteps && observerNextSteps.length > 0) {
-        systemInstructionText += `\n**Observer's Broader Recommended Next Steps (Consider for ongoing conversation):**\n${observerNextSteps
-          .map((step) => `- ${step}`)
-          .join("\n")}\n`;
-      }
-      // Add conditional instructions based on sentiment
-      if (sentiment === "urgent" || sentiment === "crisis_risk") {
-        systemInstructionText += `\n**URGENT USER STATE DETECTED!**\nThe user's sentiment is **${sentiment.toUpperCase()}**. Your ABSOLUTE priority is safety.\n1.  Immediately acknowledge their distress with empathy and provide supportive listening.\n2.  If this is the first time mentioning crisis resources in the conversation, gently mention that professional help is available through the "Crisis Support" button at the top of the chat.\n3.  Focus on validation and emotional support rather than directing to resources unless they express immediate danger.\n4.  Maintain a calm and supportive tone, but do not attempt to "treat" or "diagnose."\n5.  Continue the therapeutic conversation normally while being mindful of their safety.\n`;
-      } else if (sentiment === "negative") {
-        systemInstructionText += `\n**User Sentiment: Negative.** Focus on empathetic listening, validation, and gently exploring their feelings. Offer comfort and reassurance.\n`;
-      } else if (sentiment === "positive") {
-        systemInstructionText += `\n**User Sentiment: Positive.** Acknowledge their positive state. Reinforce positive coping, celebrate small wins, or gently explore what's working well for them.\n`;
-      } else if (sentiment === "confused") {
-        systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
-      }
+
+
 
       // Enhanced response structure with conversation ending detection
-      systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.\n`;
+      systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode).\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.\n`;
 
       // Adaptive token limits based on response metrics
       let maxTokens = 800; // Default for impersonate mode

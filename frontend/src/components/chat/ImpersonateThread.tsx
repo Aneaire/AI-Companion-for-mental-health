@@ -1,10 +1,8 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
-import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
-import { impersonateChatApi, impostorApi, impersonateObserverApi } from "@/lib/client";
-import { useImpostorProfile, useUserProfile } from "@/lib/queries/user";
+import { impersonateChatApi, impostorApi } from "@/lib/client";
+import { useImpostorProfile, useUserProfile, usePersona } from "@/lib/queries/user";
 import {
-  buildMessagesForObserver,
   cleanUpImpersonateTempMessages,
   convertRawMessagesToMessages,
   getPreferencesInstruction,
@@ -106,6 +104,12 @@ export function ImpersonateThread({
   );
   const { data: impostorProfile, isLoading: impostorProfileLoading } =
     useImpostorProfile(userProfile?.id ? Number(userProfile.id) : null);
+
+  // State to store thread data and persona data
+  const [threadData, setThreadData] = useState<any>(null);
+  const { data: personaData, isLoading: personaLoading } = usePersona(
+    threadData?.personaId || null
+  );
   const {
     currentContext,
     addMessage,
@@ -123,12 +127,7 @@ export function ImpersonateThread({
     setConversationPreferences,
   } = useChatStore();
   const [showChat, setShowChat] = useState(currentContext.messages.length > 0);
-  const lastSuggestionRef = useRef<string>("");
-  const didMountRef = useRef(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [agentStrategy, setAgentStrategy] = useState<string>("");
-  const [agentRationale, setAgentRationale] = useState<string>("");
-  const [agentNextSteps, setAgentNextSteps] = useState<string[]>([]);
   const [showDevTools, setShowDevTools] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -167,12 +166,18 @@ export function ImpersonateThread({
         try {
           setLoadingHistory(true);
 
+          // Fetch thread data to get personaId
+          const threadResponse = await fetch(`/api/impostor/threads/${selectedThreadId}`);
+          if (threadResponse.ok) {
+            const thread = await threadResponse.json();
+            setThreadData(thread);
+          }
+
           // Fetch messages for this thread using the new impersonate chat API
           const rawMessages =
             await impersonateChatApi.getMessages(selectedThreadId);
 
           clearMessages();
-          lastSuggestionRef.current = "";
 
           // Convert and add messages
           const sortedMessages = convertRawMessagesToMessages(
@@ -225,44 +230,6 @@ export function ImpersonateThread({
     // Get the correct initial form for this thread
     let sessionInitialForm = getInitialForm(selectedThreadId!);
 
-    // 1. Get observer output (strategy, rationale, next_steps)
-    let observerStrategy = "";
-    let observerRationale = "";
-    let observerNextSteps: string[] = [];
-    let observerSentiment = "";
-    setLoadingState("observer");
-    try {
-      const messagesForObserver = buildMessagesForObserver(
-        currentContext.messages,
-        message
-      );
-
-      const observerRes = await impersonateObserverApi.getSuggestion({
-        messages: messagesForObserver,
-        ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-      });
-      observerStrategy = observerRes.strategy || "";
-      observerRationale = observerRes.rationale || "";
-      observerNextSteps = observerRes.next_steps || [];
-      observerSentiment = observerRes.sentiment || "";
-      setAgentStrategy(observerRes.strategy || "");
-      setAgentRationale(observerRes.rationale || "");
-      setAgentNextSteps(observerRes.next_steps || []);
-      if (
-        observerRes.strategy &&
-        didMountRef.current &&
-        lastSuggestionRef.current !== observerRes.strategy
-      ) {
-        toast.info(observerRes.strategy, { duration: 6000 });
-      }
-      lastSuggestionRef.current = observerRes.strategy;
-      if (!didMountRef.current) didMountRef.current = true;
-    } catch (e) {
-      observerStrategy = "";
-      observerRationale = "";
-      observerNextSteps = [];
-      observerSentiment = "";
-    }
     setLoadingState("generating");
     setIsStreaming(true);
 
@@ -300,15 +267,9 @@ export function ImpersonateThread({
         context: contextData,
         sender: "user",
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-        ...(observerStrategy ? { strategy: observerStrategy } : {}),
-        ...(observerRationale ? { observerRationale } : {}),
-        ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
-        ...(observerSentiment ? { sentiment: observerSentiment } : {}),
         ...(getPreferencesInstruction(conversationPreferences)
           ? {
-              systemInstruction: observerStrategy
-                ? `${observerStrategy} ${getPreferencesInstruction(conversationPreferences)}`
-                : getPreferencesInstruction(conversationPreferences),
+              systemInstruction: getPreferencesInstruction(conversationPreferences),
             }
           : {}),
         ...(conversationPreferences ? { conversationPreferences } : {}),
@@ -385,40 +346,7 @@ export function ImpersonateThread({
     }
   };
 
-  // Call observer once when thread is loaded to populate DevTools
-  useEffect(() => {
-    if (
-      selectedThreadId &&
-      currentContext.messages.some((msg) => msg.sender === "user") &&
-      !isStreaming &&
-      !loadingHistory &&
-      agentStrategy === "" // Only if we don't already have strategy data
-    ) {
-      (async () => {
-        try {
-          // Get the correct initial form for this session
-          const sessionInitialForm = getInitialForm(selectedThreadId);
 
-          const res = await impersonateObserverApi.getSuggestion({
-            messages: buildMessagesForObserver(currentContext.messages),
-            ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-          });
-          setAgentStrategy(res.strategy || "");
-          setAgentRationale(res.rationale || "");
-          setAgentNextSteps(res.next_steps || []);
-        } catch (error) {
-          console.error("Error getting observer suggestion:", error);
-        }
-      })();
-    }
-  }, [selectedThreadId, loadingHistory, getInitialForm]);
-
-  // Clear agent strategy when switching threads
-  useEffect(() => {
-    setAgentStrategy("");
-    setAgentRationale("");
-    setAgentNextSteps([]);
-  }, [selectedThreadId]);
 
   useEffect(() => {
     isImpersonatingRef.current = isImpersonating;
@@ -433,8 +361,12 @@ export function ImpersonateThread({
       toast.error("No thread selected. Please select or create a thread.");
       return;
     }
-    if (!impostorProfile) {
-      toast.error("No persona profile found. Please create one first.");
+    if (personaLoading) {
+      toast.error("Persona data is still loading. Please wait.");
+      return;
+    }
+    if (!personaData && !impostorProfile) {
+      toast.error("No persona data found. Please select a persona first.");
       return;
     }
 
@@ -465,15 +397,13 @@ export function ImpersonateThread({
     };
 
     try {
-      const userProfileData = impostorProfile;
+      const userProfileData = personaData || impostorProfile;
       let exchanges = 0;
       // Find last valid message (non-empty)
       const lastValidMessage = [...currentContext.messages]
         .reverse()
         .find((m) => m.text && m.text.trim() !== "");
-      let lastMessage = lastValidMessage
-        ? lastValidMessage.text
-        : "Hello, I am here for therapy. I have been struggling with some issues.";
+      let lastMessage = lastValidMessage ? lastValidMessage.text : "";
       let lastSender = lastValidMessage ? lastValidMessage.sender : null;
 
       // Get the correct initial form for this session
@@ -589,20 +519,21 @@ export function ImpersonateThread({
           // Impostor's turn
           const abortController = new AbortController();
           abortControllerRef.current = abortController;
-          const impostorResponse = await impostorApi.sendMessage({
-            sessionId: selectedThreadId!,
-            message: lastMessage,
-            userProfile: userProfileData,
-            signal: abortController.signal,
-            ...(getPreferencesInstruction(conversationPreferences)
-              ? {
-                  systemInstruction: getPreferencesInstruction(
-                    conversationPreferences
-                  ),
-                }
-              : {}),
-            ...(conversationPreferences ? { conversationPreferences } : {}),
-          });
+           const impostorResponse = await impostorApi.sendMessage({
+             sessionId: selectedThreadId!,
+             message: lastMessage || "", // Pass empty string for first message
+             userProfile: userProfileData,
+             preferredName: threadData?.preferredName,
+             signal: abortController.signal,
+             ...(getPreferencesInstruction(conversationPreferences)
+               ? {
+                   systemInstruction: getPreferencesInstruction(
+                     conversationPreferences
+                   ),
+                 }
+               : {}),
+             ...(conversationPreferences ? { conversationPreferences } : {}),
+           });
 
           const reader = impostorResponse.body?.getReader();
           let impostorFullResponse = "";
@@ -624,8 +555,22 @@ export function ImpersonateThread({
             );
           }
 
-          lastMessage = impostorFullResponse.trim() || lastMessage;
-          lastSender = "user";
+           // Save the impostor response
+           if (impostorFullResponse.trim()) {
+             try {
+               await impostorApi.postMessage({
+                 sessionId: selectedThreadId!,
+                 threadType: "impersonate",
+                 sender: "user", // Impostor responses are from the "user" (patient) perspective
+                 text: impostorFullResponse.trim(),
+               });
+             } catch (error) {
+               console.error("Error saving impostor message:", error);
+             }
+           }
+
+           lastMessage = impostorFullResponse.trim() || lastMessage;
+           lastSender = "user";
         }
 
         exchanges++;
@@ -707,34 +652,12 @@ export function ImpersonateThread({
           onStop={handleStopImpersonation}
           onSendMessage={handleSendMessage}
           disabled={
-            (mode !== "impersonate" &&
-              loadingState !== "idle" &&
-              loadingState !== "observer") ||
+            (mode !== "impersonate" && loadingState !== "idle") ||
             (mode === "impersonate" && !selectedThreadId) // Disable if no thread selected in impersonate mode
           }
           hideModeSwitch={false} // Show switch on impersonate page
         />
       </main>
-
-      {/* Enhanced Dev Tools Toggle */}
-      <div className="hidden md:block">
-        <DevToolsToggle
-          showDevTools={showDevTools}
-          onToggle={() => setShowDevTools(!showDevTools)}
-        />
-      </div>
-
-      {/* Dev Tools Sidebar with enhanced styling */}
-      <DevToolsSidebar
-        agentStrategy={agentStrategy}
-        agentRationale={agentRationale}
-        agentNextSteps={agentNextSteps}
-        messageCount={currentContext.messages.length}
-        messages={currentContext.messages}
-        initialForm={currentSessionInitialForm}
-        isOpen={showDevTools}
-        onClose={() => setShowDevTools(false)}
-      />
 
       {/* Subtle background pattern overlay */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none">

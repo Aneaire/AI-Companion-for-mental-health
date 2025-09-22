@@ -15,6 +15,8 @@ import threadsRoute from "./routes/threads";
 import user from "./routes/user";
 import adminRoute from "./routes/admin";
 import testRoute from "./routes/test";
+import personaTemplatesRoute from "./routes/persona-templates";
+import personaLibraryRoute from "./routes/persona-library";
 
 const app = new Hono();
 
@@ -48,6 +50,8 @@ const routes = app
   .route("/api/impersonate-observer", impersonateObserver) // New impersonate observer
   .route("/api/quality", quality)
   .route("/api/impostor", impostorRoute)
+  .route("/api/persona-templates", personaTemplatesRoute)
+  .route("/api/persona-library", personaLibraryRoute)
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
   .route("/api/test", testRoute);

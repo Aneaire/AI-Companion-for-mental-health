@@ -29,3 +29,18 @@ export function useImpostorProfile(userId: number | null) {
   });
 }
 
+export function usePersona(personaId: number | null) {
+  return useQuery({
+    queryKey: ["persona", personaId],
+    queryFn: async () => {
+      if (!personaId) return null;
+      const response = await fetch(`/api/persona-library/${personaId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch persona");
+      }
+      return response.json();
+    },
+    enabled: !!personaId,
+  });
+}
+

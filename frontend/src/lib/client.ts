@@ -443,6 +443,184 @@ export const generateFormApi = {
   },
 };
 
+// Persona Templates API
+export const personaTemplatesApi = {
+  async list(options: {
+    category?: string;
+    isPublic?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {}) {
+    const query = new URLSearchParams();
+    if (options.category) query.set('category', options.category);
+    if (options.isPublic !== undefined) query.set('isPublic', options.isPublic.toString());
+    if (options.limit) query.set('limit', options.limit.toString());
+    if (options.offset) query.set('offset', options.offset.toString());
+
+    const res = await apiFetch(`persona-templates?${query}`);
+    if (!res.ok) throw new Error("Failed to fetch persona templates");
+    return res.json();
+  },
+
+  async get(id: number) {
+    const res = await apiFetch(`persona-templates/${id}`);
+    if (!res.ok) throw new Error("Failed to fetch persona template");
+    return res.json();
+  },
+
+  async create(template: {
+    name: string;
+    category: string;
+    description?: string;
+    basePersonality?: Record<string, any>;
+    baseBackground?: string;
+    baseAgeRange?: string;
+    baseProblemTypes?: string[];
+    isPublic?: boolean;
+  }) {
+    const res = await apiFetch('persona-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(template),
+    });
+    if (!res.ok) throw new Error("Failed to create persona template");
+    return res.json();
+  },
+
+  async update(id: number, updates: Partial<typeof template>) {
+    const res = await apiFetch(`persona-templates/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error("Failed to update persona template");
+    return res.json();
+  },
+
+  async delete(id: number) {
+    const res = await apiFetch(`persona-templates/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error("Failed to delete persona template");
+    return res.json();
+  },
+
+  async incrementUsage(id: number) {
+    const res = await apiFetch(`persona-templates/${id}/use`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error("Failed to increment template usage");
+    return res.json();
+  },
+
+  async getCategories() {
+    const res = await apiFetch('persona-templates/categories/list');
+    if (!res.ok) throw new Error("Failed to fetch template categories");
+    return res.json();
+  },
+};
+
+// Persona Library API
+export const personaLibraryApi = {
+  async list(options: {
+    category?: string;
+    complexityLevel?: string;
+    isPublic?: boolean;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  } = {}) {
+    const query = new URLSearchParams();
+    if (options.category) query.set('category', options.category);
+    if (options.complexityLevel) query.set('complexityLevel', options.complexityLevel);
+    if (options.isPublic !== undefined) query.set('isPublic', options.isPublic.toString());
+    if (options.search) query.set('search', options.search);
+    if (options.limit) query.set('limit', options.limit.toString());
+    if (options.offset) query.set('offset', options.offset.toString());
+
+    const res = await apiFetch(`persona-library?${query}`);
+    if (!res.ok) throw new Error("Failed to fetch persona library");
+    return res.json();
+  },
+
+  async get(id: number) {
+    const res = await apiFetch(`persona-library/${id}`);
+    if (!res.ok) throw new Error("Failed to fetch persona details");
+    return res.json();
+  },
+
+  async createFromTemplate(data: {
+    templateId: number;
+    customizations?: Record<string, any>;
+    name?: string;
+  }) {
+    const res = await apiFetch('persona-library/from-template', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to create persona from template");
+    return res.json();
+  },
+
+  async update(id: number, updates: Record<string, any>) {
+    const res = await apiFetch(`persona-library/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error("Failed to update persona");
+    return res.json();
+  },
+
+  async delete(id: number) {
+    const res = await apiFetch(`persona-library/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error("Failed to delete persona");
+    return res.json();
+  },
+
+  async share(data: { personaId: number; isPublic: boolean }) {
+    const res = await apiFetch('persona-library/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to share persona");
+    return res.json();
+  },
+
+  async import(data: { sourcePersonaId: number; name?: string }) {
+    const res = await apiFetch('persona-library/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to import persona");
+    return res.json();
+  },
+
+  async browsePublic(options: {
+    category?: string;
+    complexityLevel?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  } = {}) {
+    const query = new URLSearchParams();
+    if (options.category) query.set('category', options.category);
+    if (options.complexityLevel) query.set('complexityLevel', options.complexityLevel);
+    if (options.search) query.set('search', options.search);
+    if (options.limit) query.set('limit', options.limit.toString());
+    if (options.offset) query.set('offset', options.offset.toString());
+
+    const res = await apiFetch(`persona-library/public/browse?${query}`);
+    if (!res.ok) throw new Error("Failed to browse public personas");
+    return res.json();
+  },
+};
+
 
 
 

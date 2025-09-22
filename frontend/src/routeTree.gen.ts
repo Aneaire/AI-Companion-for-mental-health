@@ -13,6 +13,7 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as QualityAnalysisImport } from './routes/quality-analysis'
 import { Route as PodcastImport } from './routes/podcast'
+import { Route as PersonaLibraryImport } from './routes/persona-library'
 import { Route as ImpersonateImport } from './routes/impersonate'
 import { Route as IndexImport } from './routes/index'
 import { Route as AdminIndexImport } from './routes/admin.index'
@@ -28,6 +29,12 @@ const QualityAnalysisRoute = QualityAnalysisImport.update({
 const PodcastRoute = PodcastImport.update({
   id: '/podcast',
   path: '/podcast',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PersonaLibraryRoute = PersonaLibraryImport.update({
+  id: '/persona-library',
+  path: '/persona-library',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -67,6 +74,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImpersonateImport
       parentRoute: typeof rootRoute
     }
+    '/persona-library': {
+      id: '/persona-library'
+      path: '/persona-library'
+      fullPath: '/persona-library'
+      preLoaderRoute: typeof PersonaLibraryImport
+      parentRoute: typeof rootRoute
+    }
     '/podcast': {
       id: '/podcast'
       path: '/podcast'
@@ -96,6 +110,7 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
+  '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin': typeof AdminIndexRoute
@@ -104,6 +119,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
+  '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin': typeof AdminIndexRoute
@@ -113,6 +129,7 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/impersonate': typeof ImpersonateRoute
+  '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/': typeof AdminIndexRoute
@@ -120,13 +137,26 @@ export interface FileRoutesById {
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/impersonate' | '/podcast' | '/quality-analysis' | '/admin'
+  fullPaths:
+    | '/'
+    | '/impersonate'
+    | '/persona-library'
+    | '/podcast'
+    | '/quality-analysis'
+    | '/admin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/impersonate' | '/podcast' | '/quality-analysis' | '/admin'
+  to:
+    | '/'
+    | '/impersonate'
+    | '/persona-library'
+    | '/podcast'
+    | '/quality-analysis'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/impersonate'
+    | '/persona-library'
     | '/podcast'
     | '/quality-analysis'
     | '/admin/'
@@ -136,6 +166,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ImpersonateRoute: typeof ImpersonateRoute
+  PersonaLibraryRoute: typeof PersonaLibraryRoute
   PodcastRoute: typeof PodcastRoute
   QualityAnalysisRoute: typeof QualityAnalysisRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -144,6 +175,7 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ImpersonateRoute: ImpersonateRoute,
+  PersonaLibraryRoute: PersonaLibraryRoute,
   PodcastRoute: PodcastRoute,
   QualityAnalysisRoute: QualityAnalysisRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -161,6 +193,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/impersonate",
+        "/persona-library",
         "/podcast",
         "/quality-analysis",
         "/admin/"
@@ -171,6 +204,9 @@ export const routeTree = rootRoute
     },
     "/impersonate": {
       "filePath": "impersonate.tsx"
+    },
+    "/persona-library": {
+      "filePath": "persona-library.tsx"
     },
     "/podcast": {
       "filePath": "podcast.tsx"
@@ -184,4 +220,3 @@ export const routeTree = rootRoute
   }
 }
 ROUTE_MANIFEST_END */
-
