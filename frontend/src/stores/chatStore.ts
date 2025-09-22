@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export interface ConversationPreferences {
-  briefAndConcise: boolean;
+  briefAndConcise: number; // 0-100 slider value
   empatheticAndSupportive: boolean;
   solutionFocused: boolean;
   casualAndFriendly: boolean;
@@ -77,7 +77,7 @@ export const useChatStore = create<ChatState>()(
       contexts: new Map(),
       loadingState: "idle",
       conversationPreferences: {
-        briefAndConcise: false,
+        briefAndConcise: 50, // Default to middle value
         empatheticAndSupportive: false,
         solutionFocused: false,
         casualAndFriendly: false,
@@ -259,7 +259,7 @@ export const useChatStore = create<ChatState>()(
           ...currentState,
           impersonateMaxExchanges: persistedState.impersonateMaxExchanges ?? 10,
           conversationPreferences: persistedState.conversationPreferences ?? {
-            briefAndConcise: false,
+            briefAndConcise: 50,
             empatheticAndSupportive: false,
             solutionFocused: false,
             casualAndFriendly: false,

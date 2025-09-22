@@ -62,7 +62,7 @@ export const impostorRoute = new Hono()
       userProfile: profileSchema,
       conversationPreferences: z
         .object({
-          briefAndConcise: z.boolean().optional(),
+          briefAndConcise: z.number().min(0).max(100).optional(),
           empatheticAndSupportive: z.boolean().optional(),
           solutionFocused: z.boolean().optional(),
           casualAndFriendly: z.boolean().optional(),
@@ -104,8 +104,8 @@ ${
     ) {
       const prefs = conversationPreferences;
       let prefsText = "\n**User Conversation Preferences:**\n";
-      if (prefs.briefAndConcise)
-        prefsText += "- Keep responses brief and concise.\n";
+      if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
+        prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
       if (prefs.empatheticAndSupportive)
         prefsText += "- Be empathetic and emotionally supportive.\n";
       if (prefs.solutionFocused)

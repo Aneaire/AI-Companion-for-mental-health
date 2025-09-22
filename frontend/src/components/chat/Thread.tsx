@@ -754,8 +754,17 @@ export function Thread({
           // Pass conversation preferences
           ...(() => {
             const instructions: string[] = [];
-            if (conversationPreferences.briefAndConcise) {
-              instructions.push("Keep responses brief and concise");
+            if (conversationPreferences.briefAndConcise && conversationPreferences.briefAndConcise > 0) {
+              const level = conversationPreferences.briefAndConcise;
+              if (level <= 25) {
+                instructions.push("Keep responses somewhat concise");
+              } else if (level <= 50) {
+                instructions.push("Keep responses moderately concise");
+              } else if (level <= 75) {
+                instructions.push("Keep responses quite concise");
+              } else {
+                instructions.push("Keep responses very brief and concise");
+              }
             }
             if (conversationPreferences.empatheticAndSupportive) {
               instructions.push("Be empathetic and emotionally supportive");

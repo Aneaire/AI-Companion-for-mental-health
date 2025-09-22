@@ -98,17 +98,17 @@ export const chatRequestSchema = z.object({
   observerRationale: z.string().optional(), // Added for observer rationale
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
   sentiment: z.string().optional(), // Added for sentiment analysis
-  sender: z.string().optional(), // Added for sender
-  threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
-  conversationPreferences: z
-    .object({
-      briefAndConcise: z.boolean().optional(),
-      empatheticAndSupportive: z.boolean().optional(),
-      solutionFocused: z.boolean().optional(),
-      casualAndFriendly: z.boolean().optional(),
-      professionalAndFormal: z.boolean().optional(),
-    })
-    .optional(),
+   sender: z.string().optional(), // Added for sender
+   threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
+   conversationPreferences: z
+     .object({
+       briefAndConcise: z.number().min(0).max(100).optional(),
+       empatheticAndSupportive: z.boolean().optional(),
+       solutionFocused: z.boolean().optional(),
+       casualAndFriendly: z.boolean().optional(),
+       professionalAndFormal: z.boolean().optional(),
+     })
+     .optional(),
 });
 
 // Schema for impersonate chat (thread-based)
@@ -144,17 +144,17 @@ export const impersonateChatRequestSchema = z.object({
   nextSteps: z.array(z.string()).optional(), // Added for next steps from the agent
   observerRationale: z.string().optional(), // Added for observer rationale
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
-  sentiment: z.string().optional(), // Added for sentiment analysis
-  sender: z.string().optional(), // Added for sender
-  conversationPreferences: z
-    .object({
-      briefAndConcise: z.boolean().optional(),
-      empatheticAndSupportive: z.boolean().optional(),
-      solutionFocused: z.boolean().optional(),
-      casualAndFriendly: z.boolean().optional(),
-      professionalAndFormal: z.boolean().optional(),
-    })
-    .optional(),
+   sentiment: z.string().optional(), // Added for sentiment analysis
+   sender: z.string().optional(), // Added for sender
+   conversationPreferences: z
+     .object({
+       briefAndConcise: z.number().min(0).max(100).optional(),
+       empatheticAndSupportive: z.boolean().optional(),
+       solutionFocused: z.boolean().optional(),
+       casualAndFriendly: z.boolean().optional(),
+       professionalAndFormal: z.boolean().optional(),
+     })
+     .optional(),
 });
 
 const chat = new Hono()
@@ -470,8 +470,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
     ) {
       const prefs = conversationPreferences;
       let prefsText = "\n**User Conversation Preferences:**\n";
-      if (prefs.briefAndConcise)
-        prefsText += "- Keep responses brief and concise.\n";
+      if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
+        prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
       if (prefs.empatheticAndSupportive)
         prefsText += "- Be empathetic and emotionally supportive.\n";
       if (prefs.solutionFocused)
@@ -757,8 +757,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       ) {
         const prefs = conversationPreferences;
         let prefsText = "\n**User Conversation Preferences:**\n";
-        if (prefs.briefAndConcise)
-          prefsText += "- Keep responses brief and concise.\n";
+        if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
+          prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
         if (prefs.empatheticAndSupportive)
           prefsText += "- Be empathetic and emotionally supportive.\n";
         if (prefs.solutionFocused)

@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import type { ConversationPreferences } from "@/stores/chatStore";
 import { Settings } from "lucide-react";
 import { useState } from "react";
@@ -36,6 +37,11 @@ export function ConversationPreferencesDialog({
     setLocalPreferences(newPreferences);
   };
 
+  const handleSliderChange = (value: number[]) => {
+    const newPreferences = { ...localPreferences, briefAndConcise: value[0] };
+    setLocalPreferences(newPreferences);
+  };
+
   const handleSave = () => {
     onPreferencesChange(localPreferences);
     onClose();
@@ -47,12 +53,6 @@ export function ConversationPreferencesDialog({
   };
 
   const preferenceOptions = [
-    {
-      key: "briefAndConcise" as const,
-      label: "Brief & Concise",
-      description: "Keep responses short and to the point",
-      icon: "⚡",
-    },
     {
       key: "empatheticAndSupportive" as const,
       label: "Empathetic & Supportive",
@@ -96,6 +96,42 @@ export function ConversationPreferencesDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-6">
+          {/* Brief & Concise Slider */}
+          <div className="group">
+            <div className="flex items-start space-x-4 p-4 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition-all duration-200 border border-gray-100/50">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm text-sm">
+                ⚡
+              </div>
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium leading-none group-hover:text-blue-600 transition-colors">
+                    Brief & Concise
+                  </Label>
+                  <span className="text-xs text-gray-500 font-mono">
+                    {localPreferences.briefAndConcise}%
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Adjust how brief and concise responses should be
+                </p>
+                <div className="px-2">
+                  <Slider
+                    value={[localPreferences.briefAndConcise]}
+                    onValueChange={handleSliderChange}
+                    min={0}
+                    max={100}
+                    step={10}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>Detailed</span>
+                    <span>Concise</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {preferenceOptions.map((option) => (
             <div key={option.key} className="group">
               <div className="flex items-start space-x-4 p-4 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition-all duration-200 border border-gray-100/50">

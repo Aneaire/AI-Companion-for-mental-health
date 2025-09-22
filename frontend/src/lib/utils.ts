@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 // Shared thread utilities
 
 export interface ConversationPreferences {
-  briefAndConcise?: boolean;
+  briefAndConcise?: number;
   empatheticAndSupportive?: boolean;
   solutionFocused?: boolean;
   casualAndFriendly?: boolean;
@@ -24,8 +24,17 @@ export function getPreferencesInstruction(
 ): string {
   const instructions: string[] = [];
 
-  if (preferences.briefAndConcise) {
-    instructions.push("Keep responses brief and concise");
+  if (preferences.briefAndConcise && preferences.briefAndConcise > 0) {
+    const level = preferences.briefAndConcise;
+    if (level <= 25) {
+      instructions.push("Keep responses somewhat concise");
+    } else if (level <= 50) {
+      instructions.push("Keep responses moderately concise");
+    } else if (level <= 75) {
+      instructions.push("Keep responses quite concise");
+    } else {
+      instructions.push("Keep responses very brief and concise");
+    }
   }
   if (preferences.empatheticAndSupportive) {
     instructions.push("Be empathetic and emotionally supportive");

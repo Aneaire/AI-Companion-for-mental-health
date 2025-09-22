@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ConversationPreferences } from "@/stores/chatStore";
@@ -103,19 +104,28 @@ export function ThreadSettingsDialog({
             <div>
               <h3 className="text-lg font-semibold mb-4">Conversation Preferences</h3>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
                     <Label className="text-base">Brief and Concise</Label>
-                    <p className="text-sm text-gray-600">
-                      Keep responses short and to the point
-                    </p>
+                    <span className="text-sm text-gray-500 font-mono">
+                      {preferences.briefAndConcise}%
+                    </span>
                   </div>
-                  <Switch
-                    checked={preferences.briefAndConcise}
-                    onCheckedChange={(checked) =>
-                      updatePreference("briefAndConcise", checked)
-                    }
+                  <p className="text-sm text-gray-600">
+                    Adjust how brief and concise responses should be
+                  </p>
+                  <Slider
+                    value={[preferences.briefAndConcise]}
+                    onValueChange={(value) => updatePreference("briefAndConcise", value[0])}
+                    min={0}
+                    max={100}
+                    step={10}
+                    className="w-full"
                   />
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Detailed</span>
+                    <span>Concise</span>
+                  </div>
                 </div>
 
                 <Separator />
