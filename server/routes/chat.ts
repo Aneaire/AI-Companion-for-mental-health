@@ -480,6 +480,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         prefsText += "- Use a casual and friendly tone.\n";
       if (prefs.professionalAndFormal)
         prefsText += "- Maintain a professional and formal approach.\n";
+
+      // Add TTS instructions if enabled
+      if (prefs.mainEnableTTS) {
+        prefsText += "\n**ElevenLabs v3 Audio Tags for Emotional Expression:**\nWhen appropriate, incorporate these audio tags to enhance emotional delivery:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc. Use tags sparingly and naturally to convey authentic emotional expression.\n\nExample: \"In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
+      }
+
       systemInstructionText += prefsText;
     }
 
@@ -508,7 +514,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
     }
 
-    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
+    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.mainEnableTTS ? '- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.\n' : '- Keep responses brief and to the point (2-4 sentences maximum).\n'}- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
 
     // Mark session as having crisis detected if needed
     if (sentiment === "urgent" || sentiment === "crisis_risk") {

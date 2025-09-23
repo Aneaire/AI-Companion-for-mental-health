@@ -143,6 +143,11 @@ export const mainObserverRequestSchema = z.object({
     })
     .optional(),
   followupForm: z.record(z.any()).optional(), // Add follow-up form data
+  conversationPreferences: z
+    .object({
+      mainEnableTTS: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const mainObserverResponseSchema = z.object({
@@ -162,12 +167,12 @@ const mainObserver = new Hono().post(
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
-    const { messages, initialForm, followupForm } = parsed.data;
+    const { messages, initialForm, followupForm, conversationPreferences } = parsed.data;
 
     try {
       // Use Gemini for sentiment and strategy analysis
       const { sentiment, strategy, rationale, next_steps } =
-        await analyzeWithMainGemini(messages, initialForm, followupForm);
+        await analyzeWithMainGemini(messages, initialForm, followupForm, conversationPreferences);
 
       // Log the observer call
       await logMainObserverCall(
@@ -206,7 +211,10 @@ async function analyzeWithMainGemini(
     supportType?: string[];
     additionalContext?: string;
   },
-  followupForm?: Record<string, any>
+  followupForm?: Record<string, any>,
+  conversationPreferences?: {
+    mainEnableTTS?: boolean;
+  }
 ): Promise<{
   sentiment: "positive" | "negative" | "neutral" | "urgent" | "confused" | "crisis_risk";
   strategy: string;
@@ -281,6 +289,8 @@ Analyze the user's current emotional state and provide strategic guidance for th
 - **IMPORTANT:** When providing crisis intervention guidance, instruct the AI therapist to mention the "Crisis Support" button only once per conversation, and only when appropriate for the user's current state
 
 **CRITICAL:** If you detect ANY signs of suicidal thoughts, self-harm, harm to others, or severe crisis, set sentiment to "crisis_risk" immediately.
+
+${conversationPreferences?.mainEnableTTS ? `**AUDIO ENHANCEMENT FOR THERAPEUTIC EXPRESSION:**\nSince text-to-speech is enabled, consider how the AI therapist's response should be enhanced with emotional audio tags for better therapeutic delivery. When suggesting strategies, include specific guidance about which ElevenLabs v3 audio tags would be most appropriate for conveying empathy, concern, or therapeutic warmth. For example:\n- Use [GENTLY], [WARM], [COMPASSIONATE] for supportive responses\n- Use [CONCERNED], [SERIOUS] for addressing difficult topics\n- Use [ENCOURAGING], [HOPEFUL] for positive reinforcement\n- Use [CALM], [REASSURING] for crisis situations\n- Consider pacing tags like [PAUSES] for thoughtful reflection\n\nInclude specific audio tag recommendations in your strategy and rationale to help the AI therapist deliver more emotionally resonant responses.` : ''}
 
 Respond in this exact JSON format:
 {

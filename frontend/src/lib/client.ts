@@ -153,16 +153,21 @@ export const mainObserverApi = {
     messages,
     initialForm,
     followupForm,
+    conversationPreferences,
   }: {
     messages: { text: string; sender: "user" | "ai" }[];
     initialForm?: import("./client").FormData;
     followupForm?: Record<string, any>;
+    conversationPreferences?: {
+      mainEnableTTS?: boolean;
+    };
   }) {
     const res = await client.api["main-observer"].$post({
-      json: { 
-        messages, 
+      json: {
+        messages,
         ...(initialForm ? { initialForm } : {}),
-        ...(followupForm ? { followupForm } : {})
+        ...(followupForm ? { followupForm } : {}),
+        ...(conversationPreferences ? { conversationPreferences } : {})
       },
     });
     if (!res.ok) throw new Error("Failed to get main observer suggestion");

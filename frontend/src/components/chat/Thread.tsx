@@ -674,6 +674,9 @@ export function Thread({
         messages: messagesForObserver,
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
         ...(followupFormData ? { followupForm: followupFormData } : {}),
+        conversationPreferences: {
+          mainEnableTTS: conversationPreferences.mainEnableTTS,
+        },
       });
       observerStrategy = observerRes.strategy || "";
       observerRationale = observerRes.rationale || "";
