@@ -410,28 +410,7 @@ export function ThreadSettingsDialog({
                   />
                 </div>
 
-                <Separator />
 
-                <div className="space-y-3">
-                  <Label className="text-base">TTS Model</Label>
-                  <p className="text-sm text-gray-600">
-                    Choose the ElevenLabs TTS model
-                  </p>
-                  <Select
-                    value={preferences.ttsModel || "eleven_monolingual_v1"}
-                    onValueChange={(value) => updateVoicePreference("ttsModel", value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="eleven_monolingual_v1">Eleven Monolingual v1</SelectItem>
-                      <SelectItem value="eleven_multilingual_v1">Eleven Multilingual v1</SelectItem>
-                      <SelectItem value="eleven_multilingual_v2">Eleven Multilingual v2</SelectItem>
-                      <SelectItem value="eleven_turbo_v2">Eleven Turbo v2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             </div>
           </TabsContent>
