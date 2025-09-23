@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Message } from "@/types/chat";
+import type { ConversationPreferences } from "@/stores/chatStore";
 import { Bot, Loader2 } from "lucide-react";
 import type { JSX } from "react";
 import MessageInput from "./MessageInput";
@@ -16,6 +17,8 @@ interface ChatInterfaceProps {
   onStopImpersonation?: () => void;
   isImpersonating?: boolean;
   onRetryMessage?: (message: Message) => void;
+  voiceId?: string;
+  preferences?: ConversationPreferences;
 }
 
 export function ChatInterface({
@@ -28,6 +31,8 @@ export function ChatInterface({
   onStopImpersonation,
   isImpersonating = false,
   onRetryMessage,
+  voiceId,
+  preferences,
 }: ChatInterfaceProps): JSX.Element {
   const getLoadingBadge = () => {
     if (loadingState === "idle") return null;
@@ -86,10 +91,12 @@ export function ChatInterface({
               </p>
             </div>
           ) : (
-            <MessageList 
-              messages={messages} 
-              isLoading={loadingState} 
+            <MessageList
+              messages={messages}
+              isLoading={loadingState}
               onRetryMessage={onRetryMessage}
+              voiceId={voiceId}
+              preferences={preferences}
             />
           )}
         </div>

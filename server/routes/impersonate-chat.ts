@@ -907,11 +907,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 "impostor",
               ] as const;
               type SenderType = (typeof allowedSenders)[number];
-              let aiSender: SenderType = "ai";
-              await db.insert(messages).values({
-                threadId: threadId, // Use threadId for impersonate threads
-                threadType: "impersonate",
-                sender: aiSender,
+               let aiSender: SenderType = (sender as SenderType) || "ai";
+               await db.insert(messages).values({
+                 threadId: threadId, // Use threadId for impersonate threads
+                 threadType: "impersonate",
+                 sender: aiSender,
                 text: aiResponseText,
                 timestamp: new Date(),
               });

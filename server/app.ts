@@ -17,6 +17,7 @@ import adminRoute from "./routes/admin";
 import testRoute from "./routes/test";
 import personaTemplatesRoute from "./routes/persona-templates";
 import personaLibraryRoute from "./routes/persona-library";
+import audioRoute from "./routes/audio";
 
 const app = new Hono();
 
@@ -54,7 +55,8 @@ const routes = app
   .route("/api/persona-library", personaLibraryRoute)
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
-  .route("/api/test", testRoute);
+  .route("/api/test", testRoute)
+  .route("/api/audio", audioRoute);
 
 // Serve static files from frontend build
 app.use('/*', serveStatic({ 

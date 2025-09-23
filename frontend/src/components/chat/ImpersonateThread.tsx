@@ -420,12 +420,12 @@ export function ImpersonateThread({
             timestamp: msg.timestamp.getTime(),
             ...(msg.contextId ? { contextId: msg.contextId } : {}),
           }));
-          const therapistResponse = await impersonateChatApi.sendMessage({
-            message: lastMessage,
-            threadId: selectedThreadId!,
-            userId: String(userProfile.id),
-            sender: "impostor",
-            signal: abortController.signal,
+           const therapistResponse = await impersonateChatApi.sendMessage({
+             message: lastMessage,
+             threadId: selectedThreadId!,
+             userId: String(userProfile.id),
+             sender: "therapist",
+             signal: abortController.signal,
             context: contextData,
             ...(observerStrategy
               ? { systemInstruction: observerStrategy }
@@ -486,16 +486,16 @@ export function ImpersonateThread({
            });
           const reader = impostorResponse.body?.getReader();
           let impostorFullResponse = "";
-          if (reader) {
-            const tempUserMessage = {
-              sender: "user" as const,
-              text: "",
-              timestamp: new Date(),
-              tempId: Date.now(),
-              contextId: "impersonate" as const,
-            };
-            if (!isImpersonatingRef.current) return;
-            addMessage(tempUserMessage);
+           if (reader) {
+             const tempImpostorMessage = {
+               sender: "impostor" as const,
+               text: "",
+               timestamp: new Date(),
+               tempId: Date.now(),
+               contextId: "impersonate" as const,
+             };
+             if (!isImpersonatingRef.current) return;
+             addMessage(tempImpostorMessage);
             impostorFullResponse = await processStreamingResponse(
               reader,
               updateLastMessage
@@ -503,13 +503,13 @@ export function ImpersonateThread({
           }
            // Save the impostor response
            if (impostorFullResponse.trim()) {
-             try {
-               await impostorApi.postMessage({
-                 sessionId: selectedThreadId!,
-                 threadType: "impersonate",
-                 sender: "user", // Impostor responses are from the "user" (patient) perspective
-                 text: impostorFullResponse.trim(),
-               });
+              try {
+                await impostorApi.postMessage({
+                  sessionId: selectedThreadId!,
+                  threadType: "impersonate",
+                  sender: "impostor", // Impostor responses are from the patient perspective
+                  text: impostorFullResponse.trim(),
+                });
              } catch (error) {
                console.error("Error saving impostor message:", error);
              }
@@ -609,6 +609,8 @@ export function ImpersonateThread({
               onStartImpersonation={handleStartImpersonation}
               onStopImpersonation={handleStopImpersonation}
               isImpersonating={isImpersonating}
+              voiceId={preferences?.therapistVoiceId}
+              preferences={preferences}
             />
           </div>
         </Suspense>

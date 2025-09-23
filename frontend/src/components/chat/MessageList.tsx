@@ -2,31 +2,39 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Message } from "@/types/chat";
-import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User } from "lucide-react";
+import type { ConversationPreferences } from "@/stores/chatStore";
+import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User, Play, Pause, Volume2 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { MessageFormattingUtils } from "@/lib/messageFormatter";
+import textToSpeech from "@/services/elevenlabs/textToSpeech";
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean | "idle" | "observer" | "generating" | "streaming";
   onRetryMessage?: (message: Message) => void;
+  voiceId?: string;
+  preferences?: ConversationPreferences;
 }
 
 // Message formatting is now handled by MessageFormatter class
 // Keeping this for backward compatibility during transition
 
 // Memoized Message Component for better performance
-const MessageBubble = memo(({ 
-  message, 
-  isUser, 
-  isConsecutive, 
-  onRetry 
+const MessageBubble = memo(({
+  message,
+  isUser,
+  isConsecutive,
+  onRetry,
+  voiceId,
+  preferences
 }: {
   message: Message;
   isUser: boolean;
   isConsecutive: boolean;
   onRetry?: (message: Message) => void;
+  voiceId?: string;
+  preferences?: ConversationPreferences;
 }) => {
   const formatTime = (timestamp?: Date) => {
     if (!timestamp) return "";
@@ -38,11 +46,72 @@ const MessageBubble = memo(({
 
   const user = { imageUrl: "", fullName: "User" };
 
+  // For play buttons: show for all AI-generated messages (therapist, impostor, ai)
+  const shouldShowPlayButton = message.sender !== "user";
+
+  // Audio playback state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const handleRetry = useCallback(() => {
     if (onRetry && message.status === "failed") {
       onRetry(message);
     }
   }, [onRetry, message]);
+
+  const handlePlayAudio = useCallback(async () => {
+    if (!message.text || message.text.trim() === "") return;
+
+    try {
+      setIsPlaying(true);
+
+      // Determine the correct voiceId based on message sender
+      let audioVoiceId = voiceId;
+      if (preferences) {
+        if (message.sender === "therapist") {
+          audioVoiceId = preferences.therapistVoiceId;
+        } else if (message.sender === "impostor") {
+          audioVoiceId = preferences.impostorVoiceId;
+        }
+      }
+
+      // Get audio URL (will use cache if available)
+      const url = await textToSpeech(message.text, audioVoiceId, false);
+      setAudioUrl(url);
+
+      // Create and play audio
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        setAudioUrl(null);
+      };
+
+      audio.onerror = () => {
+        setIsPlaying(false);
+        setAudioUrl(null);
+        console.error("Audio playback failed");
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error("Failed to play audio:", error);
+      setIsPlaying(false);
+      setAudioUrl(null);
+    }
+  }, [message.text, voiceId]);
+
+  const handleStopAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setIsPlaying(false);
+    setAudioUrl(null);
+  }, []);
 
   const getStatusIndicator = () => {
     if (!message.status || message.status === "sent") return null;
@@ -118,6 +187,43 @@ const MessageBubble = memo(({
           role="article"
           aria-label={isUser ? "User message" : "AI message"}
         >
+          {/* Audio play button */}
+           {shouldShowPlayButton && message.text && message.text.trim() && (
+            <div className="flex items-center justify-between mb-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                 className={`h-6 px-2 text-xs ${
+                   isUser
+                     ? "text-blue-200 hover:text-blue-100 hover:bg-white/10"
+                     : "text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+                 }`}
+                onClick={isPlaying ? handleStopAudio : handlePlayAudio}
+                disabled={!message.text || message.text.trim() === ""}
+              >
+                {isPlaying ? (
+                  <>
+                    <Pause size={12} className="mr-1" />
+                    Stop
+                  </>
+                ) : (
+                  <>
+                    <Play size={12} className="mr-1" />
+                    Play
+                  </>
+                )}
+              </Button>
+              {isPlaying && (
+                <div className="flex items-center gap-1">
+                   <Volume2 size={10} className={isUser ? "text-blue-200" : "text-gray-500"} />
+                  <div className="w-8 h-1 bg-current opacity-30 rounded">
+                    <div className="w-full h-full bg-current animate-pulse rounded"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div
             className={`prose prose-xs sm:prose-sm max-w-none ${
               isUser ? "prose-invert" : ""
@@ -134,13 +240,13 @@ const MessageBubble = memo(({
               <ReactMarkdown
                 components={{
                   a: ({ href, children }) => (
-                    <a
-                      href={href}
-                      className={`${
-                        isUser
-                          ? "text-blue-200 hover:text-blue-100"
-                          : "text-blue-600 hover:text-blue-700"
-                      } underline transition-colors`}
+                     <a
+                       href={href}
+                       className={`${
+                         isUser
+                           ? "text-blue-200 hover:text-blue-100"
+                           : "text-blue-600 hover:text-blue-700"
+                       } underline transition-colors`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -148,23 +254,23 @@ const MessageBubble = memo(({
                     </a>
                   ),
                   code: ({ children, className }) => (
-                    <code
-                      className={`${
-                        isUser
-                          ? "bg-white/20 text-blue-100"
-                          : "bg-gray-100 text-gray-800"
-                      } px-1 py-0.5 sm:px-1.5 sm:py-0.5 rounded text-xs sm:text-sm font-mono`}
+                     <code
+                       className={`${
+                         isUser
+                           ? "bg-white/20 text-blue-100"
+                           : "bg-gray-100 text-gray-800"
+                       } px-1 py-0.5 sm:px-1.5 sm:py-0.5 rounded text-xs sm:text-sm font-mono`}
                     >
                       {children}
                     </code>
                   ),
                   pre: ({ children }) => (
-                    <pre
-                      className={`${
-                        isUser
-                          ? "bg-white/20 border-white/30"
-                          : "bg-gray-100 border-gray-200"
-                      } border rounded-lg p-2 sm:p-3 overflow-x-auto text-xs sm:text-sm`}
+                     <pre
+                       className={`${
+                         isUser
+                           ? "bg-white/20 border-white/30"
+                           : "bg-gray-100 border-gray-200"
+                       } border rounded-lg p-2 sm:p-3 overflow-x-auto text-xs sm:text-sm`}
                     >
                       {children}
                     </pre>
@@ -177,11 +283,11 @@ const MessageBubble = memo(({
                   ),
                   li: ({ children }) => (
                     <li className="flex items-start gap-2 my-1">
-                      <span 
-                        className={`inline-block w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${
-                          isUser ? 'bg-blue-200' : 'bg-blue-500'
-                        }`}
-                      />
+                       <span
+                         className={`inline-block w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${
+                           isUser ? 'bg-blue-200' : 'bg-blue-500'
+                         }`}
+                       />
                       <span className="flex-1">{children}</span>
                     </li>
                   ),
@@ -227,10 +333,12 @@ const MessageBubble = memo(({
 
 MessageBubble.displayName = "MessageBubble";
 
-export const MessageList = memo(function MessageList({ 
-  messages, 
-  isLoading, 
-  onRetryMessage 
+export const MessageList = memo(function MessageList({
+  messages,
+  isLoading,
+  onRetryMessage,
+  voiceId,
+  preferences
 }: MessageListProps) {
   const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -419,7 +527,10 @@ export const MessageList = memo(function MessageList({
             );
           }
 
-          const isUser = message.sender === "user";
+          // For positioning: user and impostor messages appear on the right
+  const isUser = message.sender === "user" || message.sender === "impostor";
+  // For play buttons: show for all AI-generated messages (therapist, impostor, ai)
+  const shouldShowPlayButton = message.sender !== "user";
           const isConsecutive =
             index > 0 &&
             stabilizedMessages[index - 1]?.sender === message.sender;
@@ -431,6 +542,8 @@ export const MessageList = memo(function MessageList({
               isUser={isUser}
               isConsecutive={isConsecutive}
               onRetry={onRetryMessage}
+              voiceId={voiceId}
+              preferences={preferences}
             />
           );
         })
