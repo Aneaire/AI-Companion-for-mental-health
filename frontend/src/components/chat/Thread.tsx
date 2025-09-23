@@ -922,16 +922,17 @@ export function Thread({
       {/* Enhanced Header with subtle shadow */}
       <div className="hidden md:block relative z-10">
         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">
-          <ChatHeader
-            preferences={conversationPreferences}
-            onPreferencesChange={setConversationPreferences}
-            selectedThreadId={selectedThreadId}
-            selectedSessionId={selectedSessionId}
-            threadTitle={threadTitle}
-            onDeleteThread={handleDeleteThread}
-            onArchiveThread={handleArchiveThread}
-          />
-        </div>
+           <ChatHeader
+             preferences={conversationPreferences}
+             onPreferencesChange={setConversationPreferences}
+             selectedThreadId={selectedThreadId}
+             selectedSessionId={selectedSessionId}
+             threadTitle={threadTitle}
+             onDeleteThread={handleDeleteThread}
+             onArchiveThread={handleArchiveThread}
+             context="main"
+            />
+         </div>
       </div>
 
       {/* Visual indicator for form answers being used */}
@@ -974,13 +975,14 @@ export function Thread({
                 }}
               />
             ) : (
-              <ChatInterface
-                messages={currentContext.messages}
-                onSendMessage={onSendMessage || handleSendMessage}
-                loadingState={loadingState}
-                inputVisible={selectedSessionStatus !== "finished"}
-                isImpersonateMode={false}
-              />
+               <ChatInterface
+                 messages={currentContext.messages}
+                 onSendMessage={onSendMessage || handleSendMessage}
+                 loadingState={loadingState}
+                 inputVisible={selectedSessionStatus !== "finished"}
+                 isImpersonateMode={false}
+                 preferences={conversationPreferences}
+               />
             )}
           </div>
         </Suspense>

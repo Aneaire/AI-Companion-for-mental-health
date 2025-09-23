@@ -647,6 +647,7 @@ export function ImpersonateThread({
         threadTitle={threadData?.sessionName || `Thread #${selectedThreadId}`}
         preferences={preferences || conversationPreferences}
         onPreferencesChange={onPreferencesChange || setConversationPreferences}
+        context="impersonate"
       />
     </div>
   );

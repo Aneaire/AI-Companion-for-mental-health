@@ -73,6 +73,8 @@ const MessageBubble = memo(({
           audioVoiceId = preferences.therapistVoiceId;
         } else if (message.sender === "impostor") {
           audioVoiceId = preferences.impostorVoiceId;
+        } else if (message.sender === "ai") {
+          audioVoiceId = preferences.mainTTSVoiceId;
         }
       }
 

@@ -9,9 +9,21 @@ export interface ConversationPreferences {
   solutionFocused: boolean;
   casualAndFriendly: boolean;
   professionalAndFormal: boolean;
+  // Main page TTS settings
+  mainTTSVoiceId: string;
+  mainEnableTTS: boolean;
+  mainTTSSpeed: number;
+  mainTTSVolume: number;
+  mainTTSAutoPlay: boolean;
+  mainTTSAdaptivePacing: boolean;
+  // Impersonate TTS settings
   therapistVoiceId: string;
   impostorVoiceId: string;
   enableTTS: boolean;
+  ttsSpeed: number;
+  ttsVolume: number;
+  ttsAutoPlay: boolean;
+  ttsAdaptivePacing: boolean;
 }
 
 export interface Session {
@@ -85,16 +97,28 @@ export const useChatStore = create<ChatState>()(
       contexts: new Map(),
       loadingState: "idle",
       crisisDetected: false,
-       conversationPreferences: {
-         briefAndConcise: 50, // Default to middle value
-         empatheticAndSupportive: false,
-         solutionFocused: false,
-         casualAndFriendly: false,
-         professionalAndFormal: false,
-         therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
-         impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
-         enableTTS: false,
-       },
+        conversationPreferences: {
+          briefAndConcise: 50, // Default to middle value
+          empatheticAndSupportive: false,
+          solutionFocused: false,
+          casualAndFriendly: false,
+          professionalAndFormal: false,
+          // Main page TTS settings
+          mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+          mainEnableTTS: false,
+          mainTTSSpeed: 1.0,
+          mainTTSVolume: 80,
+          mainTTSAutoPlay: false,
+          mainTTSAdaptivePacing: false,
+          // Impersonate TTS settings
+          therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+          impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
+          enableTTS: false,
+          ttsSpeed: 1.0,
+          ttsVolume: 80,
+          ttsAutoPlay: false,
+          ttsAdaptivePacing: false,
+        },
       initialForms: new Map<number, FormData>(),
       impersonateMaxExchanges: 10,
       setCurrentContext: (contextId: string) => {
@@ -287,6 +311,22 @@ export const useChatStore = create<ChatState>()(
             empatheticAndSupportive: false,
             solutionFocused: false,
             casualAndFriendly: false,
+            professionalAndFormal: false,
+            // Main page TTS settings
+            mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM",
+            mainEnableTTS: false,
+            mainTTSSpeed: 1.0,
+            mainTTSVolume: 80,
+            mainTTSAutoPlay: false,
+            mainTTSAdaptivePacing: false,
+            // Impersonate TTS settings
+            therapistVoiceId: "21m00Tcm4TlvDq8ikWAM",
+            impostorVoiceId: "AZnzlk1XvdvUeBnXmlld",
+            enableTTS: false,
+            ttsSpeed: 1.0,
+            ttsVolume: 80,
+            ttsAutoPlay: false,
+            ttsAdaptivePacing: false,
           },
           initialForms: new Map(persistedState.initialForms || []),
           crisisDetected: false, // Always start with false, will be checked from server
