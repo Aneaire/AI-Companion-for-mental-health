@@ -225,152 +225,32 @@ export function ThreadSettingsDialog({
                     }
                   />
                 </div>
-              </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="voice" className="space-y-6 mt-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Text-to-Speech Settings</h3>
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  <Label className="text-base">Voice Selection</Label>
-                  <p className="text-sm text-gray-600">
-                    Choose a voice for text-to-speech playback
-                  </p>
-                  <Select
-                    value={preferences.ttsVoiceId || ""}
-                    onValueChange={(value) => updateVoicePreference("ttsVoiceId", value)}
-                    disabled={voicesLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select a voice"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {voices.map((voice) => (
-                        <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                          {voice.name} ({voice.labels?.accent || "Unknown"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
-                <Separator />
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base">Speed</Label>
-                    <span className="text-sm text-gray-500 font-mono">
-                      {preferences.ttsSpeed}x
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Adjust playback speed (0.5x to 2.0x)
-                  </p>
-                  <Slider
-                    value={[preferences.ttsSpeed]}
-                    onValueChange={(value) => updateVoicePreference("ttsSpeed", value[0])}
-                    min={0.5}
-                    max={2.0}
-                    step={0.1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Slower</span>
-                    <span>Faster</span>
-                  </div>
-                </div>
 
-                <Separator />
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base">Volume</Label>
-                    <span className="text-sm text-gray-500 font-mono">
-                      {preferences.ttsVolume}%
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Adjust playback volume
-                  </p>
-                  <Slider
-                    value={[preferences.ttsVolume]}
-                    onValueChange={(value) => updateVoicePreference("ttsVolume", value[0])}
-                    min={0}
-                    max={100}
-                    step={5}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Quiet</span>
-                    <span>Loud</span>
-                  </div>
-                </div>
 
-                <Separator />
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Auto-play TTS</Label>
-                    <p className="text-sm text-gray-600">
-                      Automatically play text-to-speech for new messages
-                    </p>
-                  </div>
-                  <Switch
-                    checked={preferences.ttsAutoPlay}
-                    onCheckedChange={(checked) =>
-                      updateVoicePreference("ttsAutoPlay", checked)
-                    }
-                  />
-                </div>
 
-                <Separator />
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Adaptive Pacing</Label>
-                    <p className="text-sm text-gray-600">
-                      Adjust speed based on message length for natural conversation flow
-                    </p>
-                  </div>
-                  <Switch
-                    checked={preferences.ttsAdaptivePacing}
-                    onCheckedChange={(checked) =>
-                      updateVoicePreference("ttsAdaptivePacing", checked)
-                    }
-                  />
-                </div>
 
-                <Separator />
 
-                <div className="space-y-3">
-                  <Label className="text-base">TTS Model</Label>
-                  <p className="text-sm text-gray-600">
-                    Choose the ElevenLabs TTS model
-                  </p>
-                  <Select
-                    value={preferences.ttsModel || "eleven_monolingual_v1"}
-                    onValueChange={(value) => updateVoicePreference("ttsModel", value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="eleven_monolingual_v1">Eleven Monolingual v1</SelectItem>
-                      <SelectItem value="eleven_multilingual_v1">Eleven Multilingual v1</SelectItem>
-                      <SelectItem value="eleven_multilingual_v2">Eleven Multilingual v2</SelectItem>
-                      <SelectItem value="eleven_turbo_v2">Eleven Turbo v2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
+
+
+
+
+
+
+
+
+          </TabsContent>
           </TabsContent>
 
           <TabsContent value="thread" className="space-y-6 mt-6">
             {selectedThreadId ? (
-              <div>
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="flex items-center gap-3 mb-2">
                     <MessageSquare size={16} className="text-gray-600" />
@@ -385,7 +265,7 @@ export function ThreadSettingsDialog({
 
                 <div className="space-y-4">
                   <h4 className="font-medium">Thread Actions</h4>
-
+                  
                   {onArchiveThread && (
                     <Button
                       variant="outline"

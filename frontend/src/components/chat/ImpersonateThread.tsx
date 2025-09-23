@@ -17,23 +17,23 @@ import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
 import { ImpersonateInput } from "./ImpersonateInput";
 import { MessageFormattingUtils, StreamingMessageProcessor } from "@/lib/messageFormatter";
-
+import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
+import textToSpeech from "@/services/elevenlabs/textToSpeech";
 interface ErrorResponse {
   error: string;
 }
-
 interface FetchedMessage {
   role: "user" | "model";
   text: string;
   timestamp: number;
 }
-
 export interface ImpersonateThreadProps {
   selectedThreadId: number | null;
   onSendMessage?: (message: string) => Promise<void>;
   onThreadActivity?: (threadId: number) => void;
+  preferences?: ConversationPreferences;
+  onPreferencesChange?: (preferences: ConversationPreferences) => void;
 }
-
 // Enhanced Loading Fallback Component
 function EnhancedLoadingFallback() {
   return (
@@ -55,7 +55,6 @@ function EnhancedLoadingFallback() {
     </div>
   );
 }
-
 // Enhanced Dev Tools Toggle Button
 function DevToolsToggle({
   showDevTools,
@@ -86,17 +85,17 @@ function DevToolsToggle({
           {showDevTools ? "Hide" : "Show"} Dev Tools
         </span>
       </div>
-
       {/* Subtle glow effect */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
     </button>
   );
 }
-
 export function ImpersonateThread({
   selectedThreadId,
   onSendMessage,
   onThreadActivity,
+  preferences,
+  onPreferencesChange,
 }: ImpersonateThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
@@ -104,7 +103,6 @@ export function ImpersonateThread({
   );
   const { data: impostorProfile, isLoading: impostorProfileLoading } =
     useImpostorProfile(userProfile?.id ? Number(userProfile.id) : null);
-
   // State to store thread data and persona data
   const [threadData, setThreadData] = useState<any>(null);
   const { data: personaData, isLoading: personaLoading } = usePersona(
@@ -134,7 +132,19 @@ export function ImpersonateThread({
   const isImpersonatingRef = useRef(isImpersonating);
   const [mode, setMode] = useState<"impersonate" | "chat">("impersonate");
   const abortControllerRef = useRef<AbortController | null>(null);
-
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // TTS function
+  const generateTTS = async (text: string, voiceId: string) => {
+    if (!conversationPreferences.enableTTS) return;
+    try {
+      const audioUrl = await textToSpeech(text, voiceId);
+      // The audio will autoplay from the textToSpeech function
+      console.log("TTS generated for voice:", voiceId);
+    } catch (error) {
+      console.error("TTS generation failed:", error);
+      // Don't show error toast as it might interrupt the conversation
+    }
+  };
   // Helper function to fetch thread initial form data
   const fetchThreadInitialForm = async (threadId: number) => {
     try {
@@ -158,36 +168,29 @@ export function ImpersonateThread({
     }
     return undefined;
   };
-
   useEffect(() => {
     if (selectedThreadId) {
       setThreadId(selectedThreadId);
       const fetchThreadData = async () => {
         try {
           setLoadingHistory(true);
-
           // Fetch thread data to get personaId
           const threadResponse = await fetch(`/api/impostor/threads/${selectedThreadId}`);
           if (threadResponse.ok) {
             const thread = await threadResponse.json();
             setThreadData(thread);
           }
-
           // Fetch messages for this thread using the new impersonate chat API
           const rawMessages =
             await impersonateChatApi.getMessages(selectedThreadId);
-
           clearMessages();
-
           // Convert and add messages
           const sortedMessages = convertRawMessagesToMessages(
             rawMessages,
             true // isImpersonateMode
           );
-
           sortedMessages.forEach((msg) => addMessage(msg));
           setShowChat(true);
-
           // Fetch and set the correct initial form for this thread
           await fetchThreadInitialForm(selectedThreadId);
         } catch (error) {
@@ -208,35 +211,28 @@ export function ImpersonateThread({
     clearMessages,
     setInitialForm,
   ]);
-
   const handleSendMessage = async (message: string): Promise<void> => {
     if (!message.trim() && !showChat) return;
     if (userProfileLoading || !userProfile?.id) {
       toast.error("User profile not loaded. Please wait.");
       return;
     }
-
     const userMessage: Message = {
       sender: "user",
       text: message,
       timestamp: new Date(),
       contextId: "impersonate",
     };
-
     if (message.trim()) {
       addMessage(userMessage);
     }
-
     // Get the correct initial form for this thread
     let sessionInitialForm = getInitialForm(selectedThreadId!);
-
     setLoadingState("generating");
     setIsStreaming(true);
-
     try {
       // Ensure initialForm is an object, not an array
       sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
-
       // Use the new impersonate chat API
       const contextData = currentContext.messages.map((msg) => ({
         role: msg.sender === "ai" ? "model" : "user",
@@ -244,7 +240,6 @@ export function ImpersonateThread({
         timestamp: msg.timestamp.getTime(),
         ...(msg.contextId ? { contextId: msg.contextId } : {}),
       }));
-
       const response = await impersonateChatApi.sendMessage({
         message: message,
         threadId: selectedThreadId!,
@@ -259,17 +254,14 @@ export function ImpersonateThread({
           : {}),
         ...(conversationPreferences ? { conversationPreferences } : {}),
       });
-
       if (typeof onThreadActivity === "function" && selectedThreadId) {
         onThreadActivity(selectedThreadId);
       }
-
       if (!response.ok) {
         const errorData = (await response.json()) as ErrorResponse;
         console.error("Frontend received error data:", errorData);
         throw new Error(errorData.error || "Failed to get response");
       }
-
       if (message.trim() || currentContext.messages.length) {
         const tempId = Date.now();
         const aiMessage: Message = {
@@ -281,10 +273,8 @@ export function ImpersonateThread({
         };
         addMessage(aiMessage);
       }
-
       // Set loading state to streaming when streaming starts
       setLoadingState("streaming");
-
       // Use the new StreamingMessageProcessor for cleaner streaming logic
       const processor = new StreamingMessageProcessor(
         (text: string, isComplete: boolean) => {
@@ -308,7 +298,6 @@ export function ImpersonateThread({
           updateLastMessage(finalText);
         }
       );
-
       await processor.processStream(response);
       if (typeof onThreadActivity === "function" && selectedThreadId) {
         onThreadActivity(selectedThreadId);
@@ -330,13 +319,9 @@ export function ImpersonateThread({
       setLoadingState("idle");
     }
   };
-
-
-
   useEffect(() => {
     isImpersonatingRef.current = isImpersonating;
   }, [isImpersonating]);
-
   const handleStartImpersonation = async () => {
     if (!userProfile?.id) {
       toast.error("User profile not loaded.");
@@ -354,23 +339,19 @@ export function ImpersonateThread({
       toast.error("No persona data found. Please select a persona first.");
       return;
     }
-
     // Move thread to top immediately when roleplay starts
     if (typeof onThreadActivity === "function" && selectedThreadId) {
       onThreadActivity(selectedThreadId);
     }
-
     // Clean up temp/empty impersonate messages before starting
     cleanUpImpersonateTempMessages(currentContext.messages, (msgs) => {
       clearMessages();
       msgs.forEach((msg) => addMessage(msg));
     });
-
     setImpersonateMaxExchanges(10); // Always reset exchanges at start
     setIsImpersonating(true);
     isImpersonatingRef.current = true;
     setLoadingState("generating");
-
     const checkShouldStop = () => {
       if (!isImpersonatingRef.current) {
         if (abortControllerRef.current) {
@@ -380,7 +361,6 @@ export function ImpersonateThread({
         throw new Error("Impersonation stopped");
       }
     };
-
     try {
       const userProfileData = personaData || impostorProfile;
       let exchanges = 0;
@@ -390,19 +370,16 @@ export function ImpersonateThread({
         .find((m) => m.text && m.text.trim() !== "");
       let lastMessage = lastValidMessage ? lastValidMessage.text : "";
       let lastSender = lastValidMessage ? lastValidMessage.sender : null;
-
       // Get the correct initial form for this session
       const sessionInitialForm = selectedThreadId
         ? getInitialForm(selectedThreadId)
         : undefined;
-
       while (
         exchanges < impersonateMaxExchanges &&
         isImpersonatingRef.current
       ) {
         await new Promise((resolve) => setTimeout(resolve, 50));
         checkShouldStop();
-
         if (lastSender === "user") {
           setLoadingState("observer");
           // Therapist's turn
@@ -415,7 +392,6 @@ export function ImpersonateThread({
               currentContext.messages,
               lastMessage
             );
-
             const observerRes = await impersonateObserverApi.getSuggestion({
               messages: messagesForObserver,
               ...(sessionInitialForm
@@ -438,14 +414,12 @@ export function ImpersonateThread({
           setLoadingState("idle");
           const abortController = new AbortController();
           abortControllerRef.current = abortController;
-
           const contextData = currentContext.messages.map((msg) => ({
             role: msg.sender === "ai" ? "model" : "user",
             text: msg.text,
             timestamp: msg.timestamp.getTime(),
             ...(msg.contextId ? { contextId: msg.contextId } : {}),
           }));
-
           const therapistResponse = await impersonateChatApi.sendMessage({
             message: lastMessage,
             threadId: selectedThreadId!,
@@ -468,10 +442,8 @@ export function ImpersonateThread({
               : {}),
             ...(conversationPreferences ? { conversationPreferences } : {}),
           });
-
           const reader = therapistResponse.body?.getReader();
           let therapistFullResponse = "";
-
           if (reader) {
             const tempAiMessage = {
               sender: "ai" as const,
@@ -482,15 +454,17 @@ export function ImpersonateThread({
             };
             if (!isImpersonatingRef.current) return;
             addMessage(tempAiMessage);
-
             therapistFullResponse = await processStreamingResponse(
               reader,
               updateLastMessage
             );
           }
-
-          lastMessage = therapistFullResponse.trim() || lastMessage;
-          lastSender = "ai";
+           lastMessage = therapistFullResponse.trim() || lastMessage;
+           lastSender = "ai";
+           // Generate TTS for therapist response
+           if (therapistFullResponse.trim()) {
+             generateTTS(therapistFullResponse.trim(), conversationPreferences.therapistVoiceId);
+           }
         } else {
           // Impostor's turn
           const abortController = new AbortController();
@@ -510,10 +484,8 @@ export function ImpersonateThread({
                : {}),
              ...(conversationPreferences ? { conversationPreferences } : {}),
            });
-
           const reader = impostorResponse.body?.getReader();
           let impostorFullResponse = "";
-
           if (reader) {
             const tempUserMessage = {
               sender: "user" as const,
@@ -524,13 +496,11 @@ export function ImpersonateThread({
             };
             if (!isImpersonatingRef.current) return;
             addMessage(tempUserMessage);
-
             impostorFullResponse = await processStreamingResponse(
               reader,
               updateLastMessage
             );
           }
-
            // Save the impostor response
            if (impostorFullResponse.trim()) {
              try {
@@ -544,11 +514,13 @@ export function ImpersonateThread({
                console.error("Error saving impostor message:", error);
              }
            }
-
-           lastMessage = impostorFullResponse.trim() || lastMessage;
-           lastSender = "user";
+            lastMessage = impostorFullResponse.trim() || lastMessage;
+            lastSender = "user";
+            // Generate TTS for impostor response
+            if (impostorFullResponse.trim()) {
+              generateTTS(impostorFullResponse.trim(), conversationPreferences.impostorVoiceId);
+            }
         }
-
         exchanges++;
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
@@ -572,7 +544,6 @@ export function ImpersonateThread({
       });
     }
   };
-
   const handleStopImpersonation = async () => {
     setIsImpersonating(false);
     isImpersonatingRef.current = false;
@@ -582,24 +553,48 @@ export function ImpersonateThread({
       msgs.forEach((msg) => addMessage(msg));
     });
   };
-
   // Get the correct initial form for the current session
   const currentSessionInitialForm = selectedThreadId
     ? getInitialForm(selectedThreadId)
     : currentContext.initialForm;
-
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
-      {/* Enhanced Header with subtle shadow */}
-      <div className="hidden md:block relative z-10">
-        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">
-          <ChatHeader
-            preferences={conversationPreferences}
-            onPreferencesChange={setConversationPreferences}
-          />
+      {/* Header */}
+      <header className="relative overflow-hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/60">
+        <div className="relative z-10 flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
+                <Brain size={24} className="text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm">
+                <div className="w-full h-full bg-green-400 rounded-full animate-pulse" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900">
+                  AI Impersonation
+                </h1>
+                <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                  Therapist & Patient
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Interactive role-playing for therapeutic scenarios
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 p-2 rounded-lg transition-colors"
+            >
+              <Settings size={20} />
+            </button>
+          </div>
         </div>
-      </div>
-
+      </header>
       {/* Main Content Area with enhanced styling */}
       <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">
         <Suspense fallback={<EnhancedLoadingFallback />}>
@@ -632,7 +627,6 @@ export function ImpersonateThread({
           hideModeSwitch={false} // Show switch on impersonate page
         />
       </main>
-
       {/* Subtle background pattern overlay */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
         <div
@@ -643,9 +637,16 @@ export function ImpersonateThread({
           }}
         ></div>
       </div>
+      {/* Settings Dialog */}
+      <ThreadSettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        selectedThreadId={selectedThreadId}
+        threadTitle={threadData?.sessionName || `Thread #${selectedThreadId}`}
+        preferences={preferences || conversationPreferences}
+        onPreferencesChange={onPreferencesChange || setConversationPreferences}
+      />
     </div>
   );
 }
-
 export default memo(ImpersonateThread);
-

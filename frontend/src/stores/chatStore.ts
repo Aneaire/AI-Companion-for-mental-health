@@ -9,6 +9,9 @@ export interface ConversationPreferences {
   solutionFocused: boolean;
   casualAndFriendly: boolean;
   professionalAndFormal: boolean;
+  therapistVoiceId: string;
+  impostorVoiceId: string;
+  enableTTS: boolean;
 }
 
 export interface Session {
@@ -82,13 +85,16 @@ export const useChatStore = create<ChatState>()(
       contexts: new Map(),
       loadingState: "idle",
       crisisDetected: false,
-      conversationPreferences: {
-        briefAndConcise: 50, // Default to middle value
-        empatheticAndSupportive: false,
-        solutionFocused: false,
-        casualAndFriendly: false,
-        professionalAndFormal: false,
-      },
+       conversationPreferences: {
+         briefAndConcise: 50, // Default to middle value
+         empatheticAndSupportive: false,
+         solutionFocused: false,
+         casualAndFriendly: false,
+         professionalAndFormal: false,
+         therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+         impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
+         enableTTS: false,
+       },
       initialForms: new Map<number, FormData>(),
       impersonateMaxExchanges: 10,
       setCurrentContext: (contextId: string) => {

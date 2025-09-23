@@ -204,10 +204,12 @@ function Impersonate() {
               Loading threads...
             </div>
           ) : (
-            <ImpersonateThread
-              selectedThreadId={selectedThreadId}
-              onThreadActivity={handleThreadActivity}
-            />
+             <ImpersonateThread
+               selectedThreadId={selectedThreadId}
+               onThreadActivity={handleThreadActivity}
+               preferences={conversationPreferences}
+               onPreferencesChange={setConversationPreferences}
+             />
           )}
         </div>
       </div>
