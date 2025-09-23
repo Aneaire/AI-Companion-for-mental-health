@@ -81,12 +81,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
     return (
       <>
-        <div className="h-screen w-screen relative overflow-hidden">
+        <div className="min-h-screen w-screen relative overflow-auto">
           <ParticlesBackground />
-          <div className="relative z-10 h-full w-full flex flex-col">
+          <div className="relative z-10 min-h-full w-full flex flex-col">
             <SignedIn>
-              <div className="flex h-screen w-full min-h-0">
-                <div className="flex-1 flex flex-col overflow-hidden relative">
+              <div className="flex min-h-screen w-full min-h-0">
+                <div className="flex-1 flex flex-col overflow-auto relative">
                   <SidebarContext.Provider
                     value={{
                       selectedThreadId,

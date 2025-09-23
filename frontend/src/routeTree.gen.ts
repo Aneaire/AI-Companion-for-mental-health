@@ -15,6 +15,8 @@ import { Route as QualityAnalysisImport } from './routes/quality-analysis'
 import { Route as PodcastImport } from './routes/podcast'
 import { Route as PersonaLibraryImport } from './routes/persona-library'
 import { Route as ImpersonateImport } from './routes/impersonate'
+import { Route as ElevenlabsTtsTestImport } from './routes/elevenlabs-tts-test'
+import { Route as ElevenlabsTestImport } from './routes/elevenlabs-test'
 import { Route as IndexImport } from './routes/index'
 import { Route as AdminIndexImport } from './routes/admin.index'
 
@@ -44,6 +46,18 @@ const ImpersonateRoute = ImpersonateImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const ElevenlabsTtsTestRoute = ElevenlabsTtsTestImport.update({
+  id: '/elevenlabs-tts-test',
+  path: '/elevenlabs-tts-test',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ElevenlabsTestRoute = ElevenlabsTestImport.update({
+  id: '/elevenlabs-test',
+  path: '/elevenlabs-test',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
@@ -65,6 +79,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/elevenlabs-test': {
+      id: '/elevenlabs-test'
+      path: '/elevenlabs-test'
+      fullPath: '/elevenlabs-test'
+      preLoaderRoute: typeof ElevenlabsTestImport
+      parentRoute: typeof rootRoute
+    }
+    '/elevenlabs-tts-test': {
+      id: '/elevenlabs-tts-test'
+      path: '/elevenlabs-tts-test'
+      fullPath: '/elevenlabs-tts-test'
+      preLoaderRoute: typeof ElevenlabsTtsTestImport
       parentRoute: typeof rootRoute
     }
     '/impersonate': {
@@ -109,6 +137,8 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/elevenlabs-test': typeof ElevenlabsTestRoute
+  '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
@@ -118,6 +148,8 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/elevenlabs-test': typeof ElevenlabsTestRoute
+  '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
@@ -128,6 +160,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/elevenlabs-test': typeof ElevenlabsTestRoute
+  '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
@@ -139,6 +173,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/elevenlabs-test'
+    | '/elevenlabs-tts-test'
     | '/impersonate'
     | '/persona-library'
     | '/podcast'
@@ -147,6 +183,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/elevenlabs-test'
+    | '/elevenlabs-tts-test'
     | '/impersonate'
     | '/persona-library'
     | '/podcast'
@@ -155,6 +193,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/elevenlabs-test'
+    | '/elevenlabs-tts-test'
     | '/impersonate'
     | '/persona-library'
     | '/podcast'
@@ -165,6 +205,8 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ElevenlabsTestRoute: typeof ElevenlabsTestRoute
+  ElevenlabsTtsTestRoute: typeof ElevenlabsTtsTestRoute
   ImpersonateRoute: typeof ImpersonateRoute
   PersonaLibraryRoute: typeof PersonaLibraryRoute
   PodcastRoute: typeof PodcastRoute
@@ -174,6 +216,8 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ElevenlabsTestRoute: ElevenlabsTestRoute,
+  ElevenlabsTtsTestRoute: ElevenlabsTtsTestRoute,
   ImpersonateRoute: ImpersonateRoute,
   PersonaLibraryRoute: PersonaLibraryRoute,
   PodcastRoute: PodcastRoute,
@@ -192,6 +236,8 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/elevenlabs-test",
+        "/elevenlabs-tts-test",
         "/impersonate",
         "/persona-library",
         "/podcast",
@@ -201,6 +247,12 @@ export const routeTree = rootRoute
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/elevenlabs-test": {
+      "filePath": "elevenlabs-test.tsx"
+    },
+    "/elevenlabs-tts-test": {
+      "filePath": "elevenlabs-tts-test.tsx"
     },
     "/impersonate": {
       "filePath": "impersonate.tsx"

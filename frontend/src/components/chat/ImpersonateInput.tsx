@@ -37,10 +37,8 @@ export function ImpersonateInput({
   const handleSubmit = () => {
     if (mode === "impersonate") {
       if (isImpersonating || pendingStart) {
-        console.log("ImpersonateInput: Stop button clicked");
         onStop();
       } else {
-        console.log("ImpersonateInput: Start button clicked");
         setPendingStart(true);
         onStart();
       }

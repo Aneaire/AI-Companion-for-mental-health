@@ -234,15 +234,6 @@ export function ImpersonateThread({
     setIsStreaming(true);
 
     try {
-      console.log(
-        "[ImpersonateThread] Sending message with initialForm:",
-        sessionInitialForm,
-        "Type:",
-        typeof sessionInitialForm,
-        "Is Array:",
-        Array.isArray(sessionInitialForm)
-      );
-
       // Ensure initialForm is an object, not an array
       sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
 
@@ -253,12 +244,6 @@ export function ImpersonateThread({
         timestamp: msg.timestamp.getTime(),
         ...(msg.contextId ? { contextId: msg.contextId } : {}),
       }));
-
-      console.log(
-        "[IMPERSONATE FRONTEND] Sending context:",
-        JSON.stringify(contextData, null, 2)
-      );
-      console.log("[IMPERSONATE FRONTEND] Context length:", contextData.length);
 
       const response = await impersonateChatApi.sendMessage({
         message: message,
@@ -461,15 +446,6 @@ export function ImpersonateThread({
             ...(msg.contextId ? { contextId: msg.contextId } : {}),
           }));
 
-          console.log(
-            "[IMPERSONATE LOOP] Therapist turn - Context length:",
-            contextData.length
-          );
-          console.log(
-            "[IMPERSONATE LOOP] Therapist turn - Context:",
-            JSON.stringify(contextData.slice(-3), null, 2)
-          ); // Show last 3 messages
-
           const therapistResponse = await impersonateChatApi.sendMessage({
             message: lastMessage,
             threadId: selectedThreadId!,
@@ -580,8 +556,6 @@ export function ImpersonateThread({
       if ((error as Error).message !== "Impersonation stopped") {
         console.error("Error during impersonation:", error);
         toast.error("Failed to continue impersonation");
-      } else {
-        console.log("Impersonation loop exited cleanly.");
       }
     } finally {
       setLoadingState("idle");
