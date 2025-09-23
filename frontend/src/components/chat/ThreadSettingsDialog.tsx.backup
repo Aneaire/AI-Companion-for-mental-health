@@ -234,9 +234,9 @@ export function ThreadSettingsDialog({
               <h3 className="text-lg font-semibold mb-4">Text-to-Speech Settings</h3>
               <div className="space-y-4">
                 <div className="space-y-3">
-                  <Label className="text-base">General Voice Selection</Label>
+                  <Label className="text-base">Voice Selection</Label>
                   <p className="text-sm text-gray-600">
-                    Choose a default voice for text-to-speech playback
+                    Choose a voice for text-to-speech playback
                   </p>
                   <Select
                     value={preferences.ttsVoiceId || ""}
@@ -254,74 +254,6 @@ export function ThreadSettingsDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <Label className="text-base">Role-Specific Voices</Label>
-                  <p className="text-sm text-gray-600">
-                    Set different voices for therapist and impostor roles during impersonation
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Therapist Voice</Label>
-                      <Select
-                        value={preferences.therapistVoiceId || ""}
-                        onValueChange={(value) => updateVoicePreference("therapistVoiceId", value)}
-                        disabled={voicesLoading}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select therapist voice"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {voices.map((voice) => (
-                            <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                              {voice.name} ({voice.labels?.accent || "Unknown"})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Impostor Voice</Label>
-                      <Select
-                        value={preferences.impostorVoiceId || ""}
-                        onValueChange={(value) => updateVoicePreference("impostorVoiceId", value)}
-                        disabled={voicesLoading}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select impostor voice"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {voices.map((voice) => (
-                            <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                              {voice.name} ({voice.labels?.accent || "Unknown"})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Enable Text-to-Speech</Label>
-                    <p className="text-sm text-gray-600">
-                      Enable TTS functionality for voice playback
-                    </p>
-                  </div>
-                  <Switch
-                    checked={preferences.enableTTS}
-                    onCheckedChange={(checked) =>
-                      updateVoicePreference("enableTTS", checked)
-                    }
-                  />
                 </div>
 
                 <Separator />
