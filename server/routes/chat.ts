@@ -31,11 +31,14 @@ const saveConversationToFile = async (
 ) => {
   try {
     const logDir = "chat_logs";
-    const fileName = path.join(logDir, `conversation_${sessionId}_${Date.now()}.md`);
-    
+    const fileName = path.join(
+      logDir,
+      `conversation_${sessionId}_${Date.now()}.md`
+    );
+
     // Create directory if it doesn't exist
     await fs.promises.mkdir(logDir, { recursive: true });
-    
+
     const content = `# Chat Conversation - Session ${sessionId}
 
 ## System Instructions
@@ -98,17 +101,19 @@ export const chatRequestSchema = z.object({
   observerRationale: z.string().optional(), // Added for observer rationale
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
   sentiment: z.string().optional(), // Added for sentiment analysis
-   sender: z.string().optional(), // Added for sender
-   threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
-   conversationPreferences: z
-     .object({
-       briefAndConcise: z.number().min(0).max(100).optional(),
-       empatheticAndSupportive: z.boolean().optional(),
-       solutionFocused: z.boolean().optional(),
-       casualAndFriendly: z.boolean().optional(),
-       professionalAndFormal: z.boolean().optional(),
-     })
-     .optional(),
+  sender: z.string().optional(), // Added for sender
+  threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
+  conversationPreferences: z
+    .object({
+      briefAndConcise: z.number().min(0).max(100).optional(),
+      empatheticAndSupportive: z.boolean().optional(),
+      solutionFocused: z.boolean().optional(),
+      casualAndFriendly: z.boolean().optional(),
+      professionalAndFormal: z.boolean().optional(),
+      // Main chat TTS settings
+      mainEnableTTS: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 // Schema for impersonate chat (thread-based)
@@ -144,20 +149,20 @@ export const impersonateChatRequestSchema = z.object({
   nextSteps: z.array(z.string()).optional(), // Added for next steps from the agent
   observerRationale: z.string().optional(), // Added for observer rationale
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
-   sentiment: z.string().optional(), // Added for sentiment analysis
-    sender: z.string().optional(), // Added for sender
-    conversationPreferences: z
-      .object({
-        briefAndConcise: z.number().min(0).max(100).optional(),
-        empatheticAndSupportive: z.boolean().optional(),
-        solutionFocused: z.boolean().optional(),
-        casualAndFriendly: z.boolean().optional(),
-        professionalAndFormal: z.boolean().optional(),
-        // Main chat TTS settings
-        mainEnableTTS: z.boolean().optional(),
-      })
-      .optional(),
- });
+  sentiment: z.string().optional(), // Added for sentiment analysis
+  sender: z.string().optional(), // Added for sender
+  conversationPreferences: z
+    .object({
+      briefAndConcise: z.number().min(0).max(100).optional(),
+      empatheticAndSupportive: z.boolean().optional(),
+      solutionFocused: z.boolean().optional(),
+      casualAndFriendly: z.boolean().optional(),
+      professionalAndFormal: z.boolean().optional(),
+      // Main chat TTS settings
+      mainEnableTTS: z.boolean().optional(),
+    })
+    .optional(),
+});
 
 const chat = new Hono()
   // Main chat endpoint (session-based)
@@ -195,7 +200,7 @@ const chat = new Hono()
         .from(sessions)
         .where(eq(sessions.id, currentSessionId))
         .limit(1);
-        
+
       if (currentSession.length > 0 && currentSession[0].sessionNumber > 1) {
         // Get the previous session in the same thread
         const previousSession = await db
@@ -208,7 +213,7 @@ const chat = new Hono()
             )
           )
           .limit(1);
-          
+
         if (previousSession.length > 0) {
           // Look for follow-up form from the previous session
           const formRows = await db
@@ -217,9 +222,14 @@ const chat = new Hono()
             .where(eq(sessionForms.sessionId, previousSession[0].id));
           if (formRows.length > 0) {
             followupFormAnswers = formRows[0].answers;
-            logger.log(`[CHAT] Found follow-up form from previous session ${previousSession[0].id}:`, followupFormAnswers);
+            logger.log(
+              `[CHAT] Found follow-up form from previous session ${previousSession[0].id}:`,
+              followupFormAnswers
+            );
           } else {
-            logger.log(`[CHAT] No follow-up form found for previous session ${previousSession[0].id}`);
+            logger.log(
+              `[CHAT] No follow-up form found for previous session ${previousSession[0].id}`
+            );
           }
         }
       }
@@ -313,18 +323,20 @@ const chat = new Hono()
         initialContextString += `- Custom Response Style: ${initialForm.responseDescription}\n`;
       // Add follow-up form answers if present
       if (followupFormAnswers) {
-        const currentSessionNum = sessionData.length > 0 ? sessionData[0].session.sessionNumber : 1;
+        const currentSessionNum =
+          sessionData.length > 0 ? sessionData[0].session.sessionNumber : 1;
         const previousSessionNum = currentSessionNum - 1;
         initialContextString += `\n**Follow-up Form from Previous Session (Session ${previousSessionNum}):**\n`;
         initialContextString += `These answers were provided by the user after their previous therapy session to help prepare for this current session (Session ${currentSessionNum}):\n`;
         for (const [key, value] of Object.entries(followupFormAnswers)) {
           // Convert technical field names to human-readable format
           const humanReadableKey = key
-            .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-            .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-            .replace(/_/g, ' '); // Replace underscores with spaces
-          
-          const formattedValue = typeof value === "string" ? value : JSON.stringify(value);
+            .replace(/([A-Z])/g, " $1") // Add space before capital letters
+            .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
+            .replace(/_/g, " "); // Replace underscores with spaces
+
+          const formattedValue =
+            typeof value === "string" ? value : JSON.stringify(value);
           initialContextString += `- ${humanReadableKey}: ${formattedValue}\n`;
         }
         initialContextString += `Please use these insights to personalize this session and acknowledge their progress or concerns mentioned in the follow-up form.\n`;
@@ -484,8 +496,10 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         prefsText += "- Maintain a professional and formal approach.\n";
 
       // Add TTS instructions if enabled
+      logger.info("prefs.mainEnableTTS:", prefs.mainEnableTTS);
       if (prefs.mainEnableTTS) {
-        prefsText += "\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\nExample: \"I understand this has been [CONCERNED] really challenging for you. [PAUSES] It's completely normal to feel [GENTLY] overwhelmed by these emotions.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
+        prefsText +=
+          '\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\n**ABSOLUTELY FORBIDDEN:** NEVER place audio tags at the END of sentences or responses. This renders them ineffective.\n**CRITICAL AUDIO TAG PLACEMENT RULE:** Audio tags MUST be placed IMMEDIATELY BEFORE the text they modify. ElevenLabs applies the tag to the text that FOLLOWS it.\n\n✅ CORRECT: "[CONCERNED] I understand this has been really challenging for you. [PAUSES] It\'s completely normal to feel [GENTLY] overwhelmed by these emotions."\n❌ ABSOLUTELY WRONG: "I understand this has been really challenging for you [CONCERNED]. It\'s completely normal to feel overwhelmed by these emotions [GENTLY]."\n❌ ABSOLUTELY WRONG: "That sounds really tough. [GENTLY]"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n';
       }
 
       systemInstructionText += prefsText;
@@ -516,7 +530,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
     }
 
-    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.mainEnableTTS ? '- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.\n' : '- Keep responses brief and to the point (2-4 sentences maximum).\n'}- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
+    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${
+      conversationPreferences?.mainEnableTTS
+        ? "- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.\n"
+        : "- Keep responses brief and to the point (2-4 sentences maximum).\n"
+    }- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
 
     // Mark session as having crisis detected if needed
     if (sentiment === "urgent" || sentiment === "crisis_risk") {
@@ -595,10 +613,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           );
         }
       } catch (error) {
-        logger.error(
-          "Error during AI streaming or saving AI response:",
-          error
-        );
+        logger.error("Error during AI streaming or saving AI response:", error);
         await stream.writeSSE({
           data: `Error: ${
             error instanceof Error ? error.message : String(error)
@@ -747,7 +762,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         }
       }
 
-    let systemInstructionText = `
+      let systemInstructionText = `
 You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
 
 **Crucial Ethical and Professional Guidelines:**
@@ -809,9 +824,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
       }
 
-systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
-
-
+      systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
 
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,
