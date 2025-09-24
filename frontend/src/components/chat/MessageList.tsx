@@ -28,7 +28,8 @@ const MessageBubble = memo(({
   isConsecutive,
   onRetry,
   voiceId,
-  preferences
+  preferences,
+  isImpersonateMode = false
 }: {
   message: Message;
   isUser: boolean;
@@ -36,6 +37,7 @@ const MessageBubble = memo(({
   onRetry?: (message: Message) => void;
   voiceId?: string;
   preferences?: ConversationPreferences;
+  isImpersonateMode?: boolean;
 }) => {
   const formatTime = (timestamp?: Date) => {
     if (!timestamp) return "";
@@ -47,8 +49,9 @@ const MessageBubble = memo(({
 
   const user = { imageUrl: "", fullName: "User" };
 
-  // For play buttons: show for all AI-generated messages (therapist, impostor, ai)
-  const shouldShowPlayButton = message.sender !== "user";
+  // For play buttons: show for all AI-generated messages when TTS is enabled
+  const ttsEnabled = preferences ? (isImpersonateMode ? preferences.enableTTS : preferences.mainEnableTTS) : false;
+  const shouldShowPlayButton = message.sender !== "user" && ttsEnabled;
 
   // Audio playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -104,7 +107,7 @@ const MessageBubble = memo(({
       setIsPlaying(false);
       setAudioUrl(null);
     }
-  }, [message.text, voiceId]);
+  }, [message.text, voiceId, preferences, isImpersonateMode]);
 
   const handleStopAudio = useCallback(() => {
     if (audioRef.current) {
@@ -537,22 +540,24 @@ export const MessageList = memo(function MessageList({
            const isUser = message.sender === "user" || message.sender === "impostor";
 
            // For play buttons: show for AI messages only when TTS is enabled
-  const shouldShowPlayButton = message.sender !== "user" && preferences?.mainEnableTTS;
+           const ttsEnabled = isImpersonateMode ? preferences?.enableTTS : preferences?.mainEnableTTS;
+           const shouldShowPlayButton = message.sender !== "user" && ttsEnabled;
           const isConsecutive =
             index > 0 &&
             stabilizedMessages[index - 1]?.sender === message.sender;
 
-          return (
-            <MessageBubble
-              key={getMessageKey(message, index)}
-              message={message}
-              isUser={isUser}
-              isConsecutive={isConsecutive}
-              onRetry={onRetryMessage}
-              voiceId={voiceId}
-              preferences={preferences}
-            />
-          );
+           return (
+             <MessageBubble
+               key={getMessageKey(message, index)}
+               message={message}
+               isUser={isUser}
+               isConsecutive={isConsecutive}
+               onRetry={onRetryMessage}
+               voiceId={voiceId}
+               preferences={preferences}
+               isImpersonateMode={isImpersonateMode}
+             />
+           );
         })
       )}
 
