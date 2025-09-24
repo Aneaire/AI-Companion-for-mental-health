@@ -6,6 +6,7 @@ import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import path from "path";
+import { getAudioInstruction } from "server/lib/audioInstructions";
 import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
@@ -498,8 +499,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       // Add TTS instructions if enabled
       logger.info("prefs.mainEnableTTS:", prefs.mainEnableTTS);
       if (prefs.mainEnableTTS) {
-        prefsText +=
-          '\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\n**ABSOLUTELY FORBIDDEN:** NEVER place audio tags at the END of sentences or responses. This renders them ineffective.\n**CRITICAL AUDIO TAG PLACEMENT RULE:** Audio tags MUST be placed IMMEDIATELY BEFORE the text they modify. ElevenLabs applies the tag to the text that FOLLOWS it.\n\n✅ CORRECT: "[CONCERNED] I understand this has been really challenging for you. [PAUSES] It\'s completely normal to feel [GENTLY] overwhelmed by these emotions."\n❌ ABSOLUTELY WRONG: "I understand this has been really challenging for you [CONCERNED]. It\'s completely normal to feel overwhelmed by these emotions [GENTLY]."\n❌ ABSOLUTELY WRONG: "That sounds really tough. [GENTLY]"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n';
+        prefsText += getAudioInstruction();
       }
 
       systemInstructionText += prefsText;
@@ -796,6 +796,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           prefsText += "- Use a casual and friendly tone.\n";
         if (prefs.professionalAndFormal)
           prefsText += "- Maintain a professional and formal approach.\n";
+
+        // Add TTS instructions if enabled
+        if (prefs.mainEnableTTS) {
+          prefsText += getAudioInstruction();
+        }
+
         systemInstructionText += prefsText;
       }
 
@@ -824,7 +830,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
       }
 
-      systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
+      systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${
+        conversationPreferences?.mainEnableTTS
+          ? "- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.\n"
+          : "- Keep responses brief and to the point (2-4 sentences maximum).\n"
+      }- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n`;
 
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,
@@ -861,7 +871,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 "impostor",
               ] as const;
               type SenderType = (typeof allowedSenders)[number];
-              let aiSender: SenderType = "ai";
+              let aiSender: SenderType = sender && allowedSenders.includes(sender as SenderType) ? (sender as SenderType) : "ai";
+              console.log(`[CHAT/IMPERSONATE] Saving AI response - threadId: ${threadId}, sender: ${aiSender} (original sender param: ${sender}), text length: ${aiResponseText.length}`);
               await db.insert(messages).values({
                 threadId: threadId, // Use threadId for impersonate threads
                 threadType: "impersonate",

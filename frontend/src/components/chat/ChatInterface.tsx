@@ -97,6 +97,7 @@ export function ChatInterface({
               onRetryMessage={onRetryMessage}
               voiceId={voiceId}
               preferences={preferences}
+              isImpersonateMode={isImpersonateMode}
             />
           )}
         </div>

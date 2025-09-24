@@ -1,4 +1,3 @@
-// impersonate-chat.ts (Enhanced AI Response Agent for Impersonate Mode)
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { zValidator } from "@hono/zod-validator";
 import { and, count, eq } from "drizzle-orm";
@@ -7,6 +6,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import path from "path";
 import { geminiConfig } from "server/lib/config";
+import { getAudioInstruction } from "server/lib/audioInstructions";
 import { z } from "zod";
 import { db } from "../db/config";
 import {
@@ -16,12 +16,9 @@ import {
   sessions,
   threads,
 } from "../db/schema";
-import { logger } from "../lib/logger";
 
-// Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-// Function to save conversation to file
 const saveConversationToFile = async (
   sessionId: number,
   prompt: string,
@@ -33,7 +30,6 @@ const saveConversationToFile = async (
     const logDir = "chat_logs";
     const fileName = path.join(logDir, `impersonate_conversation_${sessionId}_${Date.now()}.md`);
 
-    // Create directory if it doesn't exist
     await fs.promises.mkdir(logDir, { recursive: true });
 
     const content = `# Impersonate Chat Conversation - Session ${sessionId}
@@ -58,13 +54,10 @@ ${response}
 
     await fs.promises.writeFile(fileName, content, "utf8");
   } catch (error) {
-    // File logging errors should still be logged for debugging
-    // Keep this as console.error since it's about file operations
     console.error("Error saving conversation to file:", error);
   }
 };
 
-// Response length tracking for adaptive conversation management
 interface ResponseMetrics {
   averageLength: number;
   longResponseCount: number;
@@ -85,7 +78,6 @@ const getResponseMetrics = (responses: string[]): ResponseMetrics => {
   };
 };
 
-// Conversation ending detection
 const detectConversationEnding = (message: string): boolean => {
   const endingPhrases = [
     "i think that helps",
@@ -103,7 +95,6 @@ const detectConversationEnding = (message: string): boolean => {
   );
 };
 
-// Adaptive exchange limit calculation
 const calculateAdaptiveExchanges = (
   metrics: ResponseMetrics,
   baseExchanges: number,
@@ -122,7 +113,6 @@ const calculateAdaptiveExchanges = (
   return baseExchanges;
 };
 
-// Define the schemas
 export const chatRequestSchema = z.object({
   initialForm: z
     .object({
@@ -227,12 +217,10 @@ export const impersonateChatRequestSchema = z.object({
 });
 
 const chat = new Hono()
-  // Main chat endpoint (session-based)
   .post("/", zValidator("json", chatRequestSchema), async (c) => {
     const rawBody = await c.req.json();
     const parsed = chatRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
-      logger.error("Zod validation error:", parsed.error.errors);
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
@@ -284,9 +272,6 @@ const chat = new Hono()
             .where(eq(sessionForms.sessionId, previousSession[0].id));
           if (formRows.length > 0) {
             followupFormAnswers = formRows[0].answers;
-            logger.log(`[CHAT] Found follow-up form from previous session ${previousSession[0].id}:`, followupFormAnswers);
-          } else {
-            logger.log(`[CHAT] No follow-up form found for previous session ${previousSession[0].id}`);
           }
         }
       }
@@ -451,8 +436,7 @@ const chat = new Hono()
             .set({ updatedAt: new Date() })
             .where(eq(threads.id, sessionData[0].thread.id));
         }
-      } catch (error) {
-        logger.error("Error saving user message:", error);
+       } catch (error) {
       }
       // Count messages and run summary logic if needed
       const msgCountRes = await db
@@ -485,9 +469,8 @@ const chat = new Hono()
             .update(sessions)
             .set({ summary: summaryText })
             .where(eq(sessions.id, sessionIdNum));
-        } catch (err) {
-          logger.error("Error generating or saving summary:", err);
-        }
+       } catch (err) {
+      }
       }
     }
 
@@ -510,7 +493,6 @@ const chat = new Hono()
           .set({ summary: summaryText })
           .where(eq(sessions.id, sessionIdNum));
       } catch (err) {
-        logger.error("Error generating or saving initial summary:", err);
       }
     }
 
@@ -552,7 +534,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
         // Add TTS instructions if enabled
         if (prefs.enableTTS) {
-          prefsText += "\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\nExample: \"I understand this has been [CONCERNED] really challenging for you. [PAUSES] It's completely normal to feel [GENTLY] overwhelmed by these emotions.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
+          prefsText += getAudioInstruction();
         }
 
         systemInstructionText += prefsText;
@@ -594,7 +576,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             .set({ crisisDetected: true })
             .where(eq(sessions.id, sessionIdNum));
         } catch (error) {
-          logger.error("Error marking session as crisis detected:", error);
         }
       }
     }
@@ -661,11 +642,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             conversationHistory
           );
         }
-      } catch (error) {
-        logger.error(
-          "Error during AI streaming or saving AI response:",
-          error
-        );
+       } catch (error) {
         await stream.writeSSE({
           data: `Error: ${
             error instanceof Error ? error.message : String(error)
@@ -674,7 +651,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
     });
   })
-  // Enhanced Impersonate chat endpoint (thread-based) with response monitoring and adaptive conversation flow
   .post(
     "/impersonate",
     zValidator("json", impersonateChatRequestSchema),
@@ -682,7 +658,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       const rawBody = await c.req.json();
       const parsed = impersonateChatRequestSchema.safeParse(rawBody);
       if (!parsed.success) {
-        logger.error("Zod validation error:", parsed.error.errors);
         return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
       }
 
@@ -793,41 +768,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       // Calculate response metrics for adaptive behavior
       const responseMetrics = getResponseMetrics(recentResponseTexts);
 
-      // Log the final conversation history
-      if (message) {
-        try {
-          // For impersonate threads, use threadId directly
-          // Ensure sender is a valid enum value
-          const allowedSenders = [
-            "user",
-            "ai",
-            "therapist",
-            "impostor",
-          ] as const;
-          type SenderType = (typeof allowedSenders)[number];
-          const safeSender: SenderType = allowedSenders.includes(
-            sender as SenderType
-          )
-            ? (sender as SenderType)
-            : "user";
 
-          await db.insert(messages).values({
-            threadId: threadId, // Use threadId for impersonate threads
-            threadType: "impersonate",
-            sender: safeSender,
-            text: message,
-            timestamp: new Date(),
-          });
-
-          // Update the thread's updatedAt timestamp to reflect recent activity
-          await db
-            .update(impersonateThread)
-            .set({ updatedAt: new Date() })
-            .where(eq(impersonateThread.id, threadId));
-        } catch (error) {
-          logger.error("Error saving user message:", error);
-        }
-      }
 
     let systemInstructionText = `
 You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
@@ -866,6 +807,12 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           prefsText += "- Use a casual and friendly tone.\n";
         if (prefs.professionalAndFormal)
           prefsText += "- Maintain a professional and formal approach.\n";
+
+        // Add TTS instructions if enabled
+        if (prefs.enableTTS) {
+          prefsText += getAudioInstruction();
+        }
+
         systemInstructionText += prefsText;
       }
 
@@ -873,7 +820,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
 
        // Enhanced response structure with conversation ending detection and eleven_v3 audio tags
-       systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.enableTTS ? '- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.' : '- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode).'}\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.\n\n**ElevenLabs v3 Audio Tags for Emotional Expression:**\nWhen appropriate, incorporate these audio tags to enhance emotional delivery:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc. Use tags sparingly and naturally to convey authentic emotional expression.\n\nExample: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."\n`;
+       systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.enableTTS ? '- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.' : '- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode).'}\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.${conversationPreferences?.enableTTS ? '\n\n' + getAudioInstruction() : ''}\n`;
 
       // Adaptive token limits based on response metrics
       let maxTokens = 800; // Default for impersonate mode
@@ -911,7 +858,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
             // Early truncation if response is getting too long
             if (responseLength > maxResponseLength) {
-              logger.log(`[IMPERSONATE] Response truncated at ${responseLength} characters`);
               break;
             }
 
@@ -952,14 +898,9 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 conversationHistory
               );
             } catch (error) {
-              logger.error("Error saving AI response:", error);
             }
           }
         } catch (error) {
-          logger.error(
-            "Error during AI streaming or saving AI response:",
-            error
-          );
           await stream.writeSSE({
             data: `Error: ${
               error instanceof Error ? error.message : String(error)
@@ -969,7 +910,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       });
     }
   )
-  // Test endpoint to verify conversation history
   .post(
     "/impersonate/test",
     zValidator("json", impersonateChatRequestSchema),
@@ -1017,12 +957,10 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           }))
         );
       } catch (error) {
-        logger.error("Error fetching chat session messages:", error);
         return c.json({ error: "Failed to fetch chat session messages." }, 500);
       }
     }
   )
-  // Get messages for impersonate threads
   .get(
     "/impersonate/:threadId",
     zValidator("param", z.object({ threadId: z.string().transform(Number) })),
@@ -1049,7 +987,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           }))
         );
       } catch (error) {
-        logger.error("Error fetching impersonate thread messages:", error);
         return c.json(
           { error: "Failed to fetch impersonate thread messages." },
           500
@@ -1057,7 +994,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
     }
   )
-  // Check if session has crisis detected
   .get(
     "/crisis/:sessionId",
     zValidator("param", z.object({ sessionId: z.string().transform(Number) })),
@@ -1077,7 +1013,6 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
         return c.json({ crisisDetected: session[0].crisisDetected });
       } catch (error) {
-        logger.error("Error checking crisis status:", error);
         return c.json({ error: "Failed to check crisis status" }, 500);
       }
     }

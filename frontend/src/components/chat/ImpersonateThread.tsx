@@ -13,7 +13,7 @@ import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
 import { Brain, Loader2, Settings } from "lucide-react";
-import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
+import { memo, Suspense, useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
 import { ImpersonateInput } from "./ImpersonateInput";
 import { MessageFormattingUtils, StreamingMessageProcessor } from "@/lib/messageFormatter";
@@ -133,8 +133,10 @@ export function ImpersonateThread({
   const [mode, setMode] = useState<"impersonate" | "chat">("impersonate");
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // TTS function
+  // TTS function - temporarily disabled for testing
   const generateTTS = async (text: string, voiceId: string) => {
+    // Temporarily disabled for conversation testing
+    return;
     if (!conversationPreferences.enableTTS) return;
     try {
       const audioUrl = await textToSpeech(text, voiceId);
@@ -145,6 +147,8 @@ export function ImpersonateThread({
       // Don't show error toast as it might interrupt the conversation
     }
   };
+
+
   // Helper function to fetch thread initial form data
   const fetchThreadInitialForm = async (threadId: number) => {
     try {
@@ -180,16 +184,16 @@ export function ImpersonateThread({
             const thread = await threadResponse.json();
             setThreadData(thread);
           }
-          // Fetch messages for this thread using the new impersonate chat API
-          const rawMessages =
-            await impersonateChatApi.getMessages(selectedThreadId);
-          clearMessages();
-          // Convert and add messages
-          const sortedMessages = convertRawMessagesToMessages(
-            rawMessages,
-            true // isImpersonateMode
-          );
-          sortedMessages.forEach((msg) => addMessage(msg));
+           // Fetch messages for this thread using the new impersonate chat API
+           const rawMessages =
+             await impersonateChatApi.getMessages(selectedThreadId);
+           clearMessages();
+           // Convert and add messages
+           const sortedMessages = convertRawMessagesToMessages(
+             rawMessages,
+             true // isImpersonateMode
+           );
+           sortedMessages.forEach((msg) => addMessage(msg));
           setShowChat(true);
           // Fetch and set the correct initial form for this thread
           await fetchThreadInitialForm(selectedThreadId);
@@ -217,6 +221,21 @@ export function ImpersonateThread({
       toast.error("User profile not loaded. Please wait.");
       return;
     }
+
+    // Save user message to database
+    if (message.trim() && selectedThreadId) {
+      try {
+        await impostorApi.postMessage({
+          sessionId: selectedThreadId,
+          threadType: "impersonate",
+          sender: "user", // User messages in impersonate mode are from the therapist
+          text: message.trim(),
+        });
+      } catch (error) {
+        console.error("Error saving user message:", error);
+      }
+    }
+
     const userMessage: Message = {
       sender: "user",
       text: message,
@@ -234,12 +253,18 @@ export function ImpersonateThread({
       // Ensure initialForm is an object, not an array
       sessionInitialForm = sanitizeInitialForm(sessionInitialForm);
       // Use the new impersonate chat API
-      const contextData = currentContext.messages.map((msg) => ({
-        role: msg.sender === "ai" ? "model" : "user",
-        text: msg.text,
-        timestamp: msg.timestamp.getTime(),
-        ...(msg.contextId ? { contextId: msg.contextId } : {}),
-      }));
+           const contextData = currentContext.messages.slice(0, -1).map((msg) => ({ // Exclude the last message to avoid duplication
+             role: msg.sender === "ai" ? "model" : "user",
+             text: msg.text,
+             timestamp: msg.timestamp.getTime(),
+             ...(msg.contextId ? { contextId: msg.contextId } : {}),
+           }));
+
+            console.log("[THERAPIST CALL] contextData length:", contextData.length);
+            console.log("[THERAPIST CALL] lastMessage:", lastMessage);
+            console.log("[THERAPIST CALL] currentContext.messages length:", currentContext.messages.length);
+            console.log("[THERAPIST CALL] last message in context:", currentContext.messages[currentContext.messages.length - 1]?.text?.substring(0, 50));
+            console.log("[THERAPIST CALL] full context messages:", currentContext.messages.map(m => ({ sender: m.sender, text: m.text.substring(0, 30) + "..." })));
       const response = await impersonateChatApi.sendMessage({
         message: message,
         threadId: selectedThreadId!,
@@ -444,23 +469,24 @@ export function ImpersonateThread({
           });
           const reader = therapistResponse.body?.getReader();
           let therapistFullResponse = "";
-          if (reader) {
-            const tempAiMessage = {
-              sender: "ai" as const,
-              text: "",
-              timestamp: new Date(),
-              tempId: Date.now(),
-              contextId: "impersonate" as const,
-            };
-            if (!isImpersonatingRef.current) return;
-            addMessage(tempAiMessage);
+            if (reader) {
+              const tempAiMessage = {
+                sender: "ai" as const,
+                text: "",
+                timestamp: new Date(),
+                tempId: Date.now(),
+                contextId: "impersonate" as const,
+              };
+              if (!isImpersonatingRef.current) return;
+              addMessage(tempAiMessage);
             therapistFullResponse = await processStreamingResponse(
               reader,
               updateLastMessage
             );
-          }
-           lastMessage = therapistFullResponse.trim() || lastMessage;
-           lastSender = "ai";
+            }
+            console.log(`[IMPERSONATE/THERAPIST RESPONSE] Therapist response received - length: ${therapistFullResponse.trim().length}`);
+             lastMessage = therapistFullResponse.trim() || lastMessage;
+            lastSender = "ai";
            // Generate TTS for therapist response
            if (therapistFullResponse.trim()) {
              generateTTS(therapistFullResponse.trim(), conversationPreferences.therapistVoiceId);
@@ -487,33 +513,36 @@ export function ImpersonateThread({
           const reader = impostorResponse.body?.getReader();
           let impostorFullResponse = "";
            if (reader) {
-             const tempImpostorMessage = {
-               sender: "impostor" as const,
-               text: "",
-               timestamp: new Date(),
-               tempId: Date.now(),
-               contextId: "impersonate" as const,
-             };
-             if (!isImpersonatingRef.current) return;
-             addMessage(tempImpostorMessage);
-            impostorFullResponse = await processStreamingResponse(
-              reader,
-              updateLastMessage
-            );
-          }
-           // Save the impostor response
-           if (impostorFullResponse.trim()) {
-              try {
-                await impostorApi.postMessage({
-                  sessionId: selectedThreadId!,
-                  threadType: "impersonate",
-                  sender: "impostor", // Impostor responses are from the patient perspective
-                  text: impostorFullResponse.trim(),
-                });
-             } catch (error) {
-               console.error("Error saving impostor message:", error);
-             }
+              const tempImpostorMessage = {
+                sender: "impostor" as const,
+                text: "",
+                timestamp: new Date(),
+                tempId: Date.now(),
+                contextId: "impersonate" as const,
+              };
+                 if (!isImpersonatingRef.current) return;
+              addMessage(tempImpostorMessage);
+             impostorFullResponse = await processStreamingResponse(
+               reader,
+               updateLastMessage
+             );
            }
+              // Save the impostor response
+              if (impostorFullResponse.trim() && impostorFullResponse.trim() !== lastMessage.trim()) {
+                 console.log(`[IMPERSONATE/IMPOSTOR SAVE] Saving impostor response - threadId: ${selectedThreadId}, text length: ${impostorFullResponse.trim().length}`);
+                 try {
+                   await impostorApi.postMessage({
+                     sessionId: selectedThreadId!,
+                     threadType: "impersonate",
+                     sender: "impostor", // Impostor responses are from the patient perspective
+                     text: impostorFullResponse.trim(),
+                   });
+                } catch (error) {
+                  console.error("Error saving impostor message:", error);
+                }
+              } else if (impostorFullResponse.trim() === lastMessage.trim()) {
+                console.warn("[IMPERSONATE/IMPOSTOR SAVE] Skipping duplicate response - impostor response identical to therapist message");
+              }
             lastMessage = impostorFullResponse.trim() || lastMessage;
             lastSender = "user";
             // Generate TTS for impostor response

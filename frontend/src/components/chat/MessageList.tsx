@@ -15,6 +15,7 @@ interface MessageListProps {
   onRetryMessage?: (message: Message) => void;
   voiceId?: string;
   preferences?: ConversationPreferences;
+  isImpersonateMode?: boolean;
 }
 
 // Message formatting is now handled by MessageFormatter class
@@ -336,13 +337,14 @@ const MessageBubble = memo(({
 MessageBubble.displayName = "MessageBubble";
 
 export const MessageList = memo(function MessageList({
-  messages,
-  isLoading,
-  onRetryMessage,
-  voiceId,
-  preferences
-}: MessageListProps) {
-  const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
+   messages,
+   isLoading,
+   onRetryMessage,
+   voiceId,
+   preferences,
+   isImpersonateMode = false
+ }: MessageListProps) {
+   const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const lastMessageCountRef = useRef<number>(messages.length);
   const lastMessageTextRef = useRef<string>("");
@@ -529,9 +531,12 @@ export const MessageList = memo(function MessageList({
             );
           }
 
-          // For positioning: user and impostor messages appear on the right
-  const isUser = message.sender === "user" || message.sender === "impostor";
-  // For play buttons: show for AI messages only when TTS is enabled
+           // For positioning: user and impostor messages appear on the right, AI messages appear on the left
+           // In impersonate mode: user (therapist) and impostor (patient) messages are on the right, ai/therapist (therapist AI) messages are on the left
+           // In regular mode: user messages are on the right, ai messages are on the left
+           const isUser = message.sender === "user" || message.sender === "impostor";
+
+           // For play buttons: show for AI messages only when TTS is enabled
   const shouldShowPlayButton = message.sender !== "user" && preferences?.mainEnableTTS;
           const isConsecutive =
             index > 0 &&

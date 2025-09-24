@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { geminiConfig } from "server/lib/config";
+import { getAudioInstruction } from "server/lib/audioInstructions";
 import { z } from "zod";
 import { db } from "../db/config";
 import { impersonateThread, messages, persona } from "../db/schema";
@@ -127,7 +128,7 @@ ${
 
       // Add TTS instructions if enabled
       if (prefs.enableTTS) {
-        prefsText += "\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\nExample: \"I understand this has been [CONCERNED] really challenging for you. [PAUSES] It's completely normal to feel [GENTLY] overwhelmed by these emotions.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
+        prefsText += getAudioInstruction();
       }
 
       systemPrompt += prefsText;
@@ -180,11 +181,11 @@ ${
  13. **VARY YOUR EXPRESSIONS:** Don't repeat similar emotional expressions. Use different ways to convey your feelings (e.g., instead of always saying "it's really hard", try "it's exhausting", "it's overwhelming", "it's wearing me down").
   14. **Natural Conversation Flow:** End responses at natural stopping points. Don't continue rambling - let the therapist respond.
 
- Example: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."
+  Example: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."
 
- The following is a message from your therapist. Respond naturally as **${userProfile.fullName}**:
+  Your therapist just said: "${message}"
 
-${message}
+  Respond naturally as **${userProfile.fullName}** with your thoughts and feelings. Do not simply repeat or echo what the therapist said. Always provide a unique response as the patient.
 `;
     }
 
@@ -284,7 +285,9 @@ ${message}
       .from(messages)
       .where(
         and(
-          eq(messages.sessionId, parseInt(sessionId)),
+          threadType === "impersonate"
+            ? eq(messages.threadId, parseInt(sessionId)) // For impersonate threads, sessionId param is actually threadId
+            : eq(messages.sessionId, parseInt(sessionId)),
           eq(messages.threadType, threadType as "main" | "impersonate")
         )
       )
@@ -303,10 +306,14 @@ ${message}
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
+    console.log(`[IMPOSTOR/MESSAGES] Saving message - sessionId/threadId: ${parsed.data.sessionId}, threadType: ${parsed.data.threadType}, sender: ${parsed.data.sender}, text length: ${parsed.data.text.length}`);
     const [msg] = await db
       .insert(messages)
       .values({
-        sessionId: parsed.data.sessionId,
+        ...(parsed.data.threadType === "impersonate"
+          ? { threadId: parsed.data.sessionId } // For impersonate threads, sessionId param is actually threadId
+          : { sessionId: parsed.data.sessionId }
+        ),
         threadType: parsed.data.threadType,
         sender: parsed.data.sender,
         text: parsed.data.text,
