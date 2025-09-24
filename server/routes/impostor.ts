@@ -61,15 +61,23 @@ export const impostorRoute = new Hono()
       message: z.string(),
       userProfile: profileSchema,
       preferredName: z.string().optional(),
-      conversationPreferences: z
-        .object({
-          briefAndConcise: z.number().min(0).max(100).optional(),
-          empatheticAndSupportive: z.boolean().optional(),
-          solutionFocused: z.boolean().optional(),
-          casualAndFriendly: z.boolean().optional(),
-          professionalAndFormal: z.boolean().optional(),
-        })
-        .optional(),
+       conversationPreferences: z
+         .object({
+           briefAndConcise: z.number().min(0).max(100).optional(),
+           empatheticAndSupportive: z.boolean().optional(),
+           solutionFocused: z.boolean().optional(),
+           casualAndFriendly: z.boolean().optional(),
+           professionalAndFormal: z.boolean().optional(),
+           // Impersonate TTS settings
+           therapistVoiceId: z.string().optional(),
+           impostorVoiceId: z.string().optional(),
+           enableTTS: z.boolean().optional(),
+           ttsSpeed: z.number().optional(),
+           ttsVolume: z.number().optional(),
+           ttsAutoPlay: z.boolean().optional(),
+           ttsAdaptivePacing: z.boolean().optional(),
+         })
+         .optional(),
     });
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
@@ -116,6 +124,12 @@ ${
         prefsText += "- Use a casual and friendly tone.\n";
       if (prefs.professionalAndFormal)
         prefsText += "- Maintain a professional and formal approach.\n";
+
+      // Add TTS instructions if enabled
+      if (prefs.enableTTS) {
+        prefsText += "\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\nExample: \"I understand this has been [CONCERNED] really challenging for you. [PAUSES] It's completely normal to feel [GENTLY] overwhelmed by these emotions.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
+      }
+
       systemPrompt += prefsText;
     }
 
@@ -141,17 +155,7 @@ ${
  10. **Avoid Generic Greetings:** Do NOT start with "Hi", "Hello", or "Thank you for seeing me". Jump directly into expressing your concerns and feelings.
   11. **Natural Conversation Flow:** End at a natural stopping point to invite the therapist's response.
 
- **ElevenLabs v3 Audio Tags for Emotional Expression:**
- When appropriate, incorporate these audio tags to enhance emotional delivery:
- - Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED]
- - Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]
- - Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]
- - Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]
- You are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc. Use tags sparingly and naturally to convey authentic emotional expression.
-
- Example: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."
-
- **This is the beginning of your therapy session.** Start the conversation naturally as **${userProfile.fullName}** by introducing yourself and explaining why you're here for therapy.
+  **This is the beginning of your therapy session.** Start the conversation naturally as **${userProfile.fullName}** by introducing yourself and explaining why you're here for therapy.
 `;
     } else {
       // Respond to therapist's message
@@ -171,18 +175,10 @@ ${
 8.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
 9.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and a varied sentence structure like a real person in conversation. Avoid overly formal or perfectly structured sentences.
 10. **Don't "Solve" Too Quickly:** Therapy is a process. Don't jump to solutions or resolve your issues instantly. Allow for back-and-forth and exploration. You might have moments of clarity, but also moments of confusion or resistance.
-11. **Keep Responses Concise:** Limit responses to 2-4 sentences maximum. Focus on emotional expression rather than lengthy explanations. If you have a lot to say, prioritize the most important feelings or thoughts.
+ 11. **Keep Responses Concise:** ${conversationPreferences?.enableTTS ? 'Limit responses to 1-2 sentences maximum for optimal audio generation.' : 'Limit responses to 2-4 sentences maximum. Focus on emotional expression rather than lengthy explanations. If you have a lot to say, prioritize the most important feelings or thoughts.'}
 12. **Avoid Repetitive Greetings:** Do NOT start responses with "Hi", "Hello", "Hey", or similar greetings once the conversation has begun. Focus on substantive responses to the therapist's input.
  13. **VARY YOUR EXPRESSIONS:** Don't repeat similar emotional expressions. Use different ways to convey your feelings (e.g., instead of always saying "it's really hard", try "it's exhausting", "it's overwhelming", "it's wearing me down").
- 14. **Natural Conversation Flow:** End responses at natural stopping points. Don't continue rambling - let the therapist respond.
-
- **ElevenLabs v3 Audio Tags for Emotional Expression:**
- When appropriate, incorporate these audio tags to enhance emotional delivery:
- - Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED]
- - Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]
- - Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]
- - Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]
- You are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc. Use tags sparingly and naturally to convey authentic emotional expression.
+  14. **Natural Conversation Flow:** End responses at natural stopping points. Don't continue rambling - let the therapist respond.
 
  Example: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."
 

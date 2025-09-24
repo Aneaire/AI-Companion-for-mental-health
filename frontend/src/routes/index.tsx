@@ -480,6 +480,7 @@ function Index() {
             showFormIndicator={showFormIndicator}
             onMessageSent={moveThreadToTop}
             onSessionSelected={handleSelectSession}
+            conversationPreferences={conversationPreferences}
             onThreadDeleted={() => {
               // Select first available thread after deletion
               if (threadsWithoutPersona.length > 1) {

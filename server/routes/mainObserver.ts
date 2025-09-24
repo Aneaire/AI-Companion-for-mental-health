@@ -290,8 +290,6 @@ Analyze the user's current emotional state and provide strategic guidance for th
 
 **CRITICAL:** If you detect ANY signs of suicidal thoughts, self-harm, harm to others, or severe crisis, set sentiment to "crisis_risk" immediately.
 
-${conversationPreferences?.mainEnableTTS ? `**AUDIO ENHANCEMENT FOR THERAPEUTIC EXPRESSION:**\nSince text-to-speech is enabled, consider how the AI therapist's response should be enhanced with emotional audio tags for better therapeutic delivery. When suggesting strategies, include specific guidance about which ElevenLabs v3 audio tags would be most appropriate for conveying empathy, concern, or therapeutic warmth. For example:\n- Use [GENTLY], [WARM], [COMPASSIONATE] for supportive responses\n- Use [CONCERNED], [SERIOUS] for addressing difficult topics\n- Use [ENCOURAGING], [HOPEFUL] for positive reinforcement\n- Use [CALM], [REASSURING] for crisis situations\n- Consider pacing tags like [PAUSES] for thoughtful reflection\n\nInclude specific audio tag recommendations in your strategy and rationale to help the AI therapist deliver more emotionally resonant responses.` : ''}
-
 Respond in this exact JSON format:
 {
   "sentiment": "positive|negative|neutral|urgent|confused|crisis_risk",

@@ -145,17 +145,19 @@ export const impersonateChatRequestSchema = z.object({
   observerRationale: z.string().optional(), // Added for observer rationale
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
    sentiment: z.string().optional(), // Added for sentiment analysis
-   sender: z.string().optional(), // Added for sender
-   conversationPreferences: z
-     .object({
-       briefAndConcise: z.number().min(0).max(100).optional(),
-       empatheticAndSupportive: z.boolean().optional(),
-       solutionFocused: z.boolean().optional(),
-       casualAndFriendly: z.boolean().optional(),
-       professionalAndFormal: z.boolean().optional(),
-     })
-     .optional(),
-});
+    sender: z.string().optional(), // Added for sender
+    conversationPreferences: z
+      .object({
+        briefAndConcise: z.number().min(0).max(100).optional(),
+        empatheticAndSupportive: z.boolean().optional(),
+        solutionFocused: z.boolean().optional(),
+        casualAndFriendly: z.boolean().optional(),
+        professionalAndFormal: z.boolean().optional(),
+        // Main chat TTS settings
+        mainEnableTTS: z.boolean().optional(),
+      })
+      .optional(),
+ });
 
 const chat = new Hono()
   // Main chat endpoint (session-based)
@@ -483,7 +485,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
       // Add TTS instructions if enabled
       if (prefs.mainEnableTTS) {
-        prefsText += "\n**ElevenLabs v3 Audio Tags for Emotional Expression:**\nWhen appropriate, incorporate these audio tags to enhance emotional delivery:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc. Use tags sparingly and naturally to convey authentic emotional expression.\n\nExample: \"In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
+        prefsText += "\n**REQUIRED: ElevenLabs v3 Audio Tags for Emotional Expression:**\nYou MUST incorporate appropriate audio tags in EVERY response to enhance emotional delivery. Choose from these categories:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED], [GENTLY], [WARM], [COMPASSIONATE], [CONCERNED], [SERIOUS], [ENCOURAGING], [HOPEFUL], [CALM], [REASSURING]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc.\n\n**MANDATORY:** Include at least 2-3 audio tags per response, distributed naturally throughout the text. Use tags that match the emotional context of your therapeutic response.\n\nExample: \"I understand this has been [CONCERNED] really challenging for you. [PAUSES] It's completely normal to feel [GENTLY] overwhelmed by these emotions.\"\n\n**Response Length for Audio:** Keep responses much shorter (1-2 sentences maximum) to ensure fast audio generation and save ElevenLabs API usage.\n";
       }
 
       systemInstructionText += prefsText;

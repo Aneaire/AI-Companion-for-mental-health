@@ -531,8 +531,8 @@ export const MessageList = memo(function MessageList({
 
           // For positioning: user and impostor messages appear on the right
   const isUser = message.sender === "user" || message.sender === "impostor";
-  // For play buttons: show for all AI-generated messages (therapist, impostor, ai)
-  const shouldShowPlayButton = message.sender !== "user";
+  // For play buttons: show for AI messages only when TTS is enabled
+  const shouldShowPlayButton = message.sender !== "user" && preferences?.mainEnableTTS;
           const isConsecutive =
             index > 0 &&
             stabilizedMessages[index - 1]?.sender === message.sender;
