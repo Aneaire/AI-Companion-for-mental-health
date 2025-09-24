@@ -264,15 +264,17 @@ export const impostorApi = {
     sessionId,
     message,
     userProfile,
+    conversationPreferences,
     signal,
   }: {
     sessionId: number;
     message: string;
     userProfile: any;
+    conversationPreferences?: any;
     signal?: AbortSignal;
   }) {
     const res = await client.api.impostor.chat.$post({
-      json: { sessionId, message, userProfile },
+      json: { sessionId, message, userProfile, conversationPreferences },
       ...(signal ? { fetch: { signal } } : {}),
     });
     if (!res.ok) throw new Error("Failed to send impostor message");

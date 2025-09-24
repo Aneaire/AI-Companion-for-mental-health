@@ -5,8 +5,8 @@ import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import path from "path";
-import { geminiConfig } from "server/lib/config";
 import { getAudioInstruction } from "server/lib/audioInstructions";
+import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
 import {
@@ -28,7 +28,10 @@ const saveConversationToFile = async (
 ) => {
   try {
     const logDir = "chat_logs";
-    const fileName = path.join(logDir, `impersonate_conversation_${sessionId}_${Date.now()}.md`);
+    const fileName = path.join(
+      logDir,
+      `impersonate_conversation_${sessionId}_${Date.now()}.md`
+    );
 
     await fs.promises.mkdir(logDir, { recursive: true });
 
@@ -66,15 +69,15 @@ interface ResponseMetrics {
 }
 
 const getResponseMetrics = (responses: string[]): ResponseMetrics => {
-  const lengths = responses.map(r => r.length);
+  const lengths = responses.map((r) => r.length);
   const averageLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-  const longResponseCount = lengths.filter(l => l > 500).length;
+  const longResponseCount = lengths.filter((l) => l > 500).length;
 
   return {
     averageLength,
     longResponseCount,
     totalResponses: responses.length,
-    lastResponseLength: lengths[lengths.length - 1] || 0
+    lastResponseLength: lengths[lengths.length - 1] || 0,
   };
 };
 
@@ -87,10 +90,10 @@ const detectConversationEnding = (message: string): boolean => {
     "thank you for listening",
     "i've got what i needed",
     "that was helpful",
-    "i feel understood"
+    "i feel understood",
   ];
 
-  return endingPhrases.some(phrase =>
+  return endingPhrases.some((phrase) =>
     message.toLowerCase().includes(phrase.toLowerCase())
   );
 };
@@ -106,7 +109,12 @@ const calculateAdaptiveExchanges = (
   }
 
   // Increase exchanges if conversation shows natural flow and ending signs
-  if (conversationHistory.length > 5 && detectConversationEnding(conversationHistory[conversationHistory.length - 1])) {
+  if (
+    conversationHistory.length > 5 &&
+    detectConversationEnding(
+      conversationHistory[conversationHistory.length - 1]
+    )
+  ) {
     return Math.min(baseExchanges + 1, 8);
   }
 
@@ -146,25 +154,32 @@ export const chatRequestSchema = z.object({
   observerRationale: z.string().optional(), // Added for observer rationale
   observerNextSteps: z.array(z.string()).optional(), // Added for observer next steps
   sentiment: z.string().optional(), // Added for sentiment analysis
-   sender: z.string().optional(), // Added for sender
-   threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
-    conversationPreferences: z
-      .object({
-        briefAndConcise: z.number().min(0).max(100).optional(),
-        empatheticAndSupportive: z.boolean().optional(),
-        solutionFocused: z.boolean().optional(),
-        casualAndFriendly: z.boolean().optional(),
-        professionalAndFormal: z.boolean().optional(),
-        // Impersonate TTS settings
-        therapistVoiceId: z.string().optional(),
-        impostorVoiceId: z.string().optional(),
-        enableTTS: z.boolean().optional(),
-        ttsSpeed: z.number().optional(),
-        ttsVolume: z.number().optional(),
-        ttsAutoPlay: z.boolean().optional(),
-        ttsAdaptivePacing: z.boolean().optional(),
-      })
-      .optional(),
+  sender: z.string().optional(), // Added for sender
+  threadType: z.enum(["main", "impersonate"]).optional().default("main"), // Added for thread type
+  conversationPreferences: z
+    .object({
+      briefAndConcise: z.number().min(0).max(100).optional(),
+      empatheticAndSupportive: z.boolean().optional(),
+      solutionFocused: z.boolean().optional(),
+      casualAndFriendly: z.boolean().optional(),
+      professionalAndFormal: z.boolean().optional(),
+      // Main page TTS settings
+      mainTTSVoiceId: z.string().optional(),
+      mainEnableTTS: z.boolean().optional(),
+      mainTTSSpeed: z.number().optional(),
+      mainTTSVolume: z.number().optional(),
+      mainTTSAutoPlay: z.boolean().optional(),
+      mainTTSAdaptivePacing: z.boolean().optional(),
+      // Impersonate TTS settings
+      therapistVoiceId: z.string().optional(),
+      impostorVoiceId: z.string().optional(),
+      enableTTS: z.boolean().optional(),
+      ttsSpeed: z.number().optional(),
+      ttsVolume: z.number().optional(),
+      ttsAutoPlay: z.boolean().optional(),
+      ttsAdaptivePacing: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 // Schema for impersonate chat (thread-based)
@@ -197,23 +212,23 @@ export const impersonateChatRequestSchema = z.object({
   userId: z.string().optional(), // Now accepts string userId
   threadId: z.number().optional(), // Thread ID for impersonate chats
   sender: z.string().optional(), // Added for sender
-   conversationPreferences: z
-     .object({
-       briefAndConcise: z.number().min(0).max(100).optional(),
-       empatheticAndSupportive: z.boolean().optional(),
-       solutionFocused: z.boolean().optional(),
-       casualAndFriendly: z.boolean().optional(),
-       professionalAndFormal: z.boolean().optional(),
-       // Impersonate TTS settings
-       therapistVoiceId: z.string().optional(),
-       impostorVoiceId: z.string().optional(),
-       enableTTS: z.boolean().optional(),
-       ttsSpeed: z.number().optional(),
-       ttsVolume: z.number().optional(),
-       ttsAutoPlay: z.boolean().optional(),
-       ttsAdaptivePacing: z.boolean().optional(),
-     })
-     .optional(),
+  conversationPreferences: z
+    .object({
+      briefAndConcise: z.number().min(0).max(100).optional(),
+      empatheticAndSupportive: z.boolean().optional(),
+      solutionFocused: z.boolean().optional(),
+      casualAndFriendly: z.boolean().optional(),
+      professionalAndFormal: z.boolean().optional(),
+      // Impersonate TTS settings
+      therapistVoiceId: z.string().optional(),
+      impostorVoiceId: z.string().optional(),
+      enableTTS: z.boolean().optional(),
+      ttsSpeed: z.number().optional(),
+      ttsVolume: z.number().optional(),
+      ttsAutoPlay: z.boolean().optional(),
+      ttsAdaptivePacing: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const chat = new Hono()
@@ -365,18 +380,20 @@ const chat = new Hono()
         initialContextString += `- Custom Response Style: ${initialForm.responseDescription}\n`;
       // Add follow-up form answers if present
       if (followupFormAnswers) {
-        const currentSessionNum = sessionData.length > 0 ? sessionData[0].session.sessionNumber : 1;
+        const currentSessionNum =
+          sessionData.length > 0 ? sessionData[0].session.sessionNumber : 1;
         const previousSessionNum = currentSessionNum - 1;
         initialContextString += `\n**Follow-up Form from Previous Session (Session ${previousSessionNum}):**\n`;
         initialContextString += `These answers were provided by the user after their previous therapy session to help prepare for this current session (Session ${currentSessionNum}):\n`;
         for (const [key, value] of Object.entries(followupFormAnswers)) {
           // Convert technical field names to human-readable format
           const humanReadableKey = key
-            .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-            .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-            .replace(/_/g, ' '); // Replace underscores with spaces
+            .replace(/([A-Z])/g, " $1") // Add space before capital letters
+            .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
+            .replace(/_/g, " "); // Replace underscores with spaces
 
-          const formattedValue = typeof value === "string" ? value : JSON.stringify(value);
+          const formattedValue =
+            typeof value === "string" ? value : JSON.stringify(value);
           initialContextString += `- ${humanReadableKey}: ${formattedValue}\n`;
         }
         initialContextString += `Please use these insights to personalize this session and acknowledge their progress or concerns mentioned in the follow-up form.\n`;
@@ -436,8 +453,7 @@ const chat = new Hono()
             .set({ updatedAt: new Date() })
             .where(eq(threads.id, sessionData[0].thread.id));
         }
-       } catch (error) {
-      }
+      } catch (error) {}
       // Count messages and run summary logic if needed
       const msgCountRes = await db
         .select({ count: count() })
@@ -469,8 +485,7 @@ const chat = new Hono()
             .update(sessions)
             .set({ summary: summaryText })
             .where(eq(sessions.id, sessionIdNum));
-       } catch (err) {
-      }
+        } catch (err) {}
       }
     }
 
@@ -492,8 +507,7 @@ const chat = new Hono()
           .update(sessions)
           .set({ summary: summaryText })
           .where(eq(sessions.id, sessionIdNum));
-      } catch (err) {
-      }
+      } catch (err) {}
     }
 
     let systemInstructionText = `
@@ -514,31 +528,30 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 10. **Follow-up Form Integration:** When a user's previous session follow-up form is provided, naturally reference their responses to show continuity between sessions. Acknowledge any progress, changes, or concerns they mentioned. This demonstrates you remember their previous session and are building upon their therapeutic journey.
 `;
 
-      // Add conversationPreferences to the prompt if present
-      if (
-        typeof conversationPreferences === "object" &&
-        conversationPreferences !== null
-      ) {
-        const prefs = conversationPreferences;
-        let prefsText = "\n**User Conversation Preferences:**\n";
-        if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
-          prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
-        if (prefs.empatheticAndSupportive)
-          prefsText += "- Be empathetic and emotionally supportive.\n";
-        if (prefs.solutionFocused)
-          prefsText += "- Focus on providing practical solutions and advice.\n";
-        if (prefs.casualAndFriendly)
-          prefsText += "- Use a casual and friendly tone.\n";
-        if (prefs.professionalAndFormal)
-          prefsText += "- Maintain a professional and formal approach.\n";
+    // Add conversationPreferences to the prompt if present
+    if (
+      typeof conversationPreferences === "object" &&
+      conversationPreferences !== null
+    ) {
+      const prefs = conversationPreferences;
+      let prefsText = "\n**User Conversation Preferences:**\n";
+      if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
+        prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
+      if (prefs.empatheticAndSupportive)
+        prefsText += "- Be empathetic and emotionally supportive.\n";
+      if (prefs.solutionFocused)
+        prefsText += "- Focus on providing practical solutions and advice.\n";
+      if (prefs.casualAndFriendly)
+        prefsText += "- Use a casual and friendly tone.\n";
+      if (prefs.professionalAndFormal)
+        prefsText += "- Maintain a professional and formal approach.\n";
 
-        // Add TTS instructions if enabled
         if (prefs.enableTTS) {
           prefsText += getAudioInstruction();
         }
 
-        systemInstructionText += prefsText;
-      }
+      systemInstructionText += prefsText;
+    }
 
     // Incorporate observer's strategic guidance dynamically
     if (strategy && nextSteps && nextSteps.length > 0) {
@@ -565,7 +578,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       systemInstructionText += `\n**User Sentiment: Confused.** Provide clear, simplified responses. Offer to rephrase or break down concepts. Ask clarifying questions patiently.\n`;
     }
 
-    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n\n**ElevenLabs v3 Audio Tags for Emotional Expression:**\nWhen appropriate, incorporate these audio tags to enhance emotional delivery:\n- Emotional tone: [EXCITED], [NERVOUS], [FRUSTRATED], [TIRED]\n- Reactions: [GASP], [SIGH], [LAUGHS], [GULPS]\n- Volume & energy: [WHISPERING], [SHOUTING], [QUIETLY], [LOUDLY]\n- Pacing & rhythm: [PAUSES], [STAMMERS], [RUSHED]\nYou are not limited to these tags - be creative and use additional tags like [BREATHY], [CHUCKLING], [YAWNING], [MUTTERING], [CONFIDENT], [UNCERTAIN], [RELIEVED], [DISAPPOINTED], etc. Use tags sparingly and naturally to convey authentic emotional expression.\n\nExample: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."\n`;
+    systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n- Keep responses brief and to the point (2-4 sentences maximum).\n- Acknowledge feelings simply and directly.\n- Integrate the observer's strategy and next steps naturally.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Do not provide a JSON output; just the conversational text.\n\n`;
 
     // Mark session as having crisis detected if needed
     if (sentiment === "urgent" || sentiment === "crisis_risk") {
@@ -575,8 +588,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             .update(sessions)
             .set({ crisisDetected: true })
             .where(eq(sessions.id, sessionIdNum));
-        } catch (error) {
-        }
+        } catch (error) {}
       }
     }
 
@@ -642,7 +654,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             conversationHistory
           );
         }
-       } catch (error) {
+      } catch (error) {
         await stream.writeSSE({
           data: `Error: ${
             error instanceof Error ? error.message : String(error)
@@ -762,15 +774,13 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         .limit(20);
 
       const recentResponseTexts = recentMessages
-        .filter(msg => msg.sender === "ai")
-        .map(msg => msg.text);
+        .filter((msg) => msg.sender === "ai")
+        .map((msg) => msg.text);
 
       // Calculate response metrics for adaptive behavior
       const responseMetrics = getResponseMetrics(recentResponseTexts);
 
-
-
-    let systemInstructionText = `
+      let systemInstructionText = `
 You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
 
 **Crucial Ethical and Professional Guidelines:**
@@ -808,6 +818,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         if (prefs.professionalAndFormal)
           prefsText += "- Maintain a professional and formal approach.\n";
 
+
+
         // Add TTS instructions if enabled
         if (prefs.enableTTS) {
           prefsText += getAudioInstruction();
@@ -816,17 +828,20 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         systemInstructionText += prefsText;
       }
 
-
-
-
-       // Enhanced response structure with conversation ending detection and eleven_v3 audio tags
-       systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.enableTTS ? '- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.' : '- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode).'}\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.${conversationPreferences?.enableTTS ? '\n\n' + getAudioInstruction() : ''}\n`;
+      // Enhanced response structure with conversation ending detection and eleven_v3 audio tags
+      systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.enableTTS
+        ? "- Keep responses very brief (1-2 sentences maximum) for optimal audio generation."
+        : "- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode)."
+      }\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.${conversationPreferences?.enableTTS ? "\n\n" + getAudioInstruction() : ""}\n`;
 
       // Adaptive token limits based on response metrics
       let maxTokens = 800; // Default for impersonate mode
       if (responseMetrics.averageLength > 300) {
         maxTokens = 400; // Reduce if responses are getting long
-      } else if (responseMetrics.averageLength < 150 && responseMetrics.totalResponses > 3) {
+      } else if (
+        responseMetrics.averageLength < 150 &&
+        responseMetrics.totalResponses > 3
+      ) {
         maxTokens = 600; // Allow slightly more if consistently brief
       }
 
@@ -875,11 +890,11 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 "impostor",
               ] as const;
               type SenderType = (typeof allowedSenders)[number];
-               let aiSender: SenderType = (sender as SenderType) || "ai";
-               await db.insert(messages).values({
-                 threadId: threadId, // Use threadId for impersonate threads
-                 threadType: "impersonate",
-                 sender: aiSender,
+              let aiSender: SenderType = (sender as SenderType) || "ai";
+              await db.insert(messages).values({
+                threadId: threadId, // Use threadId for impersonate threads
+                threadType: "impersonate",
+                sender: aiSender,
                 text: aiResponseText,
                 timestamp: new Date(),
               });
@@ -897,8 +912,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
                 model.systemInstruction?.parts[0].text || "",
                 conversationHistory
               );
-            } catch (error) {
-            }
+            } catch (error) {}
           }
         } catch (error) {
           await stream.writeSSE({

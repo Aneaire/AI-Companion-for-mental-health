@@ -133,10 +133,8 @@ export function ImpersonateThread({
   const [mode, setMode] = useState<"impersonate" | "chat">("impersonate");
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // TTS function - temporarily disabled for testing
+  // TTS function for generating audio from text
   const generateTTS = async (text: string, voiceId: string) => {
-    // Temporarily disabled for conversation testing
-    return;
     if (!conversationPreferences.enableTTS) return;
     try {
       const audioUrl = await textToSpeech(text, voiceId);

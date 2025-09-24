@@ -7,7 +7,6 @@ import { getAudioInstruction } from "server/lib/audioInstructions";
 import { z } from "zod";
 import { db } from "../db/config";
 import { impersonateThread, messages, persona } from "../db/schema";
-import { logger } from "../lib/logger";
 
 // Initialize Gemini
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -192,7 +191,7 @@ ${
     try {
       // Get response from Gemini (streaming) with token limits for concise responses
       const model = gemini.getGenerativeModel({
-        model: geminiConfig.twoPoint5FlashLite,
+        model: geminiConfig.twoFlash,
         generationConfig: {
           maxOutputTokens: 400, // Limit impostor responses to prevent long monologues
         },
@@ -208,7 +207,6 @@ ${
 
           // Early truncation if response is getting too long
           if (responseLength > maxResponseLength) {
-            console.log(`[IMPOSTOR] Response truncated at ${responseLength} characters`);
             break;
           }
 
@@ -216,7 +214,6 @@ ${
         }
       });
     } catch (error) {
-      logger.error("Error generating impostor response:", error);
       return c.json({ error: "Failed to generate response" }, 500);
     }
   })
@@ -306,7 +303,6 @@ ${
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
-    console.log(`[IMPOSTOR/MESSAGES] Saving message - sessionId/threadId: ${parsed.data.sessionId}, threadType: ${parsed.data.threadType}, sender: ${parsed.data.sender}, text length: ${parsed.data.text.length}`);
     const [msg] = await db
       .insert(messages)
       .values({
