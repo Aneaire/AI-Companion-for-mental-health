@@ -134,12 +134,13 @@ export function ImpersonateThread({
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // TTS function for generating audio from text
-  const generateTTS = async (text: string, voiceId: string) => {
+  const generateTTS = async (text: string, voiceId: string, modelId?: string) => {
     if (!conversationPreferences.enableTTS) return;
     try {
-      const audioUrl = await textToSpeech(text, voiceId);
-      // The audio will autoplay from the textToSpeech function
-      console.log("TTS generated for voice:", voiceId);
+      const shouldAutoPlay = conversationPreferences.ttsAutoPlay ?? false;
+      const audioUrl = await textToSpeech(text, voiceId, shouldAutoPlay, modelId);
+      // The audio will autoplay from the textToSpeech function if auto-play is enabled
+      console.log("TTS generated for voice:", voiceId, "model:", modelId, "autoPlay:", shouldAutoPlay);
     } catch (error) {
       console.error("TTS generation failed:", error);
       // Don't show error toast as it might interrupt the conversation
@@ -485,10 +486,10 @@ export function ImpersonateThread({
             console.log(`[IMPERSONATE/THERAPIST RESPONSE] Therapist response received - length: ${therapistFullResponse.trim().length}`);
              lastMessage = therapistFullResponse.trim() || lastMessage;
             lastSender = "ai";
-           // Generate TTS for therapist response
-           if (therapistFullResponse.trim()) {
-             generateTTS(therapistFullResponse.trim(), conversationPreferences.therapistVoiceId);
-           }
+            // Generate TTS for therapist response
+            if (therapistFullResponse.trim()) {
+              generateTTS(therapistFullResponse.trim(), conversationPreferences.therapistVoiceId, conversationPreferences.therapistModel);
+            }
         } else {
           // Impostor's turn
           const abortController = new AbortController();
@@ -543,10 +544,10 @@ export function ImpersonateThread({
               }
             lastMessage = impostorFullResponse.trim() || lastMessage;
             lastSender = "user";
-            // Generate TTS for impostor response
-            if (impostorFullResponse.trim()) {
-              generateTTS(impostorFullResponse.trim(), conversationPreferences.impostorVoiceId);
-            }
+             // Generate TTS for impostor response
+             if (impostorFullResponse.trim()) {
+               generateTTS(impostorFullResponse.trim(), conversationPreferences.impostorVoiceId, conversationPreferences.impostorModel);
+             }
         }
         exchanges++;
         await new Promise((resolve) => setTimeout(resolve, 0));

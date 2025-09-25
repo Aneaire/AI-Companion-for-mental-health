@@ -70,20 +70,24 @@ const MessageBubble = memo(({
     try {
       setIsPlaying(true);
 
-      // Determine the correct voiceId based on message sender
+      // Determine the correct voiceId and modelId based on message sender
       let audioVoiceId = voiceId;
+      let audioModelId = "eleven_flash_v2_5"; // default fallback
       if (preferences) {
         if (message.sender === "therapist") {
           audioVoiceId = preferences.therapistVoiceId;
+          audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
         } else if (message.sender === "impostor") {
           audioVoiceId = preferences.impostorVoiceId;
+          audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
         } else if (message.sender === "ai") {
           audioVoiceId = preferences.mainTTSVoiceId;
+          audioModelId = preferences.mainTTSModel || "eleven_flash_v2_5";
         }
       }
 
       // Get audio URL (will use cache if available)
-      const url = await textToSpeech(message.text, audioVoiceId, false);
+      const url = await textToSpeech(message.text, audioVoiceId, false, audioModelId);
       setAudioUrl(url);
 
       // Create and play audio

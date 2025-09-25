@@ -55,6 +55,14 @@ export function ThreadSettingsDialog({
   const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(false);
 
+  // ElevenLabs model options
+  const elevenLabsModels = [
+    { id: "eleven_v3", name: "Eleven v3" },
+    { id: "eleven_flash_v2_5", name: "Eleven Flash v2.5" },
+    { id: "eleven_flash_v2", name: "Eleven Flash v2" },
+    { id: "eleven_turbo_v2", name: "Eleven Turbo v2" },
+  ];
+
   // Fetch voices when dialog opens
   useEffect(() => {
     if (isOpen && voices.length === 0) {
@@ -308,10 +316,55 @@ export function ThreadSettingsDialog({
                         </div>
                       </div>
                     </>
-                  )}
-                </div>
+                   )}
+                 </div>
 
-                <Separator />
+                 <Separator />
+
+                 <div className="space-y-3">
+                   <Label className="text-base">ElevenLabs Model</Label>
+                   <p className="text-sm text-gray-600">
+                     Choose the AI model for text-to-speech generation
+                   </p>
+                   <Select
+                     value={context === "main" ? (preferences.mainTTSModel || "eleven_flash_v2_5") : (preferences.therapistModel || "eleven_flash_v2_5")}
+                     onValueChange={(value) => updateVoicePreference(context === "main" ? "mainTTSModel" : "therapistModel", value)}
+                   >
+                     <SelectTrigger className="w-full">
+                       <SelectValue placeholder="Select a model" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {elevenLabsModels.map((model) => (
+                         <SelectItem key={model.id} value={model.id}>
+                           {model.name}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                   {context === "impersonate" && (
+                     <div className="mt-4">
+                       <Label className="text-sm font-medium">Impostor Model</Label>
+                       <Select
+                         value={preferences.impostorModel || "eleven_flash_v2_5"}
+                         onValueChange={(value) => updateVoicePreference("impostorModel", value)}
+                         className="mt-2"
+                       >
+                         <SelectTrigger className="w-full">
+                           <SelectValue placeholder="Select impostor model" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {elevenLabsModels.map((model) => (
+                             <SelectItem key={model.id} value={model.id}>
+                               {model.name}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </div>
+                   )}
+                 </div>
+
+                 <Separator />
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">

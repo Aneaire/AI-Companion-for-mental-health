@@ -348,11 +348,20 @@ const chat = new Hono()
       });
     }
 
+    // Helper function to clean audio tags from text when not using Eleven v3
+    const cleanAudioTags = (text: string, modelId?: string): string => {
+      if (modelId === "eleven_v3") {
+        return text; // Keep audio tags for Eleven v3
+      }
+      // Remove audio tags for other models
+      return text.replace(/\[([A-Z]+)\]/g, '').trim();
+    };
+
     if (context) {
       context.forEach((msg) => {
         conversationHistory.push({
           role: msg.role === "model" ? "model" : "user",
-          parts: [{ text: msg.text }],
+          parts: [{ text: cleanAudioTags(msg.text, conversationPreferences?.mainTTSModel) }],
         });
       });
     } else {
@@ -499,7 +508,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       // Add TTS instructions if enabled
       logger.info("prefs.mainEnableTTS:", prefs.mainEnableTTS);
       if (prefs.mainEnableTTS) {
-        prefsText += getAudioInstruction();
+        prefsText += getAudioInstruction(prefs.mainTTSModel);
       }
 
       systemInstructionText += prefsText;
@@ -799,7 +808,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
         // Add TTS instructions if enabled
         if (prefs.mainEnableTTS) {
-          prefsText += getAudioInstruction();
+          prefsText += getAudioInstruction(prefs.mainTTSModel);
         }
 
         systemInstructionText += prefsText;

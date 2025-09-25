@@ -127,7 +127,7 @@ ${
 
       // Add TTS instructions if enabled
       if (prefs.enableTTS) {
-        prefsText += getAudioInstruction();
+        prefsText += getAudioInstruction(prefs.impostorModel);
       }
 
       systemPrompt += prefsText;
