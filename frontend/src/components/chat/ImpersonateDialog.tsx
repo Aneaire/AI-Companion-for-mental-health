@@ -18,7 +18,8 @@ export function ImpersonateDialog({
   onSubmit: (
     formData: ImpersonateFormData,
     aiResponse: string,
-    sessionId: number
+    sessionId: number,
+    templateId?: number | null
   ) => void;
   onThreadCreated?: (session: any) => void;
 }) {

@@ -15,6 +15,7 @@ interface ChatHeaderProps {
   threadTitle?: string;
   onDeleteThread?: (threadId: number) => void;
   onArchiveThread?: (threadId: number) => void;
+  context?: "main" | "impersonate";
 }
 
 export function ChatHeader({
@@ -25,11 +26,16 @@ export function ChatHeader({
   threadTitle,
   onDeleteThread,
   onArchiveThread,
+  context = "main",
 }: ChatHeaderProps): JSX.Element {
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <>
+      <div style={{ position: 'absolute', top: 0, right: 0, background: 'red', color: 'white', padding: '2px 5px', fontSize: '10px' }}>
+        DEBUG: ChatHeader context: {context}
+      </div>
       <header className="relative overflow-hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/60">
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-white/50 to-purple-50/50" />
@@ -88,6 +94,7 @@ export function ChatHeader({
         onPreferencesChange={onPreferencesChange}
         onDeleteThread={onDeleteThread}
         onArchiveThread={onArchiveThread}
+        context={context}
       />
     </>
   );

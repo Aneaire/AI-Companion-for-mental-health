@@ -30,6 +30,7 @@
   "dependencies": {
     "@clerk/backend": "^2.12.1",
     "@clerk/clerk-sdk-node": "^5.1.6",
+    "@elevenlabs/react": "^0.6.3",
     "@google/generative-ai": "^0.24.1",
     "@hono/zod-validator": "^0.5.0",
     "@supabase/supabase-js": "^2.49.10",

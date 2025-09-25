@@ -143,6 +143,11 @@ export const mainObserverRequestSchema = z.object({
     })
     .optional(),
   followupForm: z.record(z.any()).optional(), // Add follow-up form data
+  conversationPreferences: z
+    .object({
+      mainEnableTTS: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const mainObserverResponseSchema = z.object({
@@ -162,12 +167,12 @@ const mainObserver = new Hono().post(
       return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
     }
 
-    const { messages, initialForm, followupForm } = parsed.data;
+    const { messages, initialForm, followupForm, conversationPreferences } = parsed.data;
 
     try {
       // Use Gemini for sentiment and strategy analysis
       const { sentiment, strategy, rationale, next_steps } =
-        await analyzeWithMainGemini(messages, initialForm, followupForm);
+        await analyzeWithMainGemini(messages, initialForm, followupForm, conversationPreferences);
 
       // Log the observer call
       await logMainObserverCall(
@@ -206,7 +211,10 @@ async function analyzeWithMainGemini(
     supportType?: string[];
     additionalContext?: string;
   },
-  followupForm?: Record<string, any>
+  followupForm?: Record<string, any>,
+  conversationPreferences?: {
+    mainEnableTTS?: boolean;
+  }
 ): Promise<{
   sentiment: "positive" | "negative" | "neutral" | "urgent" | "confused" | "crisis_risk";
   strategy: string;

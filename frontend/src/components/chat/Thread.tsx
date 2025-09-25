@@ -8,7 +8,7 @@ import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
 import { StreamingMessageProcessor, MessageFormattingUtils } from "@/lib/messageFormatter";
-import { useChatStore } from "@/stores/chatStore";
+import { useChatStore, type ConversationPreferences } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
@@ -35,6 +35,7 @@ export interface ThreadProps {
   onMessageSent?: (threadId: number) => void;
   onThreadDeleted?: () => void;
   onSessionSelected?: (sessionId: number) => void;
+  conversationPreferences?: ConversationPreferences;
 }
 
 // Enhanced Loading Fallback Component
@@ -158,6 +159,7 @@ export function Thread({
   onMessageSent,
   onThreadDeleted,
   onSessionSelected,
+  conversationPreferences: propConversationPreferences,
 }: ThreadProps): JSX.Element {
   const { userId: clerkId } = useAuth();
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
@@ -177,9 +179,12 @@ export function Thread({
     getInitialForm,
     loadingState,
     setLoadingState,
-    conversationPreferences,
+    conversationPreferences: storeConversationPreferences,
     setConversationPreferences,
   } = useChatStore();
+
+  // Use prop if provided, otherwise fall back to store
+  const conversationPreferences = propConversationPreferences || storeConversationPreferences;
   const [showChat, setShowChat] = useState(currentContext.messages.length > 0);
   const [progressRecommendation, setProgressRecommendation] =
     useState<string>("");
@@ -196,6 +201,8 @@ export function Thread({
     "active" | "finished" | undefined
   >(undefined);
   const [threadTitle, setThreadTitle] = useState<string>("");
+
+
   
   // Session management state
   const [sessionManagementOpen, setSessionManagementOpen] = useState(false);
@@ -624,6 +631,8 @@ export function Thread({
       return;
     }
 
+
+
     const userMessage: Message = {
       sender: "user",
       text: message,
@@ -674,6 +683,9 @@ export function Thread({
         messages: messagesForObserver,
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
         ...(followupFormData ? { followupForm: followupFormData } : {}),
+        conversationPreferences: {
+          mainEnableTTS: conversationPreferences.mainEnableTTS,
+        },
       });
       observerStrategy = observerRes.strategy || "";
       observerRationale = observerRes.rationale || "";
@@ -922,16 +934,17 @@ export function Thread({
       {/* Enhanced Header with subtle shadow */}
       <div className="hidden md:block relative z-10">
         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">
-          <ChatHeader
-            preferences={conversationPreferences}
-            onPreferencesChange={setConversationPreferences}
-            selectedThreadId={selectedThreadId}
-            selectedSessionId={selectedSessionId}
-            threadTitle={threadTitle}
-            onDeleteThread={handleDeleteThread}
-            onArchiveThread={handleArchiveThread}
-          />
-        </div>
+           <ChatHeader
+             preferences={conversationPreferences}
+             onPreferencesChange={setConversationPreferences}
+             selectedThreadId={selectedThreadId}
+             selectedSessionId={selectedSessionId}
+             threadTitle={threadTitle}
+             onDeleteThread={handleDeleteThread}
+             onArchiveThread={handleArchiveThread}
+             context="main"
+            />
+         </div>
       </div>
 
       {/* Visual indicator for form answers being used */}
@@ -974,13 +987,14 @@ export function Thread({
                 }}
               />
             ) : (
-              <ChatInterface
-                messages={currentContext.messages}
-                onSendMessage={onSendMessage || handleSendMessage}
-                loadingState={loadingState}
-                inputVisible={selectedSessionStatus !== "finished"}
-                isImpersonateMode={false}
-              />
+               <ChatInterface
+                 messages={currentContext.messages}
+                 onSendMessage={onSendMessage || handleSendMessage}
+                 loadingState={loadingState}
+                 inputVisible={selectedSessionStatus !== "finished"}
+                 isImpersonateMode={false}
+                 preferences={conversationPreferences}
+               />
             )}
           </div>
         </Suspense>
@@ -1098,5 +1112,5 @@ export function Thread({
   );
 }
 
-export default memo(Thread);
+export default Thread;
 

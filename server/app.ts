@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import chat from "./routes/chat";
+import impersonateChat from "./routes/impersonate-chat";
 import generateFormRoute from "./routes/generate-form";
 import impostorRoute from "./routes/impostor";
 import observer from "./routes/observer";
@@ -14,6 +15,9 @@ import threadsRoute from "./routes/threads";
 import user from "./routes/user";
 import adminRoute from "./routes/admin";
 import testRoute from "./routes/test";
+import personaTemplatesRoute from "./routes/persona-templates";
+import personaLibraryRoute from "./routes/persona-library";
+import audioRoute from "./routes/audio";
 
 const app = new Hono();
 
@@ -37,6 +41,7 @@ app.use("*", cors({
 // API Routes
 const routes = app
   .route("/api/chat", chat)
+  .route("/api/impersonate-chat", impersonateChat)
   .route("/api/user", user)
   .route("/api/threads", threadsRoute)
   .route("/api/patient", patientRoute)
@@ -46,9 +51,12 @@ const routes = app
   .route("/api/impersonate-observer", impersonateObserver) // New impersonate observer
   .route("/api/quality", quality)
   .route("/api/impostor", impostorRoute)
+  .route("/api/persona-templates", personaTemplatesRoute)
+  .route("/api/persona-library", personaLibraryRoute)
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
-  .route("/api/test", testRoute);
+  .route("/api/test", testRoute)
+  .route("/api/audio", audioRoute);
 
 // Serve static files from frontend build
 app.use('/*', serveStatic({ 

@@ -14,6 +14,7 @@ observer_logs/
 main_observer_logs/
 server_logs/
 impersonate_observer_logs/
+audio/
 
 # General pattern for any future log directories
 *_logs/

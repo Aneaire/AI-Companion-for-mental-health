@@ -162,6 +162,13 @@
       "when": 1758453508004,
       "tag": "0022_daffy_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1758533422571,
+      "tag": "0023_far_baron_zemo",
+      "breakpoints": true
     }
   ]
 }

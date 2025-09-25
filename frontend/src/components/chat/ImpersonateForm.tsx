@@ -10,10 +10,14 @@ import {
   Sparkles,
   Target,
   User,
+  Star,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import { personaTemplatesApi } from "@/lib/client";
 
 // shadcn components
 import { Badge } from "@/components/ui/badge";
@@ -54,20 +58,21 @@ const impersonateSchema = z.object({
 export type ImpersonateFormData = z.infer<typeof impersonateSchema>;
 
 const steps = [
-  { id: 1, title: "Basic Info", icon: User, description: "Personal details" },
-  {
-    id: 2,
-    title: "The Problem",
-    icon: AlertCircle,
-    description: "What's troubling you?",
-  },
+  { id: 1, title: "Choose Template", icon: Star, description: "Select a starting point" },
+  { id: 2, title: "Basic Info", icon: User, description: "Personal details" },
   {
     id: 3,
+    title: "The Problem",
+    icon: AlertCircle,
+    description: "What's troubling them?",
+  },
+  {
+    id: 4,
     title: "Context",
     icon: Book,
     description: "Background & personality",
   },
-  { id: 4, title: "Review", icon: Check, description: "Final details" },
+  { id: 5, title: "Review", icon: Check, description: "Final details" },
 ];
 
 const personalityTraits = [
@@ -92,7 +97,8 @@ interface ImpersonateFormProps {
   onSubmit: (
     data: ImpersonateFormData,
     aiResponse: string,
-    sessionId: number
+    sessionId: number,
+    templateId?: number | null
   ) => void;
   onThreadCreated?: (session: any) => void;
 }
@@ -104,6 +110,41 @@ export function ImpersonateForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTraits, setSelectedTraits] = useState<string[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+
+  // Fetch available templates
+  const { data: templates, isLoading: templatesLoading } = useQuery({
+    queryKey: ["personaTemplates"],
+    queryFn: () => personaTemplatesApi.list({ limit: 50 }),
+  });
+
+  // Pre-populate form when template is selected
+  useEffect(() => {
+    if (selectedTemplateId && templates?.templates) {
+      const template = templates.templates.find(t => t.id === selectedTemplateId);
+      if (template) {
+        // Pre-populate form fields with template data
+        form.setValue("problemDescription", template.baseBackground || "");
+        form.setValue("background", template.baseBackground || "");
+
+        // Set personality traits from template
+        if (template.basePersonality?.traits) {
+          setSelectedTraits(template.basePersonality.traits);
+          form.setValue("personality", template.basePersonality.traits.join(", "));
+        }
+      }
+    } else if (selectedTemplateId === null) {
+      // Clear form when switching to "start from scratch"
+      form.reset({
+        fullName: "",
+        age: "",
+        problemDescription: "",
+        background: "",
+        personality: "",
+      });
+      setSelectedTraits([]);
+    }
+  }, [selectedTemplateId, templates]);
 
   const form = useForm<ImpersonateFormData>({
     resolver: zodResolver(impersonateSchema),
@@ -155,10 +196,12 @@ export function ImpersonateForm({
   const getFieldsForStep = (step: number): (keyof ImpersonateFormData)[] => {
     switch (step) {
       case 1:
-        return ["fullName", "age"];
+        return []; // Template selection step
       case 2:
-        return ["problemDescription"];
+        return ["fullName", "age"];
       case 3:
+        return ["problemDescription"];
+      case 4:
         return ["background", "personality"];
       default:
         return [];
@@ -166,7 +209,7 @@ export function ImpersonateForm({
   };
 
   const handleSubmit = (data: ImpersonateFormData) => {
-    onSubmit(data, "Mock AI response", 1);
+    onSubmit(data, "Mock AI response", 1, selectedTemplateId);
   };
 
   const toggleTrait = (trait: string) => {
@@ -188,6 +231,95 @@ export function ImpersonateForm({
 
     switch (currentStep) {
       case 1:
+        return (
+          <div className={baseClasses}>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                <Star className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Choose a Starting Template
+              </h3>
+              <p className="text-gray-600">Select a template to speed up persona creation, or start from scratch</p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Template Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Start from Scratch Option */}
+                <Card
+                  className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    selectedTemplateId === null ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                  }`}
+                  onClick={() => setSelectedTemplateId(null)}
+                >
+                  <CardContent className="p-4 text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
+                      <Zap className="h-6 w-6 text-gray-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Start from Scratch</h4>
+                    <p className="text-sm text-gray-600">Build a completely custom persona</p>
+                  </CardContent>
+                </Card>
+
+                {/* Template Options */}
+                {templatesLoading ? (
+                  <div className="col-span-full flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : (
+                  templates?.templates?.map((template) => (
+                    <Card
+                      key={template.id}
+                      className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                        selectedTemplateId === template.id ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                      }`}
+                      onClick={() => setSelectedTemplateId(template.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-semibold text-gray-900 line-clamp-1">{template.name}</h4>
+                          <Badge variant="secondary" className="text-xs">
+                            {template.category}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">{template.description}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>Used {template.usageCount} times</span>
+                          <span>{template.baseAgeRange}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+
+              {selectedTemplateId && (
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-2">Selected Template</h4>
+                  {(() => {
+                    const template = templates?.templates?.find(t => t.id === selectedTemplateId);
+                    return template ? (
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium">{template.name}</p>
+                        <p className="mt-1">{template.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {template.baseProblemTypes?.map((type) => (
+                            <Badge key={type} variant="outline" className="text-xs">
+                              {type.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 2:
         return (
           <div className={baseClasses}>
             <div className="text-center mb-8">
@@ -245,7 +377,7 @@ export function ImpersonateForm({
           </div>
         );
 
-      case 2:
+      case 3:
         return (
           <div className={baseClasses}>
             <div className="text-center mb-8">
@@ -292,7 +424,7 @@ export function ImpersonateForm({
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className={baseClasses}>
             <div className="text-center mb-8">
@@ -380,7 +512,7 @@ export function ImpersonateForm({
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className={baseClasses}>
             <div className="text-center mb-8">

@@ -2,7 +2,7 @@ import { ImpersonateDialog } from "@/components/chat/ImpersonateDialog";
 import { ImpersonateThread } from "@/components/chat/ImpersonateThread";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar } from "@/components/chat/Sidebar";
-import { impostorApi } from "@/lib/client";
+import { impostorApi, personaLibraryApi } from "@/lib/client";
 import { usePersonaThreads } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { useChatStore } from "@/stores/chatStore";
@@ -76,7 +76,8 @@ function Impersonate() {
   const handleImpersonateSubmit = async (
     formData: any,
     aiResponse: any,
-    sessionId: any
+    sessionId: any,
+    templateId?: number | null
   ) => {
     // Use userId from formData or fallback to current user
     const userId = userProfile?.id;
@@ -84,25 +85,44 @@ function Impersonate() {
       toast.error("User ID is missing. Cannot create persona.");
       return;
     }
-    const payload = {
-      userId,
-      fullName: formData.fullName,
-      age: String(formData.age),
-      problemDescription: formData.problemDescription,
-      background: formData.background,
-      personality: formData.personality,
-    };
+    // Create persona using the new persona library API
+    let persona;
+    if (templateId) {
+      // Create from template
+      persona = await personaLibraryApi.createFromTemplate({
+        templateId,
+        customizations: {
+          fullName: formData.fullName,
+          age: formData.age,
+          problemDescription: formData.problemDescription,
+          background: formData.background,
+          personality: formData.personality,
+        },
+      });
+    } else {
+      // For now, create a basic persona. In a full implementation,
+      // you'd have a dedicated create endpoint
+      persona = await personaLibraryApi.createFromTemplate({
+        templateId: 1, // Default template
+        customizations: {
+          fullName: formData.fullName,
+          age: formData.age,
+          problemDescription: formData.problemDescription,
+          background: formData.background,
+          personality: formData.personality,
+        },
+      });
+    }
 
-    const persona = await impostorApi.upsertProfile(payload);
-
-    // Invalidate the impostor profile query to fetch the newly created profile
+    // Invalidate persona library queries
     await queryClient.invalidateQueries({
-      queryKey: ["impostorProfile", userId],
+      queryKey: ["personaLibrary"],
     });
 
-    // 2. Create thread with personaId
+    // 2. Create thread with personaId using the existing impostor API for now
+    // TODO: Update to use new persona thread API when implemented
     const newThread = await impostorApi.createThread({
-      userId: payload.userId,
+      userId: userId,
       personaId: persona.id,
       reasonForVisit: formData.problemDescription,
       preferredName: formData.fullName,
@@ -184,10 +204,12 @@ function Impersonate() {
               Loading threads...
             </div>
           ) : (
-            <ImpersonateThread
-              selectedThreadId={selectedThreadId}
-              onThreadActivity={handleThreadActivity}
-            />
+             <ImpersonateThread
+               selectedThreadId={selectedThreadId}
+               onThreadActivity={handleThreadActivity}
+               preferences={conversationPreferences}
+               onPreferencesChange={setConversationPreferences}
+             />
           )}
         </div>
       </div>

@@ -139,21 +139,25 @@ export function convertRawMessagesToMessages(
   rawMessages: any[],
   isImpersonateMode: boolean
 ): Message[] {
-  const fetchedMessages = rawMessages.map((msg: any) => ({
-    role: msg.sender === "ai" ? "model" : "user",
-    text: msg.text,
-    timestamp: msg.timestamp,
-  }));
-
   // Sort messages by timestamp to ensure correct order
-  return fetchedMessages
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .map((msg) => ({
-      sender: (msg.role === "model" ? "ai" : "user") as "user" | "ai",
-      text: msg.text,
-      timestamp: new Date(msg.timestamp),
-      contextId: isImpersonateMode ? "impersonate" : "default",
-    }));
+  return rawMessages
+    .sort((a: any, b: any) => a.timestamp - b.timestamp)
+    .map((msg: any) => {
+      // Preserve the sender type from the database
+      let sender: "user" | "ai" | "impostor" | "therapist" = msg.sender || "user";
+
+      // Ensure sender is valid
+      if (!["user", "ai", "impostor", "therapist"].includes(sender)) {
+        sender = "user";
+      }
+
+      return {
+        sender: sender as "user" | "ai" | "impostor" | "therapist",
+        text: msg.text,
+        timestamp: new Date(msg.timestamp),
+        contextId: isImpersonateMode ? "impersonate" : "default",
+      };
+    });
 }
 
 /**
