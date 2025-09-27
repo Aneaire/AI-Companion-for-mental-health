@@ -839,8 +839,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           prefsText += "- Maintain a professional and formal approach.\n";
 
         // Add TTS instructions if enabled
-        if (prefs.mainEnableTTS) {
-          prefsText += getAudioInstruction(prefs.mainTTSModel);
+        if (prefs.enableTTS) {
+          prefsText += getAudioInstruction(prefs.therapistModel);
         }
 
         systemInstructionText += prefsText;
