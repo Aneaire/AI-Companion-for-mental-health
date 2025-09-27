@@ -26,17 +26,20 @@ class AudioCache {
    /**
     * Generate a unique cache key for a text + voice + model combination
     */
-   private generateCacheKey(text: string, voiceId: string, modelId: string = "eleven_flash_v2_5"): string {
-     // Use a simple hash function that's safe for any characters
-     const input = `${text.trim().toLowerCase()}|${voiceId}|${modelId}`;
-     let hash = 0;
-     for (let i = 0; i < input.length; i++) {
-       const char = input.charCodeAt(i);
-       hash = ((hash << 5) - hash) + char;
-       hash = hash & hash; // Convert to 32-bit integer
-     }
-     return Math.abs(hash).toString(36);
-   }
+    private generateCacheKey(text: string, voiceId: string, modelId: string = "eleven_flash_v2_5"): string {
+      // Generate text hash using same method as server
+      const textInput = text.trim().toLowerCase();
+      let textHash = 0;
+      for (let i = 0; i < textInput.length; i++) {
+        const char = textInput.charCodeAt(i);
+        textHash = ((textHash << 5) - textHash) + char;
+        textHash = textHash & textHash; // Convert to 32-bit integer
+      }
+      const textHashStr = Math.abs(textHash).toString(36).substring(0, 16);
+
+      // Create cache key in same format as server filename
+      return `${textHashStr}_${voiceId}_${modelId}`;
+    }
 
   /**
    * Generate text hash for server-side filename

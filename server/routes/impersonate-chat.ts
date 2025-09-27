@@ -165,6 +165,7 @@ export const chatRequestSchema = z.object({
       professionalAndFormal: z.boolean().optional(),
       // Main page TTS settings
       mainTTSVoiceId: z.string().optional(),
+      mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
       mainTTSSpeed: z.number().optional(),
       mainTTSVolume: z.number().optional(),
@@ -221,7 +222,9 @@ export const impersonateChatRequestSchema = z.object({
       professionalAndFormal: z.boolean().optional(),
       // Impersonate TTS settings
       therapistVoiceId: z.string().optional(),
+      therapistModel: z.string().optional(),
       impostorVoiceId: z.string().optional(),
+      impostorModel: z.string().optional(),
       enableTTS: z.boolean().optional(),
       ttsSpeed: z.number().optional(),
       ttsVolume: z.number().optional(),

@@ -112,7 +112,23 @@ export const chatRequestSchema = z.object({
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
       // Main chat TTS settings
+      mainTTSVoiceId: z.string().optional(),
+      mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
+      mainTTSSpeed: z.number().optional(),
+      mainTTSVolume: z.number().optional(),
+      mainTTSAutoPlay: z.boolean().optional(),
+      mainTTSAdaptivePacing: z.boolean().optional(),
+      // Impersonate TTS settings
+      therapistVoiceId: z.string().optional(),
+      therapistModel: z.string().optional(),
+      impostorVoiceId: z.string().optional(),
+      impostorModel: z.string().optional(),
+      enableTTS: z.boolean().optional(),
+      ttsSpeed: z.number().optional(),
+      ttsVolume: z.number().optional(),
+      ttsAutoPlay: z.boolean().optional(),
+      ttsAdaptivePacing: z.boolean().optional(),
     })
     .optional(),
 });
@@ -160,7 +176,23 @@ export const impersonateChatRequestSchema = z.object({
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
       // Main chat TTS settings
+      mainTTSVoiceId: z.string().optional(),
+      mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
+      mainTTSSpeed: z.number().optional(),
+      mainTTSVolume: z.number().optional(),
+      mainTTSAutoPlay: z.boolean().optional(),
+      mainTTSAdaptivePacing: z.boolean().optional(),
+      // Impersonate TTS settings
+      therapistVoiceId: z.string().optional(),
+      therapistModel: z.string().optional(),
+      impostorVoiceId: z.string().optional(),
+      impostorModel: z.string().optional(),
+      enableTTS: z.boolean().optional(),
+      ttsSpeed: z.number().optional(),
+      ttsVolume: z.number().optional(),
+      ttsAutoPlay: z.boolean().optional(),
+      ttsAdaptivePacing: z.boolean().optional(),
     })
     .optional(),
 });

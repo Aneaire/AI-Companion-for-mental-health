@@ -74,15 +74,29 @@ const MessageBubble = memo(({
       let audioVoiceId = voiceId;
       let audioModelId = "eleven_flash_v2_5"; // default fallback
       if (preferences) {
-        if (message.sender === "therapist") {
-          audioVoiceId = preferences.therapistVoiceId;
-          audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
-        } else if (message.sender === "impostor") {
-          audioVoiceId = preferences.impostorVoiceId;
-          audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
-        } else if (message.sender === "ai") {
-          audioVoiceId = preferences.mainTTSVoiceId;
-          audioModelId = preferences.mainTTSModel || "eleven_flash_v2_5";
+        if (isImpersonateMode) {
+          // In impersonate mode, use different logic
+          if (message.sender === "ai") {
+            // AI messages in impersonate mode are from the therapist
+            audioVoiceId = preferences.therapistVoiceId;
+            audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
+          } else if (message.sender === "impostor") {
+            // Impostor messages use impostor voice settings
+            audioVoiceId = preferences.impostorVoiceId;
+            audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
+          }
+        } else {
+          // Regular mode
+          if (message.sender === "therapist") {
+            audioVoiceId = preferences.therapistVoiceId;
+            audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
+          } else if (message.sender === "impostor") {
+            audioVoiceId = preferences.impostorVoiceId;
+            audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
+          } else if (message.sender === "ai") {
+            audioVoiceId = preferences.mainTTSVoiceId;
+            audioModelId = preferences.mainTTSModel || "eleven_flash_v2_5";
+          }
         }
       }
 
