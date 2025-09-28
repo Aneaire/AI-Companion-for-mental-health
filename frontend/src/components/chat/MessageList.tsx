@@ -3,11 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Message } from "@/types/chat";
 import type { ConversationPreferences } from "@/stores/chatStore";
-import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User, Play, Pause, Volume2 } from "lucide-react";
+import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User, Play, Pause, Volume2, Clock } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { MessageFormattingUtils } from "@/lib/messageFormatter";
 import textToSpeech from "@/services/elevenlabs/textToSpeech";
+import { playAudioSequentially, isAudioPlaying, getAudioQueueLength } from "@/lib/audioQueue";
 
 interface MessageListProps {
   messages: Message[];
@@ -68,8 +69,6 @@ const MessageBubble = memo(({
     if (!message.text || message.text.trim() === "") return;
 
     try {
-      setIsPlaying(true);
-
       // Determine the correct voiceId and modelId based on message sender
       let audioVoiceId = voiceId;
       let audioModelId = "eleven_flash_v2_5"; // default fallback
@@ -104,37 +103,39 @@ const MessageBubble = memo(({
       const url = await textToSpeech(message.text, audioVoiceId, false, audioModelId);
       setAudioUrl(url);
 
-      // Create and play audio
-      const audio = new Audio(url);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setIsPlaying(false);
-        setAudioUrl(null);
-      };
-
-      audio.onerror = () => {
-        setIsPlaying(false);
-        setAudioUrl(null);
-        console.error("Audio playback failed");
-      };
-
-      await audio.play();
+      // Add to audio queue for sequential playback
+      playAudioSequentially(
+        url,
+        () => {
+          // onStart - audio started playing
+          setIsPlaying(true);
+        },
+        () => {
+          // onEnd - audio finished playing
+          setIsPlaying(false);
+          setAudioUrl(null);
+        },
+        (error) => {
+          // onError - audio playback failed
+          console.error("Audio playback failed:", error);
+          setIsPlaying(false);
+          setAudioUrl(null);
+        }
+      );
     } catch (error) {
-      console.error("Failed to play audio:", error);
+      console.error("Failed to queue audio:", error);
       setIsPlaying(false);
       setAudioUrl(null);
     }
   }, [message.text, voiceId, preferences, isImpersonateMode]);
 
   const handleStopAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-    setIsPlaying(false);
-    setAudioUrl(null);
+    // Stop all audio playback and clear queue
+    import("@/lib/audioQueue").then(({ stopAllAudio }) => {
+      stopAllAudio();
+      setIsPlaying(false);
+      setAudioUrl(null);
+    });
   }, []);
 
   const getStatusIndicator = () => {
@@ -214,37 +215,47 @@ const MessageBubble = memo(({
           {/* Audio play button */}
            {shouldShowPlayButton && message.text && message.text.trim() && (
             <div className="flex items-center justify-between mb-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                 className={`h-6 px-2 text-xs ${
-                   isUser
-                     ? "text-blue-200 hover:text-blue-100 hover:bg-white/10"
-                     : "text-gray-600 hover:text-gray-700 hover:bg-gray-100"
-                 }`}
-                onClick={isPlaying ? handleStopAudio : handlePlayAudio}
-                disabled={!message.text || message.text.trim() === ""}
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause size={12} className="mr-1" />
-                    Stop
-                  </>
-                ) : (
-                  <>
-                    <Play size={12} className="mr-1" />
-                    Play
-                  </>
-                )}
-              </Button>
-              {isPlaying && (
-                <div className="flex items-center gap-1">
-                   <Volume2 size={10} className={isUser ? "text-blue-200" : "text-gray-500"} />
-                  <div className="w-8 h-1 bg-current opacity-30 rounded">
-                    <div className="w-full h-full bg-current animate-pulse rounded"></div>
-                  </div>
-                </div>
-              )}
+               <Button
+                 size="sm"
+                 variant="ghost"
+                  className={`h-6 px-2 text-xs ${
+                    isUser
+                      ? "text-blue-200 hover:text-blue-100 hover:bg-white/10"
+                      : "text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+                  }`}
+                 onClick={isPlaying ? handleStopAudio : handlePlayAudio}
+                 disabled={!message.text || message.text.trim() === ""}
+               >
+                 {isPlaying ? (
+                   <>
+                     <Pause size={12} className="mr-1" />
+                     Stop
+                   </>
+                 ) : getAudioQueueLength() > 0 ? (
+                   <>
+                     <Clock size={12} className="mr-1" />
+                     Queued
+                   </>
+                 ) : (
+                   <>
+                     <Play size={12} className="mr-1" />
+                     Play
+                   </>
+                 )}
+               </Button>
+               {(isPlaying || getAudioQueueLength() > 0) && (
+                 <div className="flex items-center gap-1">
+                    <Volume2 size={10} className={isUser ? "text-blue-200" : "text-gray-500"} />
+                   <div className="w-8 h-1 bg-current opacity-30 rounded">
+                     <div className={`w-full h-full bg-current rounded ${isPlaying ? 'animate-pulse' : 'opacity-50'}`}></div>
+                   </div>
+                   {getAudioQueueLength() > 0 && !isPlaying && (
+                     <span className={`text-xs ${isUser ? "text-blue-200" : "text-gray-500"}`}>
+                       {getAudioQueueLength()}
+                     </span>
+                   )}
+                 </div>
+               )}
             </div>
           )}
 
