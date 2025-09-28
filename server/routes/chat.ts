@@ -116,7 +116,6 @@ export const chatRequestSchema = z.object({
       mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
       mainTTSSpeed: z.number().optional(),
-      mainTTSVolume: z.number().optional(),
       mainTTSAutoPlay: z.boolean().optional(),
       mainTTSAdaptivePacing: z.boolean().optional(),
       // Impersonate TTS settings
@@ -126,7 +125,6 @@ export const chatRequestSchema = z.object({
       impostorModel: z.string().optional(),
       enableTTS: z.boolean().optional(),
       ttsSpeed: z.number().optional(),
-      ttsVolume: z.number().optional(),
       ttsAutoPlay: z.boolean().optional(),
       ttsAdaptivePacing: z.boolean().optional(),
     })
@@ -180,7 +178,6 @@ export const impersonateChatRequestSchema = z.object({
       mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
       mainTTSSpeed: z.number().optional(),
-      mainTTSVolume: z.number().optional(),
       mainTTSAutoPlay: z.boolean().optional(),
       mainTTSAdaptivePacing: z.boolean().optional(),
       // Impersonate TTS settings
@@ -190,7 +187,6 @@ export const impersonateChatRequestSchema = z.object({
       impostorModel: z.string().optional(),
       enableTTS: z.boolean().optional(),
       ttsSpeed: z.number().optional(),
-      ttsVolume: z.number().optional(),
       ttsAutoPlay: z.boolean().optional(),
       ttsAdaptivePacing: z.boolean().optional(),
     })

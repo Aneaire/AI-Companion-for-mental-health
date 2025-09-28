@@ -14,7 +14,6 @@ export interface ConversationPreferences {
   mainTTSModel: string;
   mainEnableTTS: boolean;
   mainTTSSpeed: number;
-  mainTTSVolume: number;
   mainTTSAutoPlay: boolean;
   mainTTSAdaptivePacing: boolean;
   // Impersonate TTS settings
@@ -24,7 +23,6 @@ export interface ConversationPreferences {
   impostorModel: string;
   enableTTS: boolean;
   ttsSpeed: number;
-  ttsVolume: number;
   ttsAutoPlay: boolean;
   ttsAdaptivePacing: boolean;
 }
@@ -111,7 +109,6 @@ export const useChatStore = create<ChatState>()(
           mainTTSModel: "eleven_flash_v2_5",
           mainEnableTTS: false,
           mainTTSSpeed: 1.0,
-          mainTTSVolume: 80,
           mainTTSAutoPlay: false,
           mainTTSAdaptivePacing: false,
           // Impersonate TTS settings
@@ -121,7 +118,6 @@ export const useChatStore = create<ChatState>()(
           impostorModel: "eleven_flash_v2_5",
           enableTTS: false,
           ttsSpeed: 1.0,
-          ttsVolume: 80,
           ttsAutoPlay: false,
           ttsAdaptivePacing: false,
         },
@@ -320,17 +316,18 @@ export const useChatStore = create<ChatState>()(
             professionalAndFormal: false,
             // Main page TTS settings
             mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM",
+            mainTTSModel: "eleven_flash_v2_5",
             mainEnableTTS: false,
             mainTTSSpeed: 1.0,
-            mainTTSVolume: 80,
             mainTTSAutoPlay: false,
             mainTTSAdaptivePacing: false,
             // Impersonate TTS settings
             therapistVoiceId: "21m00Tcm4TlvDq8ikWAM",
+            therapistModel: "eleven_flash_v2_5",
             impostorVoiceId: "AZnzlk1XvdvUeBnXmlld",
+            impostorModel: "eleven_flash_v2_5",
             enableTTS: false,
             ttsSpeed: 1.0,
-            ttsVolume: 80,
             ttsAutoPlay: false,
             ttsAdaptivePacing: false,
           },
