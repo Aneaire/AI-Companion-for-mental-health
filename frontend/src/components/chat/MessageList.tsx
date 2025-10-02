@@ -40,12 +40,16 @@ const MessageBubble = memo(({
   preferences?: ConversationPreferences;
   isImpersonateMode?: boolean;
 }) => {
-  const formatTime = (timestamp?: Date) => {
+  const formatTime = (timestamp?: Date | number) => {
     if (!timestamp) return "";
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(timestamp);
+    try {
+      const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      if (isNaN(date.getTime())) return "??:??";
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      console.warn("Error formatting timestamp:", error, timestamp);
+      return "??:??";
+    }
   };
 
   const user = { imageUrl: "", fullName: "User" };
@@ -243,17 +247,12 @@ const MessageBubble = memo(({
                    </>
                  )}
                </Button>
-               {(isPlaying || getAudioQueueLength() > 0) && (
+               {isPlaying && (
                  <div className="flex items-center gap-1">
                     <Volume2 size={10} className={isUser ? "text-blue-200" : "text-gray-500"} />
                    <div className="w-8 h-1 bg-current opacity-30 rounded">
-                     <div className={`w-full h-full bg-current rounded ${isPlaying ? 'animate-pulse' : 'opacity-50'}`}></div>
+                     <div className="w-full h-full bg-current animate-pulse rounded"></div>
                    </div>
-                   {getAudioQueueLength() > 0 && !isPlaying && (
-                     <span className={`text-xs ${isUser ? "text-blue-200" : "text-gray-500"}`}>
-                       {getAudioQueueLength()}
-                     </span>
-                   )}
                  </div>
                )}
             </div>

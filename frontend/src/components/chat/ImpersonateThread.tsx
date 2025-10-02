@@ -12,12 +12,13 @@ import {
 import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
-import { Brain, Loader2, Settings } from "lucide-react";
+import { Brain, Loader2, Settings, Radio, MessageSquare } from "lucide-react";
 import { memo, Suspense, useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
 import { ImpersonateInput } from "./ImpersonateInput";
 import { MessageFormattingUtils, StreamingMessageProcessor } from "@/lib/messageFormatter";
 import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
+import { PodcastPlayer } from "./PodcastPlayer";
 import textToSpeech from "@/services/elevenlabs/textToSpeech";
 interface ErrorResponse {
   error: string;
@@ -346,7 +347,7 @@ export function ImpersonateThread({
   useEffect(() => {
     isImpersonatingRef.current = isImpersonating;
   }, [isImpersonating]);
-  const handleStartImpersonation = async () => {
+  const handleStartImpersonation = async (startFromMessageIndex?: number) => {
     if (!userProfile?.id) {
       toast.error("User profile not loaded.");
       return;
@@ -372,7 +373,9 @@ export function ImpersonateThread({
       clearMessages();
       msgs.forEach((msg) => addMessage(msg));
     });
-    setImpersonateMaxExchanges(10); // Always reset exchanges at start
+    // Set max exchanges based on podcast mode
+    const maxExchanges = preferences?.podcastMode ? 5 : 10;
+    setImpersonateMaxExchanges(maxExchanges);
     setIsImpersonating(true);
     isImpersonatingRef.current = true;
     setLoadingState("generating");
@@ -388,12 +391,18 @@ export function ImpersonateThread({
     try {
       const userProfileData = personaData || impostorProfile;
       let exchanges = 0;
-      // Find last valid message (non-empty)
-      const lastValidMessage = [...currentContext.messages]
-        .reverse()
-        .find((m) => m.text && m.text.trim() !== "");
-      let lastMessage = lastValidMessage ? lastValidMessage.text : "";
-      let lastSender = lastValidMessage ? lastValidMessage.sender : null;
+      // Find starting message - use provided index if available, otherwise find last valid message
+      let startingMessage;
+      if (startFromMessageIndex !== undefined && startFromMessageIndex >= 0 && startFromMessageIndex < currentContext.messages.length) {
+        startingMessage = currentContext.messages[startFromMessageIndex];
+      } else {
+        // Find last valid message (non-empty)
+        startingMessage = [...currentContext.messages]
+          .reverse()
+          .find((m) => m.text && m.text.trim() !== "");
+      }
+      let lastMessage = startingMessage ? startingMessage.text : "";
+      let lastSender = startingMessage ? startingMessage.sender : null;
       // Get the correct initial form for this session
       const sessionInitialForm = selectedThreadId
         ? getInitialForm(selectedThreadId)
@@ -613,33 +622,64 @@ export function ImpersonateThread({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 p-2 rounded-lg transition-colors"
-            >
-              <Settings size={20} />
-            </button>
-          </div>
+           <div className="flex items-center gap-2">
+             <button
+               onClick={() => setConversationPreferences({
+                 ...preferences,
+                 podcastMode: !preferences?.podcastMode
+               })}
+               className={`p-2 rounded-lg transition-colors ${
+                 preferences?.podcastMode
+                   ? "text-purple-600 bg-purple-100/50 hover:bg-purple-200/50"
+                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/50"
+               }`}
+               title={preferences?.podcastMode ? "Switch to Chat View" : "Switch to Podcast View"}
+             >
+               {preferences?.podcastMode ? <MessageSquare size={20} /> : <Radio size={20} />}
+             </button>
+             <button
+               onClick={() => setIsSettingsOpen(true)}
+               className="text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 p-2 rounded-lg transition-colors"
+             >
+               <Settings size={20} />
+             </button>
+           </div>
         </div>
       </header>
       {/* Main Content Area with enhanced styling */}
       <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">
         <Suspense fallback={<EnhancedLoadingFallback />}>
-          {/* Chat Interface */}
+          {/* Chat Interface or Podcast Player */}
           <div className="flex-1 flex flex-col h-full">
-            <ChatInterface
-              messages={currentContext.messages}
-              onSendMessage={onSendMessage || handleSendMessage}
-              loadingState={loadingState}
-              inputVisible={false}
-              isImpersonateMode={true}
-              onStartImpersonation={handleStartImpersonation}
-              onStopImpersonation={handleStopImpersonation}
-              isImpersonating={isImpersonating}
-              voiceId={preferences?.therapistVoiceId}
-              preferences={preferences}
-            />
+            {preferences?.podcastMode ? (
+              <PodcastPlayer
+                messages={currentContext.messages}
+                isPlaying={isImpersonating}
+                isImpersonating={isImpersonating}
+                preferences={preferences}
+                onStartImpersonation={handleStartImpersonation}
+                onStopImpersonation={handleStopImpersonation}
+                onSkipToMessage={(index) => {
+                  // For now, this would need to be implemented to jump to specific messages
+                  console.log("Skip to message:", index);
+                }}
+                onSettingsClick={() => setIsSettingsOpen(true)}
+                onPreferencesChange={setConversationPreferences}
+              />
+            ) : (
+              <ChatInterface
+                messages={currentContext.messages}
+                onSendMessage={onSendMessage || handleSendMessage}
+                loadingState={loadingState}
+                inputVisible={false}
+                isImpersonateMode={true}
+                onStartImpersonation={handleStartImpersonation}
+                onStopImpersonation={handleStopImpersonation}
+                isImpersonating={isImpersonating}
+                voiceId={preferences?.therapistVoiceId}
+                preferences={preferences}
+              />
+            )}
           </div>
         </Suspense>
         {/* Custom input for impersonate/chat mode */}

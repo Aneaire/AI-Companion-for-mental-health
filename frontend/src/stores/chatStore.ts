@@ -25,6 +25,14 @@ export interface ConversationPreferences {
   ttsSpeed: number;
   ttsAutoPlay: boolean;
   ttsAdaptivePacing: boolean;
+  // Podcast mode settings
+  podcastMode: boolean;
+  podcastMusicTrack: string;
+  podcastMusicVolume: number;
+  podcastMusicAutoPlay: boolean;
+  podcastTextSize: "small" | "medium" | "large";
+  podcastHighlightStyle: "underline" | "background" | "bold";
+  podcastAutoScroll: boolean;
 }
 
 export interface Session {
@@ -111,15 +119,23 @@ export const useChatStore = create<ChatState>()(
           mainTTSSpeed: 1.0,
           mainTTSAutoPlay: false,
           mainTTSAdaptivePacing: false,
-          // Impersonate TTS settings
-          therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
-          therapistModel: "eleven_flash_v2_5",
-          impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
-          impostorModel: "eleven_flash_v2_5",
-          enableTTS: false,
-          ttsSpeed: 1.0,
-          ttsAutoPlay: false,
-          ttsAdaptivePacing: false,
+           // Impersonate TTS settings
+           therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+           therapistModel: "eleven_flash_v2_5",
+           impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
+           impostorModel: "eleven_flash_v2_5",
+           enableTTS: false,
+           ttsSpeed: 1.0,
+           ttsAutoPlay: false,
+           ttsAdaptivePacing: false,
+           // Podcast mode settings
+           podcastMode: false,
+           podcastMusicTrack: "ambient-piano",
+           podcastMusicVolume: 0.3,
+           podcastMusicAutoPlay: true,
+           podcastTextSize: "medium" as const,
+           podcastHighlightStyle: "background" as const,
+           podcastAutoScroll: true,
         },
       initialForms: new Map<number, FormData>(),
       impersonateMaxExchanges: 10,

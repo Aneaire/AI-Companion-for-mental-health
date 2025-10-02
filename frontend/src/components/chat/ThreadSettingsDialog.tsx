@@ -22,6 +22,10 @@ import {
   Trash2,
   User,
   Volume2,
+  Radio,
+  Music,
+  Type,
+  Eye,
 } from "lucide-react";
 import type { JSX } from "react";
 import { useState, useEffect } from "react";
@@ -125,7 +129,7 @@ export function ThreadSettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="voice" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="conversation" className="flex items-center gap-2">
               <MessageSquare size={16} />
               Conversation
@@ -134,9 +138,13 @@ export function ThreadSettingsDialog({
               <Volume2 size={16} />
               Voice
             </TabsTrigger>
+            <TabsTrigger value="podcast" className="flex items-center gap-2">
+              <Radio size={16} />
+              Podcast
+            </TabsTrigger>
             <TabsTrigger value="thread" className="flex items-center gap-2">
               <User size={16} />
-              Thread Management
+              Thread
             </TabsTrigger>
           </TabsList>
 
@@ -443,11 +451,204 @@ export function ThreadSettingsDialog({
                    </div>
                  </div>
 
-               </div>
-             </div>
-           </TabsContent>
+                </div>
+              </div>
+            </TabsContent>
 
-          <TabsContent value="thread" className="space-y-6 mt-6">
+            <TabsContent value="podcast" className="space-y-6 mt-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Podcast Mode Settings</h3>
+                <div className="space-y-4">
+                  {/* Podcast Mode Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Enable Podcast Mode</Label>
+                      <p className="text-sm text-gray-600">
+                        Switch to immersive podcast view with background music and large text display
+                      </p>
+                    </div>
+                    <Switch
+                      checked={preferences.podcastMode ?? false}
+                      onCheckedChange={(checked) =>
+                        updateVoicePreference("podcastMode", checked)
+                      }
+                    />
+                  </div>
+
+                  <Separator />
+
+                  {/* Background Music Settings */}
+                  <div className="space-y-3">
+                    <Label className="text-base flex items-center gap-2">
+                      <Music size={16} />
+                      Background Music
+                    </Label>
+                    <p className="text-sm text-gray-600">
+                      Choose ambient music to play during podcast sessions
+                    </p>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm">Auto-play Music</Label>
+                        <Switch
+                          checked={preferences.podcastMusicAutoPlay ?? true}
+                          onCheckedChange={(checked) =>
+                            updateVoicePreference("podcastMusicAutoPlay", checked)
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm">Music Volume</Label>
+                        <Slider
+                          value={[preferences.podcastMusicVolume ?? 0.3]}
+                          onValueChange={(value) => updateVoicePreference("podcastMusicVolume", value[0])}
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-400">
+                          <span>Quiet</span>
+                          <span>Loud</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Text Display Settings */}
+                  <div className="space-y-3">
+                    <Label className="text-base flex items-center gap-2">
+                      <Type size={16} />
+                      Text Display
+                    </Label>
+                    <p className="text-sm text-gray-600">
+                      Customize how text appears in podcast mode
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Text Size</Label>
+                        <Select
+                          value={preferences.podcastTextSize ?? "medium"}
+                          onValueChange={(value: "small" | "medium" | "large") =>
+                            updateVoicePreference("podcastTextSize", value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="small">Small</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="large">Large</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm">Highlight Style</Label>
+                        <Select
+                          value={preferences.podcastHighlightStyle ?? "background"}
+                          onValueChange={(value: "underline" | "background" | "bold") =>
+                            updateVoicePreference("podcastHighlightStyle", value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="underline">Underline</SelectItem>
+                            <SelectItem value="background">Background</SelectItem>
+                            <SelectItem value="bold">Bold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                     <div className="flex items-center justify-between">
+                       <div className="space-y-0.5">
+                         <Label className="text-sm">Auto-scroll</Label>
+                         <p className="text-xs text-gray-600">
+                           Automatically show next message when current finishes
+                         </p>
+                       </div>
+                       <Switch
+                         checked={preferences.podcastAutoScroll ?? true}
+                         onCheckedChange={(checked) =>
+                           updateVoicePreference("podcastAutoScroll", checked)
+                         }
+                       />
+                     </div>
+                   </div>
+
+                   <Separator />
+
+                   {/* Background Music Settings */}
+                   <div className="space-y-3">
+                     <Label className="text-base flex items-center gap-2">
+                       <Music size={16} />
+                       Background Music
+                     </Label>
+                     <p className="text-sm text-gray-600">
+                       Choose ambient music to play during podcast sessions
+                     </p>
+
+                     <div className="space-y-4">
+                       <div className="space-y-2">
+                         <Label className="text-sm">Music Track</Label>
+                         <Select
+                           value={preferences.podcastMusicTrack ?? "ambient-piano"}
+                           onValueChange={(value) => updateVoicePreference("podcastMusicTrack", value)}
+                         >
+                           <SelectTrigger>
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="ambient-piano">Ambient Piano</SelectItem>
+                             <SelectItem value="nature-sounds">Nature Sounds</SelectItem>
+                             <SelectItem value="soft-strings">Soft Strings</SelectItem>
+                             <SelectItem value="meditation-bells">Meditation Bells</SelectItem>
+                             <SelectItem value="ocean-waves">Ocean Waves</SelectItem>
+                             <SelectItem value="none">No Music</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+
+                       <div className="flex items-center justify-between">
+                         <Label className="text-sm">Auto-play Music</Label>
+                         <Switch
+                           checked={preferences.podcastMusicAutoPlay ?? true}
+                           onCheckedChange={(checked) =>
+                             updateVoicePreference("podcastMusicAutoPlay", checked)
+                           }
+                         />
+                       </div>
+
+                       <div className="space-y-2">
+                         <Label className="text-sm">Music Volume</Label>
+                         <Slider
+                           value={[preferences.podcastMusicVolume ?? 0.3]}
+                           onValueChange={(value) => updateVoicePreference("podcastMusicVolume", value[0])}
+                           min={0}
+                           max={1}
+                           step={0.1}
+                           className="w-full"
+                         />
+                         <div className="flex justify-between text-xs text-gray-400">
+                           <span>Quiet</span>
+                           <span>Loud</span>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </TabsContent>
+
+           <TabsContent value="thread" className="space-y-6 mt-6">
             {selectedThreadId ? (
               <div>
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
