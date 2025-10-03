@@ -2,8 +2,9 @@ import type { Message } from "@/types/chat";
 import type { ConversationPreferences } from "@/stores/chatStore";
 import { TextDisplay } from "./TextDisplay";
 import { PodcastControls } from "./PodcastControls";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
+import { isAudioPlaying } from "@/lib/audioQueue";
 
 interface PodcastPlayerProps {
   messages: Message[];
@@ -31,9 +32,11 @@ export function PodcastPlayer({
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [userSelectedMessage, setUserSelectedMessage] = useState(false);
+  const [isAudioCurrentlyPlaying, setIsAudioCurrentlyPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const wordHighlightIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize audio element
+  // Initialize audio element with enhanced error handling
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -41,11 +44,20 @@ export function PodcastPlayer({
       audioRef.current.volume = preferences.podcastMusicVolume ?? 0.3;
 
       audioRef.current.onerror = (error) => {
-        console.error("Audio playback error:", error);
+        console.error("Background music playback error:", error);
+        toast.error("Background music failed to load. Please check your connection.");
       };
 
       audioRef.current.oncanplay = () => {
-        console.log("Audio file loaded successfully");
+        console.log("Background music loaded successfully");
+      };
+
+      audioRef.current.onstalled = () => {
+        console.warn("Background music stalled, attempting to recover...");
+      };
+
+      audioRef.current.onwaiting = () => {
+        console.log("Background music buffering...");
       };
     }
 
@@ -54,40 +66,58 @@ export function PodcastPlayer({
         audioRef.current.pause();
         audioRef.current.onerror = null;
         audioRef.current.oncanplay = null;
+        audioRef.current.onstalled = null;
+        audioRef.current.onwaiting = null;
         audioRef.current = null;
       }
     };
   }, []);
 
-  // Handle track changes
+  // Handle track changes with improved error handling
   useEffect(() => {
     if (!audioRef.current) return;
 
     const track = preferences.podcastMusicTrack ?? "ambient-piano";
     if (track && track !== "none") {
       const url = `/music/${track}.mp3`;
-      // Check if file exists before setting src
-      fetch(url, { method: 'HEAD' })
-        .then(response => {
-          if (response.ok) {
-            audioRef.current!.src = url;
-            if (isPlaying && (preferences.podcastMusicAutoPlay ?? true)) {
-              audioRef.current!.play().catch(error => {
-                console.warn(`Failed to play ${track}:`, error);
-                toast.error(`Failed to play ${track}`);
-              });
-            }
-          } else {
-            console.warn(`Music file not found: ${url}`);
-            toast.info(`${track} file not found, music disabled`);
-            audioRef.current!.src = "";
-          }
-        })
-        .catch(error => {
-          console.warn(`Error checking music file ${url}:`, error);
-          toast.warning(`${track} not available`);
+      
+      // Set up audio element with proper error handling
+      audioRef.current.src = url;
+      audioRef.current.load(); // Preload the audio
+      
+      const handleCanPlay = () => {
+        console.log(`Music track loaded successfully: ${track}`);
+        if (isPlaying && (preferences.podcastMusicAutoPlay ?? true)) {
+          audioRef.current!.play().catch(error => {
+            console.warn(`Failed to play ${track}:`, error);
+            // Don't show toast for autoplay failures (common in browsers)
+          });
+        }
+      };
+
+      const handleError = () => {
+        console.warn(`Music file failed to load: ${url}`);
+        toast.info(`Music track "${track}" unavailable, trying fallback...`);
+        
+        // Try fallback to ambient-piano
+        if (track !== "ambient-piano") {
+          const fallbackUrl = "/music/ambient-piano.mp3";
+          audioRef.current!.src = fallbackUrl;
+          audioRef.current!.load();
+        } else {
           audioRef.current!.src = "";
-        });
+        }
+      };
+
+      audioRef.current.addEventListener('canplay', handleCanPlay);
+      audioRef.current.addEventListener('error', handleError);
+
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.removeEventListener('canplay', handleCanPlay);
+          audioRef.current.removeEventListener('error', handleError);
+        }
+      };
     } else {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -120,41 +150,94 @@ export function PodcastPlayer({
     }
   }, [messages.length, userSelectedMessage]);
 
-  // Simulate word highlighting during playback (this would be synced with actual TTS)
+  // Monitor audio playback state for better synchronization
   useEffect(() => {
-    if (!isPlaying || !isImpersonating) {
-      setCurrentWordIndex(0);
-      return;
-    }
+    const checkAudioState = () => {
+      const audioPlaying = isAudioPlaying();
+      setIsAudioCurrentlyPlaying(audioPlaying);
+    };
 
-    const currentMessage = messages[currentMessageIndex];
-    if (!currentMessage?.text) return;
+    // Check audio state periodically
+    const interval = setInterval(checkAudioState, 100);
+    
+    return () => clearInterval(interval);
+  }, []);
 
-    const words = currentMessage.text.split(/\s+/);
+  // Enhanced word highlighting with audio-aware timing
+  const startWordHighlighting = useCallback((messageIndex: number) => {
+    const message = messages[messageIndex];
+    if (!message?.text) return;
+
+    const words = message.text.split(/\s+/);
     if (words.length === 0) return;
 
-    // Simulate reading speed (this would be replaced with actual TTS timing)
-    const wordInterval = Math.max(300, (currentMessage.text.length / words.length) * 50);
+    // Clear any existing interval
+    if (wordHighlightIntervalRef.current) {
+      clearInterval(wordHighlightIntervalRef.current);
+    }
 
-    const interval = setInterval(() => {
+    setCurrentWordIndex(0);
+    
+    // Calculate timing based on actual audio playback
+    const averageWordsPerMinute = 150;
+    const wordsPerSecond = averageWordsPerMinute / 60;
+    const wordInterval = Math.max(200, (1000 / wordsPerSecond));
+
+    wordHighlightIntervalRef.current = setInterval(() => {
       setCurrentWordIndex((prev) => {
         if (prev >= words.length - 1) {
-          // Move to next message
-          if (currentMessageIndex < messages.length - 1) {
-            setCurrentMessageIndex(currentMessageIndex + 1);
-            return 0;
-          } else {
-            // End of messages
-            onStopImpersonation();
-            return prev;
+          // Clear interval when word highlighting is complete
+          if (wordHighlightIntervalRef.current) {
+            clearInterval(wordHighlightIntervalRef.current);
+            wordHighlightIntervalRef.current = null;
           }
+          
+          // Move to next message after a brief pause
+          setTimeout(() => {
+            if (messageIndex < messages.length - 1) {
+              setCurrentMessageIndex(messageIndex + 1);
+              setCurrentWordIndex(0);
+              // Start highlighting for next message
+              startWordHighlighting(messageIndex + 1);
+            } else {
+              // End of messages
+              onStopImpersonation();
+            }
+          }, 1000);
+          return prev;
         }
         return prev + 1;
       });
     }, wordInterval);
+  }, [messages, onStopImpersonation]);
 
-    return () => clearInterval(interval);
-  }, [isPlaying, isImpersonating, currentMessageIndex, messages, onStopImpersonation]);
+  // Start/stop word highlighting based on playback state with fallback
+  useEffect(() => {
+    if (isPlaying && isImpersonating) {
+      // Use audio-aware timing if audio is playing, otherwise use fallback timing
+      if (isAudioCurrentlyPlaying) {
+        startWordHighlighting(currentMessageIndex);
+      } else {
+        // Fallback: start highlighting even without audio for better UX
+        console.log("Audio not detected, using fallback word highlighting");
+        startWordHighlighting(currentMessageIndex);
+      }
+    } else {
+      // Stop highlighting when not playing
+      if (wordHighlightIntervalRef.current) {
+        clearInterval(wordHighlightIntervalRef.current);
+        wordHighlightIntervalRef.current = null;
+      }
+      setCurrentWordIndex(0);
+    }
+
+    return () => {
+      if (wordHighlightIntervalRef.current) {
+        clearInterval(wordHighlightIntervalRef.current);
+        wordHighlightIntervalRef.current = null;
+      }
+    };
+  }, [isPlaying, isImpersonating, isAudioCurrentlyPlaying, currentMessageIndex, startWordHighlighting]);
 
 
 

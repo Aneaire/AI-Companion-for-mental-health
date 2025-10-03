@@ -8,29 +8,35 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  fetchVoices,
+  type ElevenLabsVoice,
+} from "@/services/elevenlabs/voices";
 import type { ConversationPreferences } from "@/stores/chatStore";
 import {
   AlertTriangle,
   Archive,
   MessageSquare,
+  Music,
   Settings,
   Trash2,
   User,
   Volume2,
-  Radio,
-  Music,
-  Type,
-  Eye,
 } from "lucide-react";
 import type { JSX } from "react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { fetchVoices, type ElevenLabsVoice } from "@/services/elevenlabs/voices";
 
 interface ThreadSettingsDialogProps {
   isOpen: boolean;
@@ -81,7 +87,10 @@ export function ThreadSettingsDialog({
     }
   }, [isOpen, voices.length]);
 
-  const updateVoicePreference = (key: keyof ConversationPreferences, value: string | boolean) => {
+  const updateVoicePreference = (
+    key: keyof ConversationPreferences,
+    value: string | boolean
+  ) => {
     onPreferencesChange({
       ...preferences,
       [key]: value,
@@ -108,7 +117,10 @@ export function ThreadSettingsDialog({
     toast.success("Thread archived successfully");
   };
 
-  const updatePreference = (key: keyof ConversationPreferences, value: boolean) => {
+  const updatePreference = (
+    key: keyof ConversationPreferences,
+    value: boolean
+  ) => {
     onPreferencesChange({
       ...preferences,
       [key]: value,
@@ -129,18 +141,17 @@ export function ThreadSettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="voice" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="conversation" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger
+              value="conversation"
+              className="flex items-center gap-2"
+            >
               <MessageSquare size={16} />
               Conversation
             </TabsTrigger>
             <TabsTrigger value="voice" className="flex items-center gap-2">
               <Volume2 size={16} />
               Voice
-            </TabsTrigger>
-            <TabsTrigger value="podcast" className="flex items-center gap-2">
-              <Radio size={16} />
-              Podcast
             </TabsTrigger>
             <TabsTrigger value="thread" className="flex items-center gap-2">
               <User size={16} />
@@ -150,7 +161,9 @@ export function ThreadSettingsDialog({
 
           <TabsContent value="conversation" className="space-y-6 mt-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Conversation Preferences</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                Conversation Preferences
+              </h3>
               <div className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -164,7 +177,9 @@ export function ThreadSettingsDialog({
                   </p>
                   <Slider
                     value={[preferences.briefAndConcise]}
-                    onValueChange={(value) => updatePreference("briefAndConcise", value[0])}
+                    onValueChange={(value) =>
+                      updatePreference("briefAndConcise", value[0])
+                    }
                     min={0}
                     max={100}
                     step={10}
@@ -180,7 +195,9 @@ export function ThreadSettingsDialog({
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-base">Empathetic and Supportive</Label>
+                    <Label className="text-base">
+                      Empathetic and Supportive
+                    </Label>
                     <p className="text-sm text-gray-600">
                       Use warm, caring language with emotional support
                     </p>
@@ -247,408 +264,407 @@ export function ThreadSettingsDialog({
             </div>
           </TabsContent>
 
-           <TabsContent value="voice" className="space-y-6 mt-6">
-             <div>
-               <h3 className="text-lg font-semibold mb-4">Text-to-Speech Settings</h3>
-               <div className="space-y-4">
-                 {/* Enable Text-to-Speech - Moved to top */}
-                 <div className="flex items-center justify-between">
-                   <div className="space-y-0.5">
-                     <Label className="text-base">Enable Text-to-Speech</Label>
-                     <p className="text-sm text-gray-600">
-                       Enable TTS functionality for voice playback
-                     </p>
-                   </div>
-                   <Switch
-                     checked={context === "main" ? (preferences.mainEnableTTS ?? false) : (preferences.enableTTS ?? false)}
-                     onCheckedChange={(checked) =>
-                       updateVoicePreference(context === "main" ? "mainEnableTTS" : "enableTTS", checked)
-                     }
-                   />
-                 </div>
-
-                 <Separator />
-
-                 <div className="space-y-3">
-                   {context === "main" ? (
-                     <>
-                       <Label className="text-base">Voice Selection</Label>
-                       <p className="text-sm text-gray-600">
-                         Choose a voice for text-to-speech playback on the main chat page
-                       </p>
-                       <Select
-                         value={preferences.mainTTSVoiceId || ""}
-                         onValueChange={(value) => updateVoicePreference("mainTTSVoiceId", value)}
-                         disabled={voicesLoading}
-                       >
-                         <SelectTrigger className="w-full">
-                           <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select a voice"} />
-                         </SelectTrigger>
-                         <SelectContent>
-                           {voices.map((voice) => (
-                             <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                               {voice.name} ({voice.labels?.accent || "Unknown"})
-                             </SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                     </>
-                   ) : (
-                     <>
-                       <Label className="text-base">Role-Specific Voices</Label>
-                       <p className="text-sm text-gray-600">
-                         Set different voices for therapist and impostor roles during impersonation
-                       </p>
-
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-2">
-                           <Label className="text-sm font-medium">Therapist Voice</Label>
-                           <Select
-                             value={preferences.therapistVoiceId || ""}
-                             onValueChange={(value) => updateVoicePreference("therapistVoiceId", value)}
-                             disabled={voicesLoading}
-                           >
-                             <SelectTrigger className="w-full">
-                               <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select therapist voice"} />
-                             </SelectTrigger>
-                             <SelectContent>
-                               {voices.map((voice) => (
-                                 <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                                   {voice.name} ({voice.labels?.accent || "Unknown"})
-                                 </SelectItem>
-                               ))}
-                             </SelectContent>
-                           </Select>
-                         </div>
-
-                         <div className="space-y-2">
-                           <Label className="text-sm font-medium">Impostor Voice</Label>
-                           <Select
-                             value={preferences.impostorVoiceId || ""}
-                             onValueChange={(value) => updateVoicePreference("impostorVoiceId", value)}
-                             disabled={voicesLoading}
-                           >
-                             <SelectTrigger className="w-full">
-                               <SelectValue placeholder={voicesLoading ? "Loading voices..." : "Select impostor voice"} />
-                             </SelectTrigger>
-                             <SelectContent>
-                               {voices.map((voice) => (
-                                 <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                                   {voice.name} ({voice.labels?.accent || "Unknown"})
-                                 </SelectItem>
-                               ))}
-                             </SelectContent>
-                           </Select>
-                         </div>
-                       </div>
-                     </>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <Label className="text-base">ElevenLabs Model</Label>
+          <TabsContent value="voice" className="space-y-6 mt-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">
+                Text-to-Speech Settings
+              </h3>
+              <div className="space-y-4">
+                {/* Enable Text-to-Speech - Moved to top */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Enable Text-to-Speech</Label>
                     <p className="text-sm text-gray-600">
-                      Choose the AI model for text-to-speech generation
+                      Enable TTS functionality for voice playback
                     </p>
-                    <Select
-                      value={context === "main" ? (preferences.mainTTSModel || "eleven_flash_v2_5") : (preferences.therapistModel || "eleven_flash_v2_5")}
-                      onValueChange={(value) => updateVoicePreference(context === "main" ? "mainTTSModel" : "therapistModel", value)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {elevenLabsModels.map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {context === "impersonate" && (
-                      <div className="mt-4">
-                        <Label className="text-sm font-medium">Impostor Model</Label>
-                        <Select
-                          value={preferences.impostorModel || "eleven_flash_v2_5"}
-                          onValueChange={(value) => updateVoicePreference("impostorModel", value)}
-                          className="mt-2"
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select impostor model" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {elevenLabsModels.map((model) => (
-                              <SelectItem key={model.id} value={model.id}>
-                                {model.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
                   </div>
-
-                  <Separator />
-
-                 <div className="flex items-center justify-between">
-                   <div className="space-y-0.5">
-                     <Label className="text-base">Auto-play TTS</Label>
-                     <p className="text-sm text-gray-600">
-                       Automatically play text-to-speech for new messages
-                     </p>
-                   </div>
-                   <Switch
-                     checked={context === "main" ? (preferences.mainTTSAutoPlay ?? false) : (preferences.ttsAutoPlay ?? false)}
-                     onCheckedChange={(checked) =>
-                       updateVoicePreference(context === "main" ? "mainTTSAutoPlay" : "ttsAutoPlay", checked)
-                     }
-                   />
-                 </div>
-
-                 <Separator />
-
-                 <div className="flex items-center justify-between">
-                   <div className="space-y-0.5">
-                     <Label className="text-base">Adaptive Pacing</Label>
-                     <p className="text-sm text-gray-600">
-                       Adjust speed based on message length for natural conversation flow
-                     </p>
-                   </div>
-                   <Switch
-                     checked={context === "main" ? (preferences.mainTTSAdaptivePacing ?? false) : (preferences.ttsAdaptivePacing ?? false)}
-                     onCheckedChange={(checked) =>
-                       updateVoicePreference(context === "main" ? "mainTTSAdaptivePacing" : "ttsAdaptivePacing", checked)
-                     }
-                   />
-                 </div>
-
-                 <Separator />
-
-                 {/* Speed slider - Moved to bottom */}
-                 <div className="space-y-3">
-                   <div className="flex items-center justify-between">
-                     <Label className="text-base">Speed</Label>
-                     <span className="text-sm text-gray-500 font-mono">
-                       {(context === "main" ? (preferences.mainTTSSpeed ?? 1.0) : (preferences.ttsSpeed ?? 1.0)).toFixed(1)}x
-                     </span>
-                   </div>
-                   <p className="text-sm text-gray-600">
-                     Adjust playback speed (0.5x to 2.0x)
-                   </p>
-                   <Slider
-                     value={[context === "main" ? (preferences.mainTTSSpeed ?? 1.0) : (preferences.ttsSpeed ?? 1.0)]}
-                     onValueChange={(value) => updateVoicePreference(context === "main" ? "mainTTSSpeed" : "ttsSpeed", value[0])}
-                     min={0.5}
-                     max={2.0}
-                     step={0.1}
-                     className="w-full"
-                   />
-                   <div className="flex justify-between text-xs text-gray-400">
-                     <span>Slower</span>
-                     <span>Faster</span>
-                   </div>
-                 </div>
-
+                  <Switch
+                    checked={
+                      context === "main"
+                        ? (preferences.mainEnableTTS ?? false)
+                        : (preferences.enableTTS ?? false)
+                    }
+                    onCheckedChange={(checked) =>
+                      updateVoicePreference(
+                        context === "main" ? "mainEnableTTS" : "enableTTS",
+                        checked
+                      )
+                    }
+                  />
                 </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="podcast" className="space-y-6 mt-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Podcast Mode Settings</h3>
-                <div className="space-y-4">
-                  {/* Podcast Mode Toggle */}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Enable Podcast Mode</Label>
+                <Separator />
+
+                <div className="space-y-3">
+                  {context === "main" ? (
+                    <>
+                      <Label className="text-base">Voice Selection</Label>
                       <p className="text-sm text-gray-600">
-                        Switch to immersive podcast view with background music and large text display
+                        Choose a voice for text-to-speech playback on the main
+                        chat page
                       </p>
+                      <Select
+                        value={preferences.mainTTSVoiceId || ""}
+                        onValueChange={(value) =>
+                          updateVoicePreference("mainTTSVoiceId", value)
+                        }
+                        disabled={voicesLoading}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue
+                            placeholder={
+                              voicesLoading
+                                ? "Loading voices..."
+                                : "Select a voice"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {voices.map((voice) => (
+                            <SelectItem
+                              key={voice.voice_id}
+                              value={voice.voice_id}
+                            >
+                              {voice.name} ({voice.labels?.accent || "Unknown"})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  ) : (
+                    <>
+                      <Label className="text-base">Role-Specific Voices</Label>
+                      <p className="text-sm text-gray-600">
+                        Set different voices for therapist and impostor roles
+                        during impersonation
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Therapist Voice
+                          </Label>
+                          <Select
+                            value={preferences.therapistVoiceId || ""}
+                            onValueChange={(value) =>
+                              updateVoicePreference("therapistVoiceId", value)
+                            }
+                            disabled={voicesLoading}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue
+                                placeholder={
+                                  voicesLoading
+                                    ? "Loading voices..."
+                                    : "Select therapist voice"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {voices.map((voice) => (
+                                <SelectItem
+                                  key={voice.voice_id}
+                                  value={voice.voice_id}
+                                >
+                                  {voice.name} (
+                                  {voice.labels?.accent || "Unknown"})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Impostor Voice
+                          </Label>
+                          <Select
+                            value={preferences.impostorVoiceId || ""}
+                            onValueChange={(value) =>
+                              updateVoicePreference("impostorVoiceId", value)
+                            }
+                            disabled={voicesLoading}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue
+                                placeholder={
+                                  voicesLoading
+                                    ? "Loading voices..."
+                                    : "Select impostor voice"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {voices.map((voice) => (
+                                <SelectItem
+                                  key={voice.voice_id}
+                                  value={voice.voice_id}
+                                >
+                                  {voice.name} (
+                                  {voice.labels?.accent || "Unknown"})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-base">ElevenLabs Model</Label>
+                  <p className="text-sm text-gray-600">
+                    Choose the AI model for text-to-speech generation
+                  </p>
+                  <Select
+                    value={
+                      context === "main"
+                        ? preferences.mainTTSModel || "eleven_flash_v2_5"
+                        : preferences.therapistModel || "eleven_flash_v2_5"
+                    }
+                    onValueChange={(value) =>
+                      updateVoicePreference(
+                        context === "main" ? "mainTTSModel" : "therapistModel",
+                        value
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {elevenLabsModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {context === "impersonate" && (
+                    <div className="mt-4">
+                      <Label className="text-sm font-medium">
+                        Impostor Model
+                      </Label>
+                      <Select
+                        value={preferences.impostorModel || "eleven_flash_v2_5"}
+                        onValueChange={(value) =>
+                          updateVoicePreference("impostorModel", value)
+                        }
+                        className="mt-2"
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select impostor model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {elevenLabsModels.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              {model.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Switch
-                      checked={preferences.podcastMode ?? false}
-                      onCheckedChange={(checked) =>
-                        updateVoicePreference("podcastMode", checked)
-                      }
-                    />
-                  </div>
+                  )}
+                </div>
 
-                  <Separator />
+                <Separator />
 
-                  {/* Background Music Settings */}
-                  <div className="space-y-3">
-                    <Label className="text-base flex items-center gap-2">
-                      <Music size={16} />
-                      Background Music
-                    </Label>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Auto-play TTS</Label>
                     <p className="text-sm text-gray-600">
-                      Choose ambient music to play during podcast sessions
+                      Automatically play text-to-speech for new messages
                     </p>
+                  </div>
+                  <Switch
+                    checked={
+                      context === "main"
+                        ? (preferences.mainTTSAutoPlay ?? false)
+                        : (preferences.ttsAutoPlay ?? false)
+                    }
+                    onCheckedChange={(checked) =>
+                      updateVoicePreference(
+                        context === "main" ? "mainTTSAutoPlay" : "ttsAutoPlay",
+                        checked
+                      )
+                    }
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Adaptive Pacing</Label>
+                    <p className="text-sm text-gray-600">
+                      Adjust speed based on message length for natural
+                      conversation flow
+                    </p>
+                  </div>
+                  <Switch
+                    checked={
+                      context === "main"
+                        ? (preferences.mainTTSAdaptivePacing ?? false)
+                        : (preferences.ttsAdaptivePacing ?? false)
+                    }
+                    onCheckedChange={(checked) =>
+                      updateVoicePreference(
+                        context === "main"
+                          ? "mainTTSAdaptivePacing"
+                          : "ttsAdaptivePacing",
+                        checked
+                      )
+                    }
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Speed slider - Moved to bottom */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base">Speed</Label>
+                    <span className="text-sm text-gray-500 font-mono">
+                      {(context === "main"
+                        ? (preferences.mainTTSSpeed ?? 1.0)
+                        : (preferences.ttsSpeed ?? 1.0)
+                      ).toFixed(1)}
+                      x
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Adjust playback speed (0.5x to 2.0x)
+                  </p>
+                  <Slider
+                    value={[
+                      context === "main"
+                        ? (preferences.mainTTSSpeed ?? 1.0)
+                        : (preferences.ttsSpeed ?? 1.0),
+                    ]}
+                    onValueChange={(value) =>
+                      updateVoicePreference(
+                        context === "main" ? "mainTTSSpeed" : "ttsSpeed",
+                        value[0]
+                      )
+                    }
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Slower</span>
+                    <span>Faster</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Background Music Settings */}
+                <div className="space-y-3">
+                  <Label className="text-base flex items-center gap-2">
+                    <Music size={16} />
+                    Background Music
+                  </Label>
+                  <p className="text-sm text-gray-600">
+                    Choose ambient music to play during sessions
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Music Track</Label>
+                      <Select
+                        value={preferences.podcastMusicTrack ?? "ambient-piano"}
+                        onValueChange={(value) =>
+                          updateVoicePreference("podcastMusicTrack", value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ambient-piano">
+                            Ambient Piano
+                          </SelectItem>
+                          <SelectItem value="japanese-piano">
+                            Japanese Piano
+                          </SelectItem>
+                          <SelectItem value="lofi-nature">
+                            Lofi Nature
+                          </SelectItem>
+                          <SelectItem value="meditation-spiritual">
+                            Meditation Spiritual
+                          </SelectItem>
+                          <SelectItem value="nature-sounds">
+                            Nature Sounds
+                          </SelectItem>
+                          <SelectItem value="rain-and-tears">
+                            Rain and Tears
+                          </SelectItem>
+                          <SelectItem value="waves-and-tears-piano">
+                            Waves and Tears Piano
+                          </SelectItem>
+                          <SelectItem value="none">No Music</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm">Auto-play Music</Label>
+                        <Label className="text-sm">Main Session Page</Label>
                         <Switch
-                          checked={preferences.podcastMusicAutoPlay ?? true}
+                          checked={preferences.autoPlayMusicOnMain ?? false}
                           onCheckedChange={(checked) =>
-                            updateVoicePreference("podcastMusicAutoPlay", checked)
+                            updateVoicePreference(
+                              "autoPlayMusicOnMain",
+                              checked
+                            )
                           }
                         />
                       </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm">Music Volume</Label>
-                        <Slider
-                          value={[preferences.podcastMusicVolume ?? 0.3]}
-                          onValueChange={(value) => updateVoicePreference("podcastMusicVolume", value[0])}
-                          min={0}
-                          max={1}
-                          step={0.1}
-                          className="w-full"
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm">Impersonate Page</Label>
+                        <Switch
+                          checked={
+                            preferences.autoPlayMusicOnImpersonate ?? true
+                          }
+                          onCheckedChange={(checked) =>
+                            updateVoicePreference(
+                              "autoPlayMusicOnImpersonate",
+                              checked
+                            )
+                          }
                         />
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>Quiet</span>
-                          <span>Loud</span>
-                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm">Background Music Volume</Label>
+                      <Slider
+                        value={[preferences.podcastMusicVolume ?? 0.3]}
+                        onValueChange={(value) =>
+                          updateVoicePreference("podcastMusicVolume", value[0])
+                        }
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Quiet</span>
+                        <span>Loud</span>
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
-                  <Separator />
-
-                  {/* Text Display Settings */}
-                  <div className="space-y-3">
-                    <Label className="text-base flex items-center gap-2">
-                      <Type size={16} />
-                      Text Display
-                    </Label>
-                    <p className="text-sm text-gray-600">
-                      Customize how text appears in podcast mode
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm">Text Size</Label>
-                        <Select
-                          value={preferences.podcastTextSize ?? "medium"}
-                          onValueChange={(value: "small" | "medium" | "large") =>
-                            updateVoicePreference("podcastTextSize", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="small">Small</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="large">Large</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm">Highlight Style</Label>
-                        <Select
-                          value={preferences.podcastHighlightStyle ?? "background"}
-                          onValueChange={(value: "underline" | "background" | "bold") =>
-                            updateVoicePreference("podcastHighlightStyle", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="underline">Underline</SelectItem>
-                            <SelectItem value="background">Background</SelectItem>
-                            <SelectItem value="bold">Bold</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                     <div className="flex items-center justify-between">
-                       <div className="space-y-0.5">
-                         <Label className="text-sm">Auto-scroll</Label>
-                         <p className="text-xs text-gray-600">
-                           Automatically show next message when current finishes
-                         </p>
-                       </div>
-                       <Switch
-                         checked={preferences.podcastAutoScroll ?? true}
-                         onCheckedChange={(checked) =>
-                           updateVoicePreference("podcastAutoScroll", checked)
-                         }
-                       />
-                     </div>
-                   </div>
-
-                   <Separator />
-
-                   {/* Background Music Settings */}
-                   <div className="space-y-3">
-                     <Label className="text-base flex items-center gap-2">
-                       <Music size={16} />
-                       Background Music
-                     </Label>
-                     <p className="text-sm text-gray-600">
-                       Choose ambient music to play during podcast sessions
-                     </p>
-
-                     <div className="space-y-4">
-                       <div className="space-y-2">
-                         <Label className="text-sm">Music Track</Label>
-                         <Select
-                           value={preferences.podcastMusicTrack ?? "ambient-piano"}
-                           onValueChange={(value) => updateVoicePreference("podcastMusicTrack", value)}
-                         >
-                           <SelectTrigger>
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="ambient-piano">Ambient Piano</SelectItem>
-                             <SelectItem value="nature-sounds">Nature Sounds</SelectItem>
-                             <SelectItem value="soft-strings">Soft Strings</SelectItem>
-                             <SelectItem value="meditation-bells">Meditation Bells</SelectItem>
-                             <SelectItem value="ocean-waves">Ocean Waves</SelectItem>
-                             <SelectItem value="none">No Music</SelectItem>
-                           </SelectContent>
-                         </Select>
-                       </div>
-
-                       <div className="flex items-center justify-between">
-                         <Label className="text-sm">Auto-play Music</Label>
-                         <Switch
-                           checked={preferences.podcastMusicAutoPlay ?? true}
-                           onCheckedChange={(checked) =>
-                             updateVoicePreference("podcastMusicAutoPlay", checked)
-                           }
-                         />
-                       </div>
-
-                       <div className="space-y-2">
-                         <Label className="text-sm">Music Volume</Label>
-                         <Slider
-                           value={[preferences.podcastMusicVolume ?? 0.3]}
-                           onValueChange={(value) => updateVoicePreference("podcastMusicVolume", value[0])}
-                           min={0}
-                           max={1}
-                           step={0.1}
-                           className="w-full"
-                         />
-                         <div className="flex justify-between text-xs text-gray-400">
-                           <span>Quiet</span>
-                           <span>Loud</span>
-                         </div>
-                       </div>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </TabsContent>
-
-           <TabsContent value="thread" className="space-y-6 mt-6">
+          <TabsContent value="thread" className="space-y-6 mt-6">
             {selectedThreadId ? (
               <div>
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -699,7 +715,9 @@ export function ThreadSettingsDialog({
                       </span>
                     </div>
                     <p className="text-sm text-red-700 mb-4">
-                      Are you sure you want to delete this thread? This action cannot be undone and will permanently remove all messages and sessions in this thread.
+                      Are you sure you want to delete this thread? This action
+                      cannot be undone and will permanently remove all messages
+                      and sessions in this thread.
                     </p>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center space-x-2 mb-3">

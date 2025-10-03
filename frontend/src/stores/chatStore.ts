@@ -33,6 +33,10 @@ export interface ConversationPreferences {
   podcastTextSize: "small" | "medium" | "large";
   podcastHighlightStyle: "underline" | "background" | "bold";
   podcastAutoScroll: boolean;
+  // Auto-play music settings for different pages
+  autoPlayMusicOnMain: boolean;
+  autoPlayMusicOnImpersonate: boolean;
+  autoPlayMusicOnPodcast: boolean;
 }
 
 export interface Session {
@@ -128,15 +132,19 @@ export const useChatStore = create<ChatState>()(
            ttsSpeed: 1.0,
            ttsAutoPlay: false,
            ttsAdaptivePacing: false,
-           // Podcast mode settings
-           podcastMode: false,
-           podcastMusicTrack: "ambient-piano",
-           podcastMusicVolume: 0.3,
-           podcastMusicAutoPlay: true,
-           podcastTextSize: "medium" as const,
-           podcastHighlightStyle: "background" as const,
-           podcastAutoScroll: true,
-        },
+            // Podcast mode settings
+            podcastMode: false,
+            podcastMusicTrack: "ambient-piano",
+            podcastMusicVolume: 0.3,
+            podcastMusicAutoPlay: true,
+            podcastTextSize: "medium" as const,
+            podcastHighlightStyle: "background" as const,
+            podcastAutoScroll: true,
+            // Auto-play music settings for different pages
+            autoPlayMusicOnMain: false,
+            autoPlayMusicOnImpersonate: true,
+            autoPlayMusicOnPodcast: true,
+         },
       initialForms: new Map<number, FormData>(),
       impersonateMaxExchanges: 10,
       setCurrentContext: (contextId: string) => {
@@ -346,6 +354,18 @@ export const useChatStore = create<ChatState>()(
             ttsSpeed: 1.0,
             ttsAutoPlay: false,
             ttsAdaptivePacing: false,
+            // Podcast mode settings
+            podcastMode: false,
+            podcastMusicTrack: "ambient-piano",
+            podcastMusicVolume: 0.3,
+            podcastMusicAutoPlay: true,
+            podcastTextSize: "medium",
+            podcastHighlightStyle: "background",
+            podcastAutoScroll: true,
+            // Auto-play music settings for different pages
+            autoPlayMusicOnMain: false,
+            autoPlayMusicOnImpersonate: true,
+            autoPlayMusicOnPodcast: true,
           },
           initialForms: new Map(persistedState.initialForms || []),
           crisisDetected: false, // Always start with false, will be checked from server

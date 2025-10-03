@@ -31,21 +31,29 @@ const generateBasicAudio = (type: string): string => {
         oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
         oscillator.type = "sine";
         break;
+      case "japanese-piano":
+        oscillator.frequency.setValueAtTime(349, audioContext.currentTime); // F4
+        oscillator.type = "sine";
+        break;
+      case "lofi-nature":
+        oscillator.frequency.setValueAtTime(330, audioContext.currentTime); // E4
+        oscillator.type = "triangle";
+        break;
+      case "meditation-spiritual":
+        oscillator.frequency.setValueAtTime(528, audioContext.currentTime); // C5
+        oscillator.type = "sine";
+        break;
       case "nature-sounds":
         oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // A3
         oscillator.type = "sawtooth";
         break;
-      case "soft-strings":
-        oscillator.frequency.setValueAtTime(330, audioContext.currentTime); // E4
-        oscillator.type = "triangle";
-        break;
-      case "meditation-bells":
-        oscillator.frequency.setValueAtTime(528, audioContext.currentTime); // C5
+      case "rain-and-tears":
+        oscillator.frequency.setValueAtTime(294, audioContext.currentTime); // D4
         oscillator.type = "sine";
         break;
-      case "ocean-waves":
-        oscillator.frequency.setValueAtTime(110, audioContext.currentTime); // A2
-        oscillator.type = "sawtooth";
+      case "waves-and-tears-piano":
+        oscillator.frequency.setValueAtTime(392, audioContext.currentTime); // G4
+        oscillator.type = "sine";
         break;
       default:
         oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
@@ -68,10 +76,12 @@ const generateBasicAudio = (type: string): string => {
 // Available background music tracks
 const MUSIC_TRACKS = [
   { id: "ambient-piano", name: "Ambient Piano", url: "/music/ambient-piano.mp3", fallback: "ambient-piano" },
-  { id: "nature-sounds", name: "Nature Sounds", url: "/music/nature-sounds.mp3", fallback: "nature-sounds" },
-  { id: "soft-strings", name: "Soft Strings", url: "/music/soft-strings.mp3", fallback: "soft-strings" },
-  { id: "meditation-bells", name: "Meditation Bells", url: "/music/meditation-bells.mp3", fallback: "meditation-bells" },
-  { id: "ocean-waves", name: "Ocean Waves", url: "/music/ocean-waves.mp3", fallback: "ocean-waves" },
+  { id: "japanese-piano", name: "Japanese Piano", url: "/music/japanese-piano.mp3", fallback: "ambient-piano" },
+  { id: "lofi-nature", name: "Lofi Nature", url: "/music/lofi-nature.mp3", fallback: "ambient-piano" },
+  { id: "meditation-spiritual", name: "Meditation Spiritual", url: "/music/meditation-spiritual.mp3", fallback: "ambient-piano" },
+  { id: "nature-sounds", name: "Nature Sounds", url: "/music/nature-sounds.mp3", fallback: "ambient-piano" },
+  { id: "rain-and-tears", name: "Rain and Tears", url: "/music/rain-and-tears.mp3", fallback: "ambient-piano" },
+  { id: "waves-and-tears-piano", name: "Waves and Tears Piano", url: "/music/waves-and-tears-piano.mp3", fallback: "ambient-piano" },
   { id: "none", name: "No Music", url: null, fallback: null },
 ];
 
@@ -88,24 +98,37 @@ export function MusicPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [previousVolume, setPreviousVolume] = useState(volume);
 
-  // Initialize audio element
+  // Initialize audio element with enhanced error handling
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.loop = true;
       audioRef.current.volume = volume;
 
-      // Add error handling
+      // Add comprehensive error handling
       audioRef.current.onerror = (error) => {
-        console.error("Audio playback error:", error);
+        console.error("Music playback error:", error);
+        toast.error("Music failed to load. Please check your internet connection.");
       };
 
       audioRef.current.oncanplay = () => {
-        console.log("Audio file loaded successfully");
+        console.log("Music file loaded successfully");
       };
 
       audioRef.current.oncanplaythrough = () => {
-        console.log("Audio can play through without buffering");
+        console.log("Music can play through without buffering");
+      };
+
+      audioRef.current.onstalled = () => {
+        console.warn("Music stalled, attempting to recover...");
+      };
+
+      audioRef.current.onwaiting = () => {
+        console.log("Music buffering...");
+      };
+
+      audioRef.current.onemptied = () => {
+        console.log("Music source emptied");
       };
     }
 
@@ -115,41 +138,58 @@ export function MusicPlayer({
         audioRef.current.onerror = null;
         audioRef.current.oncanplay = null;
         audioRef.current.oncanplaythrough = null;
+        audioRef.current.onstalled = null;
+        audioRef.current.onwaiting = null;
+        audioRef.current.onemptied = null;
         audioRef.current = null;
       }
     };
   }, []);
 
-  // Handle track changes
+  // Handle track changes with improved error handling
   useEffect(() => {
     if (!audioRef.current) return;
 
     const track = MUSIC_TRACKS.find(t => t.id === selectedTrack);
     if (track && track.url) {
-      // Check if file exists before setting src
-      fetch(track.url, { method: 'HEAD' })
-        .then(response => {
-          if (response.ok) {
-            audioRef.current!.src = track.url!;
-            if (isPlaying && autoPlay) {
-              audioRef.current!.play().catch(error => {
-                console.warn(`Failed to play ${track.name}:`, error);
-                toast.error(`Failed to play ${track.name}`);
-              });
-            }
-          } else {
-            console.warn(`Music file not found: ${track.url}, using generated audio`);
-            toast.info(`${track.name} file not found, using generated audio`);
-            // For now, just disable music since we can't easily generate audio files
-            // In production, you'd have actual audio files
-            audioRef.current!.src = "";
+      audioRef.current.src = track.url;
+      audioRef.current.load(); // Preload the audio
+      
+      const handleCanPlay = () => {
+        console.log(`Music track loaded successfully: ${track.name}`);
+        if (isPlaying && autoPlay) {
+          audioRef.current!.play().catch(error => {
+            console.warn(`Failed to play ${track.name}:`, error);
+            // Don't show toast for autoplay failures
+          });
+        }
+      };
+
+      const handleError = () => {
+        console.warn(`Music file failed to load: ${track.url}`);
+        toast.info(`Music track "${track.name}" unavailable, trying fallback...`);
+        
+        // Try fallback to ambient-piano
+        if (selectedTrack !== "ambient-piano" && selectedTrack !== "none") {
+          const fallbackTrack = MUSIC_TRACKS.find(t => t.id === "ambient-piano");
+          if (fallbackTrack?.url) {
+            audioRef.current!.src = fallbackTrack.url;
+            audioRef.current!.load();
           }
-        })
-        .catch(error => {
-          console.warn(`Error checking music file ${track.url}:`, error);
-          toast.warning(`${track.name} not available`);
+        } else {
           audioRef.current!.src = "";
-        });
+        }
+      };
+
+      audioRef.current.addEventListener('canplay', handleCanPlay);
+      audioRef.current.addEventListener('error', handleError);
+
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.removeEventListener('canplay', handleCanPlay);
+          audioRef.current.removeEventListener('error', handleError);
+        }
+      };
     } else if (selectedTrack === "none") {
       audioRef.current.pause();
       audioRef.current.src = "";
