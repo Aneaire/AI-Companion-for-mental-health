@@ -68,14 +68,16 @@ export const impostorRoute = new Hono()
            solutionFocused: z.boolean().optional(),
            casualAndFriendly: z.boolean().optional(),
            professionalAndFormal: z.boolean().optional(),
-           // Impersonate TTS settings
-           therapistVoiceId: z.string().optional(),
-           impostorVoiceId: z.string().optional(),
-           enableTTS: z.boolean().optional(),
-           ttsSpeed: z.number().optional(),
-           ttsVolume: z.number().optional(),
-           ttsAutoPlay: z.boolean().optional(),
-           ttsAdaptivePacing: z.boolean().optional(),
+            // Impersonate TTS settings
+            therapistVoiceId: z.string().optional(),
+            therapistModel: z.string().optional(),
+            impostorVoiceId: z.string().optional(),
+            impostorModel: z.string().optional(),
+            enableTTS: z.boolean().optional(),
+            ttsSpeed: z.number().optional(),
+            ttsVolume: z.number().optional(),
+            ttsAutoPlay: z.boolean().optional(),
+            ttsAdaptivePacing: z.boolean().optional(),
          })
          .optional(),
     });
@@ -127,7 +129,7 @@ ${
 
       // Add TTS instructions if enabled
       if (prefs.enableTTS) {
-        prefsText += getAudioInstruction();
+        prefsText += getAudioInstruction(prefs.impostorModel);
       }
 
       systemPrompt += prefsText;

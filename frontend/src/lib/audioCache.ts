@@ -8,6 +8,7 @@ interface AudioCacheEntry {
   timestamp: number;
   text: string;
   voiceId: string;
+  modelId: string;
   filename: string;
 }
 
@@ -22,20 +23,23 @@ class AudioCache {
     this.setupCleanupInterval();
   }
 
-  /**
-   * Generate a unique cache key for a text + voice combination
-   */
-  private generateCacheKey(text: string, voiceId: string): string {
-    // Use a simple hash function that's safe for any characters
-    const input = `${text.trim().toLowerCase()}|${voiceId}`;
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+   /**
+    * Generate a unique cache key for a text + voice + model combination
+    */
+    private generateCacheKey(text: string, voiceId: string, modelId: string = "eleven_flash_v2_5"): string {
+      // Generate text hash using same method as server
+      const textInput = text.trim().toLowerCase();
+      let textHash = 0;
+      for (let i = 0; i < textInput.length; i++) {
+        const char = textInput.charCodeAt(i);
+        textHash = ((textHash << 5) - textHash) + char;
+        textHash = textHash & textHash; // Convert to 32-bit integer
+      }
+      const textHashStr = Math.abs(textHash).toString(36).substring(0, 16);
+
+      // Create cache key in same format as server filename
+      return `${textHashStr}_${voiceId}_${modelId}`;
     }
-    return Math.abs(hash).toString(36);
-  }
 
   /**
    * Generate text hash for server-side filename
@@ -55,8 +59,8 @@ class AudioCache {
   /**
    * Check if audio exists in cache
    */
-  hasAudio(text: string, voiceId: string): boolean {
-    const key = this.generateCacheKey(text, voiceId);
+  hasAudio(text: string, voiceId: string, modelId: string = "eleven_flash_v2_5"): boolean {
+    const key = this.generateCacheKey(text, voiceId, modelId);
     const entry = this.cache.get(key);
 
     if (!entry) return false;
@@ -74,8 +78,8 @@ class AudioCache {
   /**
    * Get cached audio URL
    */
-  getAudio(text: string, voiceId: string): string | null {
-    const key = this.generateCacheKey(text, voiceId);
+  getAudio(text: string, voiceId: string, modelId: string = "eleven_flash_v2_5"): string | null {
+    const key = this.generateCacheKey(text, voiceId, modelId);
     const entry = this.cache.get(key);
 
     if (!entry) return null;
@@ -93,13 +97,14 @@ class AudioCache {
   /**
    * Manually cache a server URL without saving to server
    */
-  cacheServerUrl(text: string, voiceId: string, serverUrl: string, filename: string): void {
-    const key = this.generateCacheKey(text, voiceId);
+  cacheServerUrl(text: string, voiceId: string, serverUrl: string, filename: string, modelId: string = "eleven_flash_v2_5"): void {
+    const key = this.generateCacheKey(text, voiceId, modelId);
     const entry: AudioCacheEntry = {
       url: serverUrl,
       timestamp: Date.now(),
       text: text.trim(),
       voiceId,
+      modelId,
       filename,
     };
 
@@ -115,7 +120,7 @@ class AudioCache {
   /**
    * Store audio in server-side cache
    */
-  async storeAudio(text: string, voiceId: string, audioBlob: Blob): Promise<string> {
+  async storeAudio(text: string, voiceId: string, audioBlob: Blob, modelId: string = "eleven_flash_v2_5"): Promise<string> {
     try {
       // Convert blob to base64
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -130,6 +135,7 @@ class AudioCache {
         body: JSON.stringify({
           text: text.trim(),
           voiceId,
+          modelId,
           audioBlob: base64Audio,
         }),
       });
@@ -142,12 +148,13 @@ class AudioCache {
       const serverUrl = result.url;
 
       // Cache locally
-      const key = this.generateCacheKey(text, voiceId);
+      const key = this.generateCacheKey(text, voiceId, modelId);
       const entry: AudioCacheEntry = {
         url: serverUrl,
         timestamp: Date.now(),
         text: text.trim(),
         voiceId,
+        modelId,
         filename: result.filename,
       };
 
@@ -201,6 +208,7 @@ class AudioCache {
         key,
         text: entry.text,
         voiceId: entry.voiceId,
+        modelId: entry.modelId,
         timestamp: entry.timestamp,
         filename: entry.filename,
         url: entry.url,
@@ -252,6 +260,7 @@ class AudioCache {
           timestamp: item.timestamp,
           text: item.text,
           voiceId: item.voiceId,
+          modelId: item.modelId || "eleven_flash_v2_5", // Default for backward compatibility
           filename: item.filename,
         });
       });

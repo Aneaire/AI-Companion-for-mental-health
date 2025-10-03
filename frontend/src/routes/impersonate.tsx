@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 
 function Impersonate() {
   // Mode: 'impersonate' (AI-AI) or 'chat' (user-AI)
@@ -27,6 +28,9 @@ function Impersonate() {
   const { conversationPreferences, setConversationPreferences } =
     useChatStore();
   const queryClient = useQueryClient();
+
+  // Auto-play background music on impersonate page
+  useBackgroundMusic("impersonate");
   const { data: personaThreadsApi, isLoading: threadsLoading } =
     usePersonaThreads(true);
   const personaThreads = useMemo(

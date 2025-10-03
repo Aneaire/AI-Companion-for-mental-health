@@ -11,19 +11,32 @@ export interface ConversationPreferences {
   professionalAndFormal: boolean;
   // Main page TTS settings
   mainTTSVoiceId: string;
+  mainTTSModel: string;
   mainEnableTTS: boolean;
   mainTTSSpeed: number;
-  mainTTSVolume: number;
   mainTTSAutoPlay: boolean;
   mainTTSAdaptivePacing: boolean;
   // Impersonate TTS settings
   therapistVoiceId: string;
+  therapistModel: string;
   impostorVoiceId: string;
+  impostorModel: string;
   enableTTS: boolean;
   ttsSpeed: number;
-  ttsVolume: number;
   ttsAutoPlay: boolean;
   ttsAdaptivePacing: boolean;
+  // Podcast mode settings
+  podcastMode: boolean;
+  podcastMusicTrack: string;
+  podcastMusicVolume: number;
+  podcastMusicAutoPlay: boolean;
+  podcastTextSize: "small" | "medium" | "large";
+  podcastHighlightStyle: "underline" | "background" | "bold";
+  podcastAutoScroll: boolean;
+  // Auto-play music settings for different pages
+  autoPlayMusicOnMain: boolean;
+  autoPlayMusicOnImpersonate: boolean;
+  autoPlayMusicOnPodcast: boolean;
 }
 
 export interface Session {
@@ -105,20 +118,33 @@ export const useChatStore = create<ChatState>()(
           professionalAndFormal: false,
           // Main page TTS settings
           mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+          mainTTSModel: "eleven_flash_v2_5",
           mainEnableTTS: false,
           mainTTSSpeed: 1.0,
-          mainTTSVolume: 80,
           mainTTSAutoPlay: false,
           mainTTSAdaptivePacing: false,
-          // Impersonate TTS settings
-          therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
-          impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
-          enableTTS: false,
-          ttsSpeed: 1.0,
-          ttsVolume: 80,
-          ttsAutoPlay: false,
-          ttsAdaptivePacing: false,
-        },
+           // Impersonate TTS settings
+           therapistVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+           therapistModel: "eleven_flash_v2_5",
+           impostorVoiceId: "AZnzlk1XvdvUeBnXmlld", // Domi
+           impostorModel: "eleven_flash_v2_5",
+           enableTTS: false,
+           ttsSpeed: 1.0,
+           ttsAutoPlay: false,
+           ttsAdaptivePacing: false,
+            // Podcast mode settings
+            podcastMode: false,
+            podcastMusicTrack: "ambient-piano",
+            podcastMusicVolume: 0.3,
+            podcastMusicAutoPlay: true,
+            podcastTextSize: "medium" as const,
+            podcastHighlightStyle: "background" as const,
+            podcastAutoScroll: true,
+            // Auto-play music settings for different pages
+            autoPlayMusicOnMain: false,
+            autoPlayMusicOnImpersonate: true,
+            autoPlayMusicOnPodcast: true,
+         },
       initialForms: new Map<number, FormData>(),
       impersonateMaxExchanges: 10,
       setCurrentContext: (contextId: string) => {
@@ -314,19 +340,32 @@ export const useChatStore = create<ChatState>()(
             professionalAndFormal: false,
             // Main page TTS settings
             mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM",
+            mainTTSModel: "eleven_flash_v2_5",
             mainEnableTTS: false,
             mainTTSSpeed: 1.0,
-            mainTTSVolume: 80,
             mainTTSAutoPlay: false,
             mainTTSAdaptivePacing: false,
             // Impersonate TTS settings
             therapistVoiceId: "21m00Tcm4TlvDq8ikWAM",
+            therapistModel: "eleven_flash_v2_5",
             impostorVoiceId: "AZnzlk1XvdvUeBnXmlld",
+            impostorModel: "eleven_flash_v2_5",
             enableTTS: false,
             ttsSpeed: 1.0,
-            ttsVolume: 80,
             ttsAutoPlay: false,
             ttsAdaptivePacing: false,
+            // Podcast mode settings
+            podcastMode: false,
+            podcastMusicTrack: "ambient-piano",
+            podcastMusicVolume: 0.3,
+            podcastMusicAutoPlay: true,
+            podcastTextSize: "medium",
+            podcastHighlightStyle: "background",
+            podcastAutoScroll: true,
+            // Auto-play music settings for different pages
+            autoPlayMusicOnMain: false,
+            autoPlayMusicOnImpersonate: true,
+            autoPlayMusicOnPodcast: true,
           },
           initialForms: new Map(persistedState.initialForms || []),
           crisisDetected: false, // Always start with false, will be checked from server

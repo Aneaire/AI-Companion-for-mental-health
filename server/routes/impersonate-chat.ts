@@ -165,6 +165,7 @@ export const chatRequestSchema = z.object({
       professionalAndFormal: z.boolean().optional(),
       // Main page TTS settings
       mainTTSVoiceId: z.string().optional(),
+      mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
       mainTTSSpeed: z.number().optional(),
       mainTTSVolume: z.number().optional(),
@@ -221,7 +222,9 @@ export const impersonateChatRequestSchema = z.object({
       professionalAndFormal: z.boolean().optional(),
       // Impersonate TTS settings
       therapistVoiceId: z.string().optional(),
+      therapistModel: z.string().optional(),
       impostorVoiceId: z.string().optional(),
+      impostorModel: z.string().optional(),
       enableTTS: z.boolean().optional(),
       ttsSpeed: z.number().optional(),
       ttsVolume: z.number().optional(),
@@ -404,11 +407,20 @@ const chat = new Hono()
       });
     }
 
+    // Helper function to clean audio tags from text when not using Eleven v3
+    const cleanAudioTags = (text: string, modelId?: string): string => {
+      if (modelId === "eleven_v3") {
+        return text; // Keep audio tags for Eleven v3
+      }
+      // Remove audio tags for other models
+      return text.replace(/\[([A-Z]+)\]/g, '').trim();
+    };
+
     if (context) {
       context.forEach((msg) => {
         conversationHistory.push({
           role: msg.role === "model" ? "model" : "user",
-          parts: [{ text: msg.text }],
+          parts: [{ text: cleanAudioTags(msg.text, conversationPreferences?.therapistModel) }],
         });
       });
     } else {
@@ -547,7 +559,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         prefsText += "- Maintain a professional and formal approach.\n";
 
         if (prefs.enableTTS) {
-          prefsText += getAudioInstruction();
+          prefsText += getAudioInstruction(prefs.therapistModel);
         }
 
       systemInstructionText += prefsText;
@@ -822,7 +834,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 
         // Add TTS instructions if enabled
         if (prefs.enableTTS) {
-          prefsText += getAudioInstruction();
+          prefsText += getAudioInstruction(prefs.therapistModel);
         }
 
         systemInstructionText += prefsText;
@@ -832,7 +844,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       systemInstructionText += `\n**Expected Response Structure:**\nYour response should be a natural, conversational reply.\n${conversationPreferences?.enableTTS
         ? "- Keep responses very brief (1-2 sentences maximum) for optimal audio generation."
         : "- Keep responses brief and to the point (1-3 sentences maximum for impersonate mode)."
-      }\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.${conversationPreferences?.enableTTS ? "\n\n" + getAudioInstruction() : ""}\n`;
+      }\n- Acknowledge feelings simply and directly.\n- Focus on one key insight or question per response.\n- Avoid lengthy explanations or therapeutic jargon.\n- Avoid repetitive greetings: Do NOT start with "Hi", "Hello", or "Welcome" once the session has begun.\n- **VARY YOUR RESPONSES:** Do not repeat similar phrases like "That sounds incredibly draining" or "That sounds really tough". Use different empathetic language each time (e.g., "I can hear how challenging that is", "It sounds like you're carrying a heavy load", "That must feel overwhelming").\n- **DIVERSE THERAPEUTIC APPROACHES:** Mix between validation, gentle questions, reflections, and brief coping suggestions. Don't always respond the same way.\n- If the conversation shows signs of natural resolution, conclude helpfully rather than prolonging.\n- Do not provide a JSON output; just the conversational text.${conversationPreferences?.enableTTS ? "\n\n" + getAudioInstruction(conversationPreferences?.therapistModel) : ""}\n`;
 
       // Adaptive token limits based on response metrics
       let maxTokens = 800; // Default for impersonate mode

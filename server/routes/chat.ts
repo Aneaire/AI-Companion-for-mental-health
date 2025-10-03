@@ -112,7 +112,21 @@ export const chatRequestSchema = z.object({
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
       // Main chat TTS settings
+      mainTTSVoiceId: z.string().optional(),
+      mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
+      mainTTSSpeed: z.number().optional(),
+      mainTTSAutoPlay: z.boolean().optional(),
+      mainTTSAdaptivePacing: z.boolean().optional(),
+      // Impersonate TTS settings
+      therapistVoiceId: z.string().optional(),
+      therapistModel: z.string().optional(),
+      impostorVoiceId: z.string().optional(),
+      impostorModel: z.string().optional(),
+      enableTTS: z.boolean().optional(),
+      ttsSpeed: z.number().optional(),
+      ttsAutoPlay: z.boolean().optional(),
+      ttsAdaptivePacing: z.boolean().optional(),
     })
     .optional(),
 });
@@ -160,7 +174,21 @@ export const impersonateChatRequestSchema = z.object({
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
       // Main chat TTS settings
+      mainTTSVoiceId: z.string().optional(),
+      mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
+      mainTTSSpeed: z.number().optional(),
+      mainTTSAutoPlay: z.boolean().optional(),
+      mainTTSAdaptivePacing: z.boolean().optional(),
+      // Impersonate TTS settings
+      therapistVoiceId: z.string().optional(),
+      therapistModel: z.string().optional(),
+      impostorVoiceId: z.string().optional(),
+      impostorModel: z.string().optional(),
+      enableTTS: z.boolean().optional(),
+      ttsSpeed: z.number().optional(),
+      ttsAutoPlay: z.boolean().optional(),
+      ttsAdaptivePacing: z.boolean().optional(),
     })
     .optional(),
 });
@@ -348,11 +376,20 @@ const chat = new Hono()
       });
     }
 
+    // Helper function to clean audio tags from text when not using Eleven v3
+    const cleanAudioTags = (text: string, modelId?: string): string => {
+      if (modelId === "eleven_v3") {
+        return text; // Keep audio tags for Eleven v3
+      }
+      // Remove audio tags for other models
+      return text.replace(/\[([A-Z]+)\]/g, '').trim();
+    };
+
     if (context) {
       context.forEach((msg) => {
         conversationHistory.push({
           role: msg.role === "model" ? "model" : "user",
-          parts: [{ text: msg.text }],
+          parts: [{ text: cleanAudioTags(msg.text, conversationPreferences?.mainTTSModel) }],
         });
       });
     } else {
@@ -499,7 +536,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       // Add TTS instructions if enabled
       logger.info("prefs.mainEnableTTS:", prefs.mainEnableTTS);
       if (prefs.mainEnableTTS) {
-        prefsText += getAudioInstruction();
+        prefsText += getAudioInstruction(prefs.mainTTSModel);
       }
 
       systemInstructionText += prefsText;
@@ -798,8 +835,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
           prefsText += "- Maintain a professional and formal approach.\n";
 
         // Add TTS instructions if enabled
-        if (prefs.mainEnableTTS) {
-          prefsText += getAudioInstruction();
+        if (prefs.enableTTS) {
+          prefsText += getAudioInstruction(prefs.therapistModel);
         }
 
         systemInstructionText += prefsText;

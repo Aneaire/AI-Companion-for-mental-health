@@ -36,6 +36,7 @@ import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 
 function getThreadTitle(thread: any) {
   if (thread.sessionName) return thread.sessionName;
@@ -106,6 +107,9 @@ function Index() {
   } = useChatStore();
 
   const queryClient = useQueryClient();
+
+  // Auto-play background music on main page
+  useBackgroundMusic("main");
 
   // Use TanStack Query directly instead of duplicating in Zustand
   const {

@@ -18,6 +18,7 @@ audioRoute.post("/save", async (c) => {
     const schema = z.object({
       text: z.string(),
       voiceId: z.string(),
+      modelId: z.string().optional(),
       audioBlob: z.string(), // base64 encoded audio
     });
 
@@ -26,7 +27,7 @@ audioRoute.post("/save", async (c) => {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
 
-    const { text, voiceId, audioBlob } = parsed.data;
+    const { text, voiceId, modelId = "eleven_flash_v2_5", audioBlob } = parsed.data;
 
     // Create filename based on text hash and voiceId (using same hash as client)
     const input = text.trim().toLowerCase();
@@ -37,7 +38,7 @@ audioRoute.post("/save", async (c) => {
       hash = hash & hash; // Convert to 32-bit integer
     }
     const textHash = Math.abs(hash).toString(36).substring(0, 16);
-    const filename = `${textHash}_${voiceId}.mp3`;
+    const filename = `${textHash}_${voiceId}_${modelId}.mp3`;
     const filepath = path.join(audioDir, filename);
 
     // Decode base64 and save file
@@ -79,11 +80,12 @@ audioRoute.get("/:filename", async (c) => {
 });
 
 // Check if audio exists endpoint
-audioRoute.get("/exists/:textHash/:voiceId", async (c) => {
+audioRoute.get("/exists/:textHash/:voiceId/:modelId?", async (c) => {
   try {
     const textHash = c.req.param("textHash");
     const voiceId = c.req.param("voiceId");
-    const filename = `${textHash}_${voiceId}.mp3`;
+    const modelId = c.req.param("modelId") || "eleven_flash_v2_5";
+    const filename = `${textHash}_${voiceId}_${modelId}.mp3`;
     const filepath = path.join(audioDir, filename);
 
     const exists = fs.existsSync(filepath);
