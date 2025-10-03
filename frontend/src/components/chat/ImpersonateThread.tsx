@@ -682,20 +682,22 @@ export function ImpersonateThread({
             )}
           </div>
         </Suspense>
-        {/* Custom input for impersonate/chat mode */}
-        <ImpersonateInput
-          mode={mode}
-          onModeChange={setMode}
-          isImpersonating={isImpersonating}
-          onStart={handleStartImpersonation}
-          onStop={handleStopImpersonation}
-          onSendMessage={handleSendMessage}
-          disabled={
-            (mode !== "impersonate" && loadingState !== "idle") ||
-            (mode === "impersonate" && !selectedThreadId) // Disable if no thread selected in impersonate mode
-          }
-          hideModeSwitch={false} // Show switch on impersonate page
-        />
+        {/* Custom input for impersonate/chat mode - hidden in podcast view */}
+        {!preferences?.podcastMode && (
+          <ImpersonateInput
+            mode={mode}
+            onModeChange={setMode}
+            isImpersonating={isImpersonating}
+            onStart={handleStartImpersonation}
+            onStop={handleStopImpersonation}
+            onSendMessage={handleSendMessage}
+            disabled={
+              (mode !== "impersonate" && loadingState !== "idle") ||
+              (mode === "impersonate" && !selectedThreadId) // Disable if no thread selected in impersonate mode
+            }
+            hideModeSwitch={false} // Show switch on impersonate page
+          />
+        )}
       </main>
       {/* Subtle background pattern overlay */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none">

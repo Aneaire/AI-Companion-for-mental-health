@@ -162,12 +162,7 @@ export function PodcastPlayer({
 
 
 
-  const handleSpeedChange = (speed: number) => {
-    onPreferencesChange({
-      ...preferences,
-      ttsSpeed: speed,
-    });
-  };
+
 
   const handlePlayPause = () => {
     // For now, this toggles impersonation. In a full implementation,
@@ -200,27 +195,25 @@ export function PodcastPlayer({
         />
       </div>
 
-      {/* Podcast Controls Footer */}
-      <PodcastControls
-        isPlaying={isPlaying}
-        isImpersonating={isImpersonating}
-        currentMessageIndex={currentMessageIndex}
-        totalMessages={messages.length}
-        speed={preferences.ttsSpeed}
-        onPlayPause={handlePlayPause}
-        onStartImpersonation={onStartImpersonation}
-        onStopImpersonation={onStopImpersonation}
-        onSkipToMessage={(index) => {
-          setCurrentMessageIndex(index);
-          setCurrentWordIndex(0);
-          setUserSelectedMessage(true); // Mark that user manually selected a message
-          onSkipToMessage(index);
-        }}
-        onSpeedChange={handleSpeedChange}
-        onSettingsClick={onSettingsClick}
-        messages={messages}
-        isPodcastMode={true}
-      />
+            {/* Podcast Controls Footer */}
+            <PodcastControls
+              isPlaying={isPlaying}
+              isImpersonating={isImpersonating}
+              currentMessageIndex={currentMessageIndex}
+              totalMessages={messages.length}
+              onPlayPause={handlePlayPause}
+              onStartImpersonation={onStartImpersonation}
+              onStopImpersonation={onStopImpersonation}
+              onSkipToMessage={(index) => {
+                setCurrentMessageIndex(index);
+                setCurrentWordIndex(0);
+                setUserSelectedMessage(true); // Mark that user manually selected a message
+                onSkipToMessage(index);
+              }}
+              onSettingsClick={onSettingsClick}
+              messages={messages}
+              isPodcastMode={true}
+            />
     </div>
   );
 }

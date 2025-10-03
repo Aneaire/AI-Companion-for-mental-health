@@ -109,6 +109,29 @@ export function TextDisplay({
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white rounded-lg p-6 shadow-inner">
+      {/* Album Art Placeholder */}
+      <div className="flex-shrink-0 mb-6">
+        <div className="w-full max-w-sm mx-auto aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg shadow-lg flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-2xl text-white">🎵</span>
+            </div>
+            <p className="text-gray-600 text-sm">Therapeutic Conversation</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Song Info Header */}
+      <div className="mb-6 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Therapeutic Dialogue
+        </h2>
+        <p className="text-lg text-gray-600 mb-1">Therapist & Patient</p>
+        <Badge variant="outline" className="mt-2">
+          Healing Conversation
+        </Badge>
+      </div>
+
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-2">
@@ -122,21 +145,24 @@ export function TextDisplay({
         <Progress value={getProgressPercentage()} className="h-2" />
       </div>
 
-      {/* Text Display Area */}
+      {/* Lyrics Display Area */}
       <div className="flex-1 overflow-y-auto space-y-6 px-4">
         {displayedMessages.map((message, index) => {
           const globalIndex = messages.indexOf(message);
           const isCurrentMessage = globalIndex === currentMessageIndex;
           const isPastMessage = globalIndex < currentMessageIndex;
+          const isUpcomingMessage = globalIndex > currentMessageIndex;
 
           return (
             <div
               key={message.id || message.tempId || globalIndex}
-              className={`transition-all duration-300 ${
+              className={`transition-all duration-500 ${
                 isCurrentMessage
                   ? "transform scale-105 opacity-100"
                   : isPastMessage
-                  ? "opacity-60"
+                  ? "opacity-70"
+                  : isUpcomingMessage
+                  ? "opacity-50"
                   : "opacity-40"
               }`}
             >
@@ -145,7 +171,7 @@ export function TextDisplay({
                 {getSpeakerBadge(message.sender)}
               </div>
 
-              {/* Message Text */}
+              {/* Message Text as Lyrics */}
               <div
                 className={`text-center ${getTextSizeClasses()} text-gray-800 leading-relaxed`}
               >
