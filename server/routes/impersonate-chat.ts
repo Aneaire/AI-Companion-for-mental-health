@@ -164,12 +164,53 @@ export const chatRequestSchema = z.object({
       solutionFocused: z.boolean().optional(),
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
+      
+      // Response Style Controls
+      responseStyle: z.object({
+        questioningStyle: z.enum(["open-ended", "closed", "direct", "mixed"]).optional(),
+        emotionalTone: z.enum(["analytical", "emotional", "balanced", "adaptive"]).optional(),
+        interventionTiming: z.enum(["immediate", "delayed", "minimal", "opportunistic"]).optional(),
+      }).optional(),
+      
+      // Therapeutic Approach
+      therapeuticApproach: z.object({
+        focusAreas: z.array(z.enum(["cognitive", "behavioral", "humanistic", "integrative", "psychodynamic"])).optional(),
+        sessionPace: z.number().min(0).max(100).optional(),
+        depthLevel: z.enum(["surface", "deep", "progressive", "adaptive"]).optional(),
+        goalOrientation: z.enum(["exploratory", "solution-focused", "psychoeducational", "process-oriented"]).optional(),
+      }).optional(),
+      
+      // Impostor Behavior
+      impostorBehavior: z.object({
+        detailLevel: z.number().min(0).max(100).optional(),
+        emotionalExpression: z.enum(["reserved", "expressive", "variable", "contextual"]).optional(),
+        responsePattern: z.enum(["direct", "indirect", "mixed", "situational"]).optional(),
+        informationSharing: z.enum(["cautious", "open", "selective", "progressive"]).optional(),
+        specificityEnforcement: z.number().min(0).max(100).optional(),
+        exampleFrequency: z.enum(["rare", "occasional", "frequent", "consistent"]).optional(),
+        sensoryDetailLevel: z.number().min(0).max(100).optional(),
+        timelineReferences: z.enum(["vague", "specific", "mixed", "flexible"]).optional(),
+      }).optional(),
+      
+      // Therapeutic Feedback Style
+      feedbackStyle: z.object({
+        constructiveFeedback: z.boolean().optional(),
+        liveAcknowledging: z.boolean().optional(),
+        validationLevel: z.number().optional(),
+        reinforcementType: z.enum(["positive", "balanced", "growth-oriented", "minimal"]).optional(),
+        feedbackTiming: z.enum(["immediate", "delayed", "session-summary", "opportunistic"]).optional(),
+        feedbackFocus: z.array(z.enum(["strengths", "growth-areas", "progress", "insights", "behavior-patterns"])).optional(),
+      }).optional(),
+      
+      // Response Behavior
+      unpredictability: z.boolean().optional(),
+      
       // Main page TTS settings
       mainTTSVoiceId: z.string().optional(),
       mainTTSModel: z.string().optional(),
       mainEnableTTS: z.boolean().optional(),
       mainTTSSpeed: z.number().optional(),
-      mainTTSVolume: z.number().optional(),
+      mainTTSSpeed: z.number().optional(),
       mainTTSAutoPlay: z.boolean().optional(),
       mainTTSAdaptivePacing: z.boolean().optional(),
       // Impersonate TTS settings
@@ -548,6 +589,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
     ) {
       const prefs = conversationPreferences;
       let prefsText = "\n**User Conversation Preferences:**\n";
+      
+      // Basic preferences
       if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
         prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
       if (prefs.empatheticAndSupportive)
@@ -559,9 +602,223 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       if (prefs.professionalAndFormal)
         prefsText += "- Maintain a professional and formal approach.\n";
 
-        if (prefs.enableTTS) {
-          prefsText += getAudioInstruction(prefs.therapistModel);
+      // Response Style Controls
+      if (prefs.responseStyle) {
+        if (prefs.responseStyle.questioningStyle) {
+          switch (prefs.responseStyle.questioningStyle) {
+            case "open-ended":
+              prefsText += "- Use open-ended questions to encourage exploration.\n";
+              break;
+            case "closed":
+              prefsText += "- Use closed questions for focused responses.\n";
+              break;
+            case "direct":
+              prefsText += "- Use direct, straightforward questioning.\n";
+              break;
+            case "mixed":
+              prefsText += "- Mix different questioning styles appropriately.\n";
+              break;
+          }
         }
+        
+        if (prefs.responseStyle.emotionalTone) {
+          switch (prefs.responseStyle.emotionalTone) {
+            case "analytical":
+              prefsText += "- Maintain an analytical, objective tone focusing on patterns.\n";
+              break;
+            case "emotional":
+              prefsText += "- Use an emotionally expressive tone that validates feelings.\n";
+              break;
+            case "balanced":
+              prefsText += "- Balance emotional validation with analytical insight.\n";
+              break;
+            case "adaptive":
+              prefsText += "- Adapt emotional tone based on the user's current state.\n";
+              break;
+          }
+        }
+        
+        if (prefs.responseStyle.interventionTiming) {
+          switch (prefs.responseStyle.interventionTiming) {
+            case "immediate":
+              prefsText += "- Provide immediate interventions when issues are identified.\n";
+              break;
+            case "delayed":
+              prefsText += "- Allow space for exploration before offering interventions.\n";
+              break;
+            case "minimal":
+              prefsText += "- Use minimal interventions, focusing on listening.\n";
+              break;
+            case "opportunistic":
+              prefsText += "- Look for optimal moments to introduce interventions.\n";
+              break;
+          }
+        }
+      }
+
+      // Therapeutic Approach
+      if (prefs.therapeuticApproach) {
+        if (prefs.therapeuticApproach.focusAreas && prefs.therapeuticApproach.focusAreas.length > 0) {
+          const focusInstructions = prefs.therapeuticApproach.focusAreas.map(area => {
+            switch (area) {
+              case "cognitive":
+                return "challenge unhelpful thought patterns and cognitive distortions";
+              case "behavioral":
+                return "focus on behavioral patterns and actionable changes";
+              case "humanistic":
+                return "emphasize personal growth, self-actualization, and human potential";
+              case "integrative":
+                return "combine multiple therapeutic approaches for comprehensive care";
+              case "psychodynamic":
+                return "explore unconscious patterns and early life experiences";
+              default:
+                return "";
+            }
+          }).filter(instruction => instruction.length > 0);
+          
+          if (focusInstructions.length > 0) {
+            prefsText += `- Incorporate ${focusInstructions.join(", ")}.\n`;
+          }
+        }
+        
+        if (prefs.therapeuticApproach.sessionPace) {
+          const pace = prefs.therapeuticApproach.sessionPace;
+          if (pace <= 25) {
+            prefsText += "- Maintain a slow, deliberate session pace.\n";
+          } else if (pace <= 50) {
+            prefsText += "- Maintain a moderate session pace.\n";
+          } else if (pace <= 75) {
+            prefsText += "- Maintain a moderately fast session pace.\n";
+          } else {
+            prefsText += "- Maintain a fast, dynamic session pace.\n";
+          }
+        }
+        
+        if (prefs.therapeuticApproach.depthLevel) {
+          switch (prefs.therapeuticApproach.depthLevel) {
+            case "surface":
+              prefsText += "- Focus on surface-level exploration and practical issues.\n";
+              break;
+            case "deep":
+              prefsText += "- Engage in deep exploration of underlying issues.\n";
+              break;
+            case "progressive":
+              prefsText += "- Progressively deepen exploration as trust builds.\n";
+              break;
+            case "adaptive":
+              prefsText += "- Adapt exploration depth based on client readiness.\n";
+              break;
+          }
+        }
+        
+        if (prefs.therapeuticApproach.goalOrientation) {
+          switch (prefs.therapeuticApproach.goalOrientation) {
+            case "exploratory":
+              prefsText += "- Focus on exploration and self-discovery.\n";
+              break;
+            case "solution-focused":
+              prefsText += "- Focus on practical solutions and goal achievement.\n";
+              break;
+            case "psychoeducational":
+              prefsText += "- Provide educational content and teach therapeutic concepts.\n";
+              break;
+            case "process-oriented":
+              prefsText += "- Focus on the therapeutic process and relationship.\n";
+              break;
+          }
+        }
+      }
+
+      // Therapeutic Feedback Style
+      if (prefs.feedbackStyle) {
+        if (prefs.feedbackStyle.constructiveFeedback) {
+          prefsText += "- Provide constructive feedback and guidance for growth.\n";
+        }
+        
+        if (prefs.feedbackStyle.liveAcknowledging) {
+          prefsText += "- Offer live acknowledgment and validation during conversations.\n";
+        }
+        
+        if (prefs.feedbackStyle.validationLevel) {
+          const level = prefs.feedbackStyle.validationLevel;
+          if (level <= 25) {
+            prefsText += "- Provide minimal validation and acknowledgment.\n";
+          } else if (level <= 50) {
+            prefsText += "- Provide moderate validation and acknowledgment.\n";
+          } else if (level <= 75) {
+            prefsText += "- Provide strong validation and acknowledgment.\n";
+          } else {
+            prefsText += "- Provide extensive validation and acknowledgment.\n";
+          }
+        }
+        
+        if (prefs.feedbackStyle.reinforcementType) {
+          switch (prefs.feedbackStyle.reinforcementType) {
+            case "positive":
+              prefsText += "- Focus on positive reinforcement and encouragement.\n";
+              break;
+            case "balanced":
+              prefsText += "- Provide balanced feedback with both positive and constructive elements.\n";
+              break;
+            case "growth-oriented":
+              prefsText += "- Emphasize growth-oriented feedback and development opportunities.\n";
+              break;
+            case "minimal":
+              prefsText += "- Keep feedback minimal and to the point.\n";
+              break;
+          }
+        }
+        
+        if (prefs.feedbackStyle.feedbackTiming) {
+          switch (prefs.feedbackStyle.feedbackTiming) {
+            case "immediate":
+              prefsText += "- Provide immediate feedback and responses.\n";
+              break;
+            case "delayed":
+              prefsText += "- Provide delayed feedback after reflection.\n";
+              break;
+            case "session-summary":
+              prefsText += "- Save feedback for session summaries.\n";
+              break;
+            case "opportunistic":
+              prefsText += "- Provide feedback at opportune moments.\n";
+              break;
+          }
+        }
+        
+        if (prefs.feedbackStyle.feedbackFocus && prefs.feedbackStyle.feedbackFocus.length > 0) {
+          const focusInstructions = prefs.feedbackStyle.feedbackFocus.map(focus => {
+            switch (focus) {
+              case "strengths":
+                return "focus on identifying and reinforcing strengths";
+              case "growth-areas":
+                return "focus on identifying areas for growth and development";
+              case "progress":
+                return "focus on acknowledging and celebrating progress";
+              case "insights":
+                return "focus on providing insights and new perspectives";
+              case "behavior-patterns":
+                return "focus on identifying and discussing behavior patterns";
+              default:
+                return "";
+            }
+          }).filter(instruction => instruction.length > 0);
+          
+          if (focusInstructions.length > 0) {
+            prefsText += `- In your feedback, ${focusInstructions.join(", ")}.\n`;
+          }
+        }
+      }
+
+      // Response Behavior
+      if (prefs.unpredictability) {
+        prefsText += "- Respond in unpredictable ways - vary your style, tone, and approach freely. Be spontaneous and authentic in your responses without following strict patterns.\n";
+      }
+
+      // Add TTS instructions if enabled
+      if (prefs.enableTTS) {
+        prefsText += getAudioInstruction(prefs.therapistModel);
+      }
 
       systemInstructionText += prefsText;
     }
@@ -859,6 +1116,8 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       ) {
         const prefs = conversationPreferences;
         let prefsText = "\n**User Conversation Preferences:**\n";
+        
+        // Basic preferences
         if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
           prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
         if (prefs.empatheticAndSupportive)
@@ -870,13 +1129,265 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         if (prefs.professionalAndFormal)
           prefsText += "- Maintain a professional and formal approach.\n";
 
+        // Response Style Controls
+        if (prefs.responseStyle) {
+          if (prefs.responseStyle.questioningStyle) {
+            switch (prefs.responseStyle.questioningStyle) {
+              case "open-ended":
+                prefsText += "- Use open-ended questions to encourage exploration.\n";
+                break;
+              case "closed":
+                prefsText += "- Use closed questions for focused responses.\n";
+                break;
+              case "direct":
+                prefsText += "- Use direct, straightforward questioning.\n";
+                break;
+              case "mixed":
+                prefsText += "- Mix different questioning styles appropriately.\n";
+                break;
+            }
+          }
+          
+          if (prefs.responseStyle.emotionalTone) {
+            switch (prefs.responseStyle.emotionalTone) {
+              case "analytical":
+                prefsText += "- Maintain an analytical, objective tone focusing on patterns.\n";
+                break;
+              case "emotional":
+                prefsText += "- Use an emotionally expressive tone that validates feelings.\n";
+                break;
+              case "balanced":
+                prefsText += "- Balance emotional validation with analytical insight.\n";
+                break;
+              case "adaptive":
+                prefsText += "- Adapt emotional tone based on the user's current state.\n";
+                break;
+            }
+          }
+          
+          if (prefs.responseStyle.interventionTiming) {
+            switch (prefs.responseStyle.interventionTiming) {
+              case "immediate":
+                prefsText += "- Provide immediate interventions when issues are identified.\n";
+                break;
+              case "delayed":
+                prefsText += "- Allow space for exploration before offering interventions.\n";
+                break;
+              case "minimal":
+                prefsText += "- Use minimal interventions, focusing on listening.\n";
+                break;
+              case "opportunistic":
+                prefsText += "- Look for optimal moments to introduce interventions.\n";
+                break;
+            }
+          }
+        }
 
+        // Therapeutic Approach
+        if (prefs.therapeuticApproach) {
+          if (prefs.therapeuticApproach.focusAreas && prefs.therapeuticApproach.focusAreas.length > 0) {
+            const focusInstructions = prefs.therapeuticApproach.focusAreas.map(area => {
+              switch (area) {
+                case "cognitive":
+                  return "challenge unhelpful thought patterns and cognitive distortions";
+                case "behavioral":
+                  return "focus on behavioral patterns and actionable changes";
+                case "humanistic":
+                  return "emphasize personal growth, self-actualization, and human potential";
+                case "integrative":
+                  return "combine multiple therapeutic approaches for comprehensive care";
+                case "psychodynamic":
+                  return "explore unconscious patterns and early life experiences";
+                default:
+                  return "";
+              }
+            }).filter(instruction => instruction.length > 0);
+            
+            if (focusInstructions.length > 0) {
+              prefsText += `- Incorporate ${focusInstructions.join(", ")}.\n`;
+            }
+          }
+          
+          if (prefs.therapeuticApproach.sessionPace) {
+            const pace = prefs.therapeuticApproach.sessionPace;
+            if (pace <= 25) {
+              prefsText += "- Maintain a slow, deliberate session pace.\n";
+            } else if (pace <= 50) {
+              prefsText += "- Maintain a moderate session pace.\n";
+            } else if (pace <= 75) {
+              prefsText += "- Maintain a moderately fast session pace.\n";
+            } else {
+              prefsText += "- Maintain a fast, dynamic session pace.\n";
+            }
+          }
+          
+          if (prefs.therapeuticApproach.depthLevel) {
+            switch (prefs.therapeuticApproach.depthLevel) {
+              case "surface":
+                prefsText += "- Focus on surface-level exploration and practical issues.\n";
+                break;
+              case "deep":
+                prefsText += "- Engage in deep exploration of underlying issues.\n";
+                break;
+              case "progressive":
+                prefsText += "- Progressively deepen exploration as trust builds.\n";
+                break;
+              case "adaptive":
+                prefsText += "- Adapt exploration depth based on client readiness.\n";
+                break;
+            }
+          }
+          
+          if (prefs.therapeuticApproach.goalOrientation) {
+            switch (prefs.therapeuticApproach.goalOrientation) {
+              case "exploratory":
+                prefsText += "- Focus on exploration and self-discovery.\n";
+                break;
+              case "solution-focused":
+                prefsText += "- Focus on practical solutions and goal achievement.\n";
+                break;
+              case "psychoeducational":
+                prefsText += "- Provide educational content and teach therapeutic concepts.\n";
+                break;
+              case "process-oriented":
+                prefsText += "- Focus on the therapeutic process and relationship.\n";
+                break;
+            }
+          }
+        }
+
+        // Impostor Behavior (for persona responses)
+        if (prefs.impostorBehavior) {
+          const impostor = prefs.impostorBehavior;
+          prefsText += "\n**Impostor Behavior Guidelines:**\n";
+          
+          if (impostor.detailLevel !== undefined) {
+            if (impostor.detailLevel <= 25) {
+              prefsText += "- Provide brief, minimal responses.\n";
+            } else if (impostor.detailLevel <= 50) {
+              prefsText += "- Provide moderate detail in responses.\n";
+            } else if (impostor.detailLevel <= 75) {
+              prefsText += "- Provide detailed, comprehensive responses.\n";
+            } else {
+              prefsText += "- Provide extensive, highly detailed responses.\n";
+            }
+          }
+          
+          if (impostor.emotionalExpression) {
+            switch (impostor.emotionalExpression) {
+              case "reserved":
+                prefsText += "- Express emotions in a reserved, controlled manner.\n";
+                break;
+              case "expressive":
+                prefsText += "- Be emotionally expressive and open about feelings.\n";
+                break;
+              case "variable":
+                prefsText += "- Vary emotional expression based on context.\n";
+                break;
+              case "contextual":
+                prefsText += "- Adapt emotional expression to match the situation.\n";
+                break;
+            }
+          }
+          
+          if (impostor.responsePattern) {
+            switch (impostor.responsePattern) {
+              case "direct":
+                prefsText += "- Respond directly and straightforwardly.\n";
+                break;
+              case "indirect":
+                prefsText += "- Use indirect, circumstantial responses.\n";
+                break;
+              case "mixed":
+                prefsText += "- Mix direct and indirect response patterns.\n";
+                break;
+              case "situational":
+                prefsText += "- Adapt response pattern based on the situation.\n";
+                break;
+            }
+          }
+          
+          if (impostor.informationSharing) {
+            switch (impostor.informationSharing) {
+              case "cautious":
+                prefsText += "- Be cautious and selective about sharing personal information.\n";
+                break;
+              case "open":
+                prefsText += "- Be open and willing to share personal experiences.\n";
+                break;
+              case "selective":
+                prefsText += "- Share information selectively based on relevance.\n";
+                break;
+              case "progressive":
+                prefsText += "- Gradually share more information as trust builds.\n";
+                break;
+            }
+          }
+          
+          if (impostor.specificityEnforcement !== undefined) {
+            if (impostor.specificityEnforcement <= 25) {
+              prefsText += "- General responses are acceptable.\n";
+            } else if (impostor.specificityEnforcement <= 50) {
+              prefsText += "- Include some specific details and examples.\n";
+            } else if (impostor.specificityEnforcement <= 75) {
+              prefsText += "- Include specific details and concrete examples.\n";
+            } else {
+              prefsText += "- Must include highly specific details, examples, and sensory information.\n";
+            }
+          }
+          
+          if (impostor.exampleFrequency) {
+            switch (impostor.exampleFrequency) {
+              case "rare":
+                prefsText += "- Provide examples rarely.\n";
+                break;
+              case "occasional":
+                prefsText += "- Provide examples occasionally.\n";
+                break;
+              case "frequent":
+                prefsText += "- Provide examples frequently.\n";
+                break;
+              case "consistent":
+                prefsText += "- Provide examples consistently in responses.\n";
+                break;
+            }
+          }
+          
+          if (impostor.sensoryDetailLevel !== undefined) {
+            if (impostor.sensoryDetailLevel <= 25) {
+              prefsText += "- Use minimal sensory details.\n";
+            } else if (impostor.sensoryDetailLevel <= 50) {
+              prefsText += "- Use moderate sensory details.\n";
+            } else if (impostor.sensoryDetailLevel <= 75) {
+              prefsText += "- Use rich sensory details.\n";
+            } else {
+              prefsText += "- Use extensive, vivid sensory details.\n";
+            }
+          }
+          
+          if (impostor.timelineReferences) {
+            switch (impostor.timelineReferences) {
+              case "vague":
+                prefsText += "- Use vague timeline references.\n";
+                break;
+              case "specific":
+                prefsText += "- Use specific timeline references.\n";
+                break;
+              case "mixed":
+                prefsText += "- Mix vague and specific timeline references.\n";
+                break;
+              case "flexible":
+                prefsText += "- Adapt timeline references based on context.\n";
+                break;
+            }
+          }
+        }
 
         // Add TTS instructions if enabled
         if (prefs.enableTTS) {
           prefsText += getAudioInstruction(prefs.therapistModel);
         }
-
+ 
         systemInstructionText += prefsText;
       }
 

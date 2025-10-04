@@ -18,7 +18,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   fetchVoices,
   type ElevenLabsVoice,
@@ -33,6 +35,7 @@ import {
   Trash2,
   User,
   Volume2,
+  Zap,
 } from "lucide-react";
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
@@ -50,6 +53,172 @@ interface ThreadSettingsDialogProps {
   context: "main" | "impersonate";
 }
 
+// Smart presets for therapeutic approaches
+const therapeuticPresets = {
+  "cognitive-behavioral": {
+    name: "Cognitive-Behavioral Therapy",
+    description: "Focus on thought patterns and behavioral changes",
+    icon: "🧠",
+    settings: {
+      responseStyle: {
+        questioningStyle: "direct" as const,
+        emotionalTone: "analytical" as const,
+        interventionTiming: "immediate" as const,
+      },
+      therapeuticApproach: {
+        focusAreas: ["cognitive", "behavioral"],
+        sessionPace: 60,
+        depthLevel: "progressive" as const,
+        goalOrientation: "solution-focused" as const,
+      },
+    },
+  },
+  "psychodynamic": {
+    name: "Psychodynamic Therapy",
+    description: "Explore unconscious patterns and early experiences",
+    icon: "🔍",
+    settings: {
+      responseStyle: {
+        questioningStyle: "open-ended" as const,
+        emotionalTone: "balanced" as const,
+        interventionTiming: "delayed" as const,
+      },
+      therapeuticApproach: {
+        focusAreas: ["psychodynamic"],
+        sessionPace: 30,
+        depthLevel: "deep" as const,
+        goalOrientation: "exploratory" as const,
+      },
+    },
+  },
+  "humanistic": {
+    name: "Humanistic Therapy",
+    description: "Emphasize personal growth and self-actualization",
+    icon: "🌱",
+    settings: {
+      responseStyle: {
+        questioningStyle: "open-ended" as const,
+        emotionalTone: "emotional" as const,
+        interventionTiming: "minimal" as const,
+      },
+      therapeuticApproach: {
+        focusAreas: ["humanistic"],
+        sessionPace: 40,
+        depthLevel: "progressive" as const,
+        goalOrientation: "process-oriented" as const,
+      },
+    },
+  },
+  "solution-focused": {
+    name: "Solution-Focused Brief Therapy",
+    description: "Quick, goal-oriented approach focusing on solutions",
+    icon: "⚡",
+    settings: {
+      responseStyle: {
+        questioningStyle: "direct" as const,
+        emotionalTone: "analytical" as const,
+        interventionTiming: "immediate" as const,
+      },
+      therapeuticApproach: {
+        focusAreas: ["behavioral"],
+        sessionPace: 80,
+        depthLevel: "surface" as const,
+        goalOrientation: "solution-focused" as const,
+      },
+    },
+  },
+  "integrative": {
+    name: "Integrative Therapy",
+    description: "Combine multiple approaches for comprehensive care",
+    icon: "🎯",
+    settings: {
+      responseStyle: {
+        questioningStyle: "mixed" as const,
+        emotionalTone: "adaptive" as const,
+        interventionTiming: "opportunistic" as const,
+      },
+      therapeuticApproach: {
+        focusAreas: ["cognitive", "behavioral", "humanistic", "integrative"],
+        sessionPace: 50,
+        depthLevel: "adaptive" as const,
+        goalOrientation: "exploratory" as const,
+      },
+    },
+  },
+};
+
+// Impostor behavior presets
+const impostorPresets = {
+  "resistant-patient": {
+    name: "Resistant Patient",
+    description: "Hesitant to share, guarded responses",
+    icon: "🛡️",
+    settings: {
+      impostorBehavior: {
+        detailLevel: 30,
+        emotionalExpression: "reserved" as const,
+        responsePattern: "indirect" as const,
+        informationSharing: "cautious" as const,
+        specificityEnforcement: 40,
+        exampleFrequency: "rare" as const,
+        sensoryDetailLevel: 20,
+        timelineReferences: "vague" as const,
+      },
+    },
+  },
+  "open-patient": {
+    name: "Open Patient",
+    description: "Willing to share, expressive and detailed",
+    icon: "💬",
+    settings: {
+      impostorBehavior: {
+        detailLevel: 80,
+        emotionalExpression: "expressive" as const,
+        responsePattern: "direct" as const,
+        informationSharing: "open" as const,
+        specificityEnforcement: 90,
+        exampleFrequency: "frequent" as const,
+        sensoryDetailLevel: 70,
+        timelineReferences: "specific" as const,
+      },
+    },
+  },
+  "analytical-patient": {
+    name: "Analytical Patient",
+    description: "Logical, detailed, process-oriented responses",
+    icon: "📊",
+    settings: {
+      impostorBehavior: {
+        detailLevel: 70,
+        emotionalExpression: "reserved" as const,
+        responsePattern: "direct" as const,
+        informationSharing: "selective" as const,
+        specificityEnforcement: 80,
+        exampleFrequency: "occasional" as const,
+        sensoryDetailLevel: 40,
+        timelineReferences: "specific" as const,
+      },
+    },
+  },
+  "emotional-patient": {
+    name: "Emotional Patient",
+    description: "Feelings-focused, expressive and subjective",
+    icon: "❤️",
+    settings: {
+      impostorBehavior: {
+        detailLevel: 60,
+        emotionalExpression: "expressive" as const,
+        responsePattern: "mixed" as const,
+        informationSharing: "open" as const,
+        specificityEnforcement: 60,
+        exampleFrequency: "frequent" as const,
+        sensoryDetailLevel: 80,
+        timelineReferences: "mixed" as const,
+      },
+    },
+  },
+};
+
 export function ThreadSettingsDialog({
   isOpen,
   onClose,
@@ -64,6 +233,8 @@ export function ThreadSettingsDialog({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
+  const [lastAppliedPreset, setLastAppliedPreset] = useState<string | null>(null);
 
   // ElevenLabs model options
   const elevenLabsModels = [
@@ -119,13 +290,63 @@ export function ThreadSettingsDialog({
 
   const updatePreference = (
     key: keyof ConversationPreferences,
-    value: boolean
+    value: boolean | any
   ) => {
     onPreferencesChange({
       ...preferences,
       [key]: value,
     });
   };
+
+  const applyPreset = (presetType: 'therapeutic' | 'impostor', presetKey: string) => {
+    const preset = presetType === 'therapeutic' 
+      ? therapeuticPresets[presetKey as keyof typeof therapeuticPresets]
+      : impostorPresets[presetKey as keyof typeof impostorPresets];
+    
+    if (!preset) return;
+
+    const updatedPreferences = {
+      ...preferences,
+      ...preset.settings,
+    };
+
+    onPreferencesChange(updatedPreferences);
+    setLastAppliedPreset(`${presetType}-${presetKey}`);
+    toast.success(`Applied ${preset.name} preset`);
+  };
+
+  const resetToPreset = () => {
+    if (!lastAppliedPreset) {
+      toast.error("No preset has been applied yet");
+      return;
+    }
+
+    const [presetType, presetKey] = lastAppliedPreset.split('-');
+    applyPreset(presetType as 'therapeutic' | 'impostor', presetKey);
+    toast.success("Reset to last applied preset");
+  };
+
+  const detectConflicts = () => {
+    const conflicts = [];
+    
+    // Check for contradictory settings
+    if (preferences.professionalAndFormal && preferences.casualAndFriendly) {
+      conflicts.push("Professional and Casual styles conflict");
+    }
+    
+    if (preferences.empatheticAndSupportive && preferences.solutionFocused && preferences.briefAndConcise > 80) {
+      conflicts.push("High conciseness may reduce empathetic expression");
+    }
+    
+    if (preferences.therapeuticApproach?.sessionPace && preferences.therapeuticApproach.sessionPace > 80 && 
+        preferences.therapeuticApproach?.depthLevel === 'deep') {
+      conflicts.push("Fast pace may conflict with deep exploration");
+    }
+    
+    return conflicts;
+  };
+
+  const conflicts = detectConflicts();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -141,28 +362,125 @@ export function ThreadSettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="voice" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger
-              value="conversation"
-              className="flex items-center gap-2"
-            >
-              <MessageSquare size={16} />
-              Conversation
-            </TabsTrigger>
-            <TabsTrigger value="voice" className="flex items-center gap-2">
-              <Volume2 size={16} />
-              Voice
-            </TabsTrigger>
-            <TabsTrigger value="thread" className="flex items-center gap-2">
-              <User size={16} />
-              Thread
-            </TabsTrigger>
-          </TabsList>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger
+                value="conversation"
+                className="flex items-center gap-2"
+              >
+                <MessageSquare size={16} />
+                Conversation
+              </TabsTrigger>
+              <TabsTrigger value="voice" className="flex items-center gap-2">
+                <Volume2 size={16} />
+                Voice
+              </TabsTrigger>
+              <TabsTrigger value="thread" className="flex items-center gap-2">
+                <User size={16} />
+                Thread
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="conversation" className="space-y-6 mt-6">
+            {/* Conflict Detection Alert */}
+            {conflicts.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <Info size={16} className="text-amber-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-amber-800">Potential Conflicts Detected</h4>
+                    <ul className="text-sm text-amber-700 mt-1 space-y-1">
+                      {conflicts.map((conflict, index) => (
+                        <li key={index}>• {conflict}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Smart Presets Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Zap size={18} />
+                  Quick Presets
+                </h3>
+                <div className="flex items-center gap-2">
+                  {lastAppliedPreset && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resetToPreset}
+                    >
+                      Reset to Preset
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPresets(!showPresets)}
+                  >
+                    {showPresets ? "Hide" : "Show"} Presets
+                  </Button>
+                </div>
+              </div>
+              
+              {showPresets && (
+                <div className="space-y-4">
+                  {/* Therapeutic Approach Presets */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Therapeutic Approaches</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {Object.entries(therapeuticPresets).map(([key, preset]) => (
+                        <div
+                          key={key}
+                          className="border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => applyPreset('therapeutic', key)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="text-lg">{preset.icon}</span>
+                            <div className="flex-1">
+                              <h5 className="font-medium text-sm">{preset.name}</h5>
+                              <p className="text-xs text-gray-600 mt-1">{preset.description}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Impostor Behavior Presets - Only show in impersonate context */}
+                  {context === "impersonate" && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Impostor Behaviors</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Object.entries(impostorPresets).map(([key, preset]) => (
+                          <div
+                            key={key}
+                            className="border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => applyPreset('impostor', key)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="text-lg">{preset.icon}</span>
+                              <div className="flex-1">
+                                <h5 className="font-medium text-sm">{preset.name}</h5>
+                                <p className="text-xs text-gray-600 mt-1">{preset.description}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                Conversation Preferences
+                Detailed Settings
               </h3>
               <div className="space-y-4">
                 <div className="space-y-3">
@@ -260,6 +578,611 @@ export function ThreadSettingsDialog({
                     }
                   />
                 </div>
+
+                <Separator />
+
+                {/* Response Style Controls */}
+                <div>
+                  <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                    <Settings size={16} />
+                    Response Style Controls
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Questioning Style</Label>
+                      <Select
+                        value={preferences.responseStyle?.questioningStyle || "mixed"}
+                        onValueChange={(value) =>
+                          updatePreference("responseStyle", {
+                            ...preferences.responseStyle,
+                            questioningStyle: value as any,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open-ended">Open-ended Questions</SelectItem>
+                          <SelectItem value="closed">Closed Questions</SelectItem>
+                          <SelectItem value="direct">Direct Questions</SelectItem>
+                          <SelectItem value="mixed">Mixed Style</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-600">
+                        How the therapist approaches questioning in conversations
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Emotional Tone</Label>
+                      <Select
+                        value={preferences.responseStyle?.emotionalTone || "balanced"}
+                        onValueChange={(value) =>
+                          updatePreference("responseStyle", {
+                            ...preferences.responseStyle,
+                            emotionalTone: value as any,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="analytical">Analytical</SelectItem>
+                          <SelectItem value="emotional">Emotional</SelectItem>
+                          <SelectItem value="balanced">Balanced</SelectItem>
+                          <SelectItem value="adaptive">Adaptive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-600">
+                        The emotional approach in therapeutic responses
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Intervention Timing</Label>
+                      <Select
+                        value={preferences.responseStyle?.interventionTiming || "opportunistic"}
+                        onValueChange={(value) =>
+                          updatePreference("responseStyle", {
+                            ...preferences.responseStyle,
+                            interventionTiming: value as any,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="immediate">Immediate</SelectItem>
+                          <SelectItem value="delayed">Delayed</SelectItem>
+                          <SelectItem value="minimal">Minimal</SelectItem>
+                          <SelectItem value="opportunistic">Opportunistic</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-600">
+                        When to provide interventions and guidance
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Therapeutic Approach */}
+                <div>
+                  <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                    <User size={16} />
+                    Therapeutic Approach
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Focus Areas</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {["cognitive", "behavioral", "humanistic", "integrative", "psychodynamic"].map((area) => (
+                          <Badge
+                            key={area}
+                            variant={
+                              preferences.therapeuticApproach?.focusAreas?.includes(area as any)
+                                ? "default"
+                                : "outline"
+                            }
+                            className="cursor-pointer"
+                            onClick={() => {
+                              const currentAreas = preferences.therapeuticApproach?.focusAreas || [];
+                              const newAreas = currentAreas.includes(area as any)
+                                ? currentAreas.filter((a) => a !== area)
+                                : [...currentAreas, area as any];
+                              updatePreference("therapeuticApproach", {
+                                ...preferences.therapeuticApproach,
+                                focusAreas: newAreas,
+                              });
+                            }}
+                          >
+                            {area.charAt(0).toUpperCase() + area.slice(1)}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        Select therapeutic modalities to incorporate
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Session Pace</Label>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {preferences.therapeuticApproach?.sessionPace || 50}%
+                        </span>
+                      </div>
+                      <Slider
+                        value={[preferences.therapeuticApproach?.sessionPace || 50]}
+                        onValueChange={(value) =>
+                          updatePreference("therapeuticApproach", {
+                            ...preferences.therapeuticApproach,
+                            sessionPace: value[0],
+                          })
+                        }
+                        min={0}
+                        max={100}
+                        step={10}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Slow</span>
+                        <span>Moderate</span>
+                        <span>Fast</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Depth Level</Label>
+                      <Select
+                        value={preferences.therapeuticApproach?.depthLevel || "progressive"}
+                        onValueChange={(value) =>
+                          updatePreference("therapeuticApproach", {
+                            ...preferences.therapeuticApproach,
+                            depthLevel: value as any,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="surface">Surface Level</SelectItem>
+                          <SelectItem value="deep">Deep Exploration</SelectItem>
+                          <SelectItem value="progressive">Progressive Deepening</SelectItem>
+                          <SelectItem value="adaptive">Adaptive Depth</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Goal Orientation</Label>
+                      <Select
+                        value={preferences.therapeuticApproach?.goalOrientation || "exploratory"}
+                        onValueChange={(value) =>
+                          updatePreference("therapeuticApproach", {
+                            ...preferences.therapeuticApproach,
+                            goalOrientation: value as any,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="exploratory">Exploratory</SelectItem>
+                          <SelectItem value="solution-focused">Solution-Focused</SelectItem>
+                          <SelectItem value="psychoeducational">Psychoeducational</SelectItem>
+                          <SelectItem value="process-oriented">Process-Oriented</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Therapeutic Feedback Style */}
+                <div>
+                  <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                    <MessageSquare size={16} />
+                    Therapeutic Feedback Style
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Constructive Feedback</Label>
+                        <p className="text-xs text-gray-600">Provide constructive guidance and suggestions</p>
+                      </div>
+                      <Switch
+                        checked={preferences.feedbackStyle?.constructiveFeedback ?? true}
+                        onCheckedChange={(checked) =>
+                          updatePreference("feedbackStyle", {
+                            ...preferences.feedbackStyle,
+                            constructiveFeedback: checked,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Live Acknowledging</Label>
+                        <p className="text-xs text-gray-600">Provide real-time validation and acknowledgment</p>
+                      </div>
+                      <Switch
+                        checked={preferences.feedbackStyle?.liveAcknowledging ?? true}
+                        onCheckedChange={(checked) =>
+                          updatePreference("feedbackStyle", {
+                            ...preferences.feedbackStyle,
+                            liveAcknowledging: checked,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Validation Level</Label>
+                        <span className="text-sm text-gray-500">
+                          {preferences.feedbackStyle?.validationLevel ?? 70}%
+                        </span>
+                      </div>
+                      <Slider
+                        value={[preferences.feedbackStyle?.validationLevel ?? 70]}
+                        onValueChange={([value]) =>
+                          updatePreference("feedbackStyle", {
+                            ...preferences.feedbackStyle,
+                            validationLevel: value,
+                          })
+                        }
+                        max={100}
+                        step={5}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Minimal</span>
+                        <span>Moderate</span>
+                        <span>High</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Reinforcement Type</Label>
+                      <Select
+                        value={preferences.feedbackStyle?.reinforcementType || "balanced"}
+                        onValueChange={(value: any) =>
+                          updatePreference("feedbackStyle", {
+                            ...preferences.feedbackStyle,
+                            reinforcementType: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="positive">Positive Reinforcement</SelectItem>
+                          <SelectItem value="balanced">Balanced Feedback</SelectItem>
+                          <SelectItem value="growth-oriented">Growth-Oriented</SelectItem>
+                          <SelectItem value="minimal">Minimal Feedback</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Feedback Timing</Label>
+                      <Select
+                        value={preferences.feedbackStyle?.feedbackTiming || "immediate"}
+                        onValueChange={(value: any) =>
+                          updatePreference("feedbackStyle", {
+                            ...preferences.feedbackStyle,
+                            feedbackTiming: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="immediate">Immediate</SelectItem>
+                          <SelectItem value="delayed">Delayed</SelectItem>
+                          <SelectItem value="session-summary">Session Summary</SelectItem>
+                          <SelectItem value="opportunistic">Opportunistic</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium mb-3 block">Feedback Focus Areas</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { value: "strengths", label: "Strengths", icon: "💪" },
+                          { value: "growth-areas", label: "Growth Areas", icon: "🌱" },
+                          { value: "progress", label: "Progress", icon: "📈" },
+                          { value: "insights", label: "Insights", icon: "💡" },
+                          { value: "behavior-patterns", label: "Behavior Patterns", icon: "🔍" },
+                        ].map(({ value, label, icon }) => (
+                          <label
+                            key={value}
+                            className={cn(
+                              "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
+                              preferences.feedbackStyle?.feedbackFocus?.includes(value as any)
+                                ? "border-primary bg-primary/5"
+                                : "border-gray-200 hover:bg-gray-50"
+                            )}
+                          >
+                            <Checkbox
+                              checked={preferences.feedbackStyle?.feedbackFocus?.includes(value as any) ?? false}
+                              onCheckedChange={(checked) => {
+                                const currentFocus = preferences.feedbackStyle?.feedbackFocus || [];
+                                const newFocus = checked
+                                  ? [...currentFocus, value as any]
+                                  : currentFocus.filter((item) => item !== value);
+                                updatePreference("feedbackStyle", {
+                                  ...preferences.feedbackStyle,
+                                  feedbackFocus: newFocus,
+                                });
+                              }}
+                            />
+                            <span className="text-sm">{icon} {label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Response Behavior */}
+                <div>
+                  <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                    <Zap size={16} />
+                    Response Behavior
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Unpredictable Responses</Label>
+                        <p className="text-xs text-gray-600">Allow AI to respond however it likes</p>
+                      </div>
+                      <Switch
+                        checked={preferences.unpredictability ?? false}
+                        onCheckedChange={(checked) =>
+                          updatePreference("unpredictability", checked)
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Impostor Settings - Only show in impersonate context */}
+                {context === "impersonate" && (
+                  <>
+                    <Separator />
+
+                    {/* Persona Behavior */}
+                    <div>
+                      <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                        <User size={16} />
+                        Persona Behavior
+                      </h4>
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Detail Level</Label>
+                            <span className="text-sm text-gray-500 font-mono">
+                              {preferences.impostorBehavior?.detailLevel || 70}%
+                            </span>
+                          </div>
+                          <Slider
+                            value={[preferences.impostorBehavior?.detailLevel || 70]}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                detailLevel: value[0],
+                              })
+                            }
+                            min={0}
+                            max={100}
+                            step={10}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>Minimal</span>
+                            <span>Moderate</span>
+                            <span>Extensive</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Emotional Expression</Label>
+                          <Select
+                            value={preferences.impostorBehavior?.emotionalExpression || "variable"}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                emotionalExpression: value as any,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="reserved">Reserved</SelectItem>
+                              <SelectItem value="expressive">Expressive</SelectItem>
+                              <SelectItem value="variable">Variable</SelectItem>
+                              <SelectItem value="contextual">Contextual</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Response Pattern</Label>
+                          <Select
+                            value={preferences.impostorBehavior?.responsePattern || "mixed"}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                responsePattern: value as any,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="direct">Direct</SelectItem>
+                              <SelectItem value="indirect">Indirect</SelectItem>
+                              <SelectItem value="mixed">Mixed</SelectItem>
+                              <SelectItem value="situational">Situational</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Information Sharing</Label>
+                          <Select
+                            value={preferences.impostorBehavior?.informationSharing || "selective"}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                informationSharing: value as any,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cautious">Cautious</SelectItem>
+                              <SelectItem value="open">Open</SelectItem>
+                              <SelectItem value="selective">Selective</SelectItem>
+                              <SelectItem value="progressive">Progressive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Content Requirements */}
+                    <div>
+                      <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+                        <MessageSquare size={16} />
+                        Content Requirements
+                      </h4>
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Specificity Enforcement</Label>
+                            <span className="text-sm text-gray-500 font-mono">
+                              {preferences.impostorBehavior?.specificityEnforcement || 80}%
+                            </span>
+                          </div>
+                          <Slider
+                            value={[preferences.impostorBehavior?.specificityEnforcement || 80]}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                specificityEnforcement: value[0],
+                              })
+                            }
+                            min={0}
+                            max={100}
+                            step={10}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>Flexible</span>
+                            <span>Moderate</span>
+                            <span>Strict</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Example Frequency</Label>
+                          <Select
+                            value={preferences.impostorBehavior?.exampleFrequency || "frequent"}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                exampleFrequency: value as any,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="rare">Rare</SelectItem>
+                              <SelectItem value="occasional">Occasional</SelectItem>
+                              <SelectItem value="frequent">Frequent</SelectItem>
+                              <SelectItem value="consistent">Consistent</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Sensory Detail Level</Label>
+                            <span className="text-sm text-gray-500 font-mono">
+                              {preferences.impostorBehavior?.sensoryDetailLevel || 60}%
+                            </span>
+                          </div>
+                          <Slider
+                            value={[preferences.impostorBehavior?.sensoryDetailLevel || 60]}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                sensoryDetailLevel: value[0],
+                              })
+                            }
+                            min={0}
+                            max={100}
+                            step={10}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>Low</span>
+                            <span>Medium</span>
+                            <span>High</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Timeline References</Label>
+                          <Select
+                            value={preferences.impostorBehavior?.timelineReferences || "specific"}
+                            onValueChange={(value) =>
+                              updatePreference("impostorBehavior", {
+                                ...preferences.impostorBehavior,
+                                timelineReferences: value as any,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="vague">Vague</SelectItem>
+                              <SelectItem value="specific">Specific</SelectItem>
+                              <SelectItem value="mixed">Mixed</SelectItem>
+                              <SelectItem value="flexible">Flexible</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </TabsContent>
