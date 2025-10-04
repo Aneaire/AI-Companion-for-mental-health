@@ -15,6 +15,7 @@ import {
   sessionForms,
   sessions,
   threads,
+  persona,
 } from "../db/schema";
 
 const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -716,12 +717,51 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         return c.json({ error: "Invalid thread or unauthorized" }, 403);
       }
 
+      // Fetch persona data if thread has an associated persona
+      let personaData = null;
+      if (threadData[0].personaId) {
+        const personaResult = await db
+          .select()
+          .from(persona)
+          .where(eq(persona.id, threadData[0].personaId))
+          .limit(1);
+        if (personaResult.length > 0) {
+          personaData = personaResult[0];
+        }
+      }
+
       const conversationHistory: Content[] = [];
 
+      // Build context from persona data (if available) and initial form
+      let contextName = null;
+      let contextAge = null;
+      
+      if (personaData) {
+        // Use persona data as primary source
+        contextName = personaData.fullName;
+        contextAge = personaData.age;
+        
+        let personaContextString = "Persona Information:\n";
+        personaContextString += `- Name: ${personaData.fullName}\n`;
+        personaContextString += `- Age: ${personaData.age}\n`;
+        personaContextString += `- Reason for Visit: ${personaData.problemDescription}\n`;
+        if (personaData.background)
+          personaContextString += `- Background: ${personaData.background}\n`;
+        if (personaData.personality)
+          personaContextString += `- Personality: ${personaData.personality}\n`;
+        
+        conversationHistory.push({
+          role: "user",
+          parts: [{ text: personaContextString }],
+        });
+      }
+      
       if (initialForm) {
         let initialContextString = "User Initial Information:\n";
-        if (initialForm.preferredName)
-          initialContextString += `- Preferred Name: ${initialForm.preferredName}\n`;
+        // Use persona name/age if available, otherwise use form data
+        const effectiveName = contextName || initialForm.preferredName;
+        if (effectiveName)
+          initialContextString += `- Preferred Name: ${effectiveName}\n`;
         if (
           initialForm.currentEmotions &&
           initialForm.currentEmotions.length > 0
@@ -801,7 +841,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 3.  **No Diagnosis or Medical Advice:** You **do not diagnose mental health conditions, prescribe medication, or offer specific medical treatments.** Your role is supportive and educational.
 4.  **Confidentiality (Simulation Context):** In this simulation, you operate under the understanding that user data is being processed *for the purpose of this simulation only* and *is not real client data*. Acknowledge that in a real-world scenario, privacy and data security are paramount.
 5.  **Personalization with Care:** Refer to the user's preferred name occasionally if available(${
-        initialForm?.preferredName ? initialForm.preferredName : "you"
+        (contextName || initialForm?.preferredName) ? (contextName || initialForm?.preferredName) : "you"
       }). Use this naturally, not robotically.
 6.  **Empathetic and Reflective Listening:** Acknowledge the user's feelings briefly and naturally. Show understanding without being overly formal. Vary your empathetic responses - use different phrases like "That sounds tough", "I can hear how hard that is", "It seems really challenging", "That must feel heavy", "I understand this is difficult" rather than repeating the same acknowledgments.
 7.  **Guidance and Exploration:** Offer relevant, general coping strategies, gentle thought-provoking questions, and reflections to help the user explore their feelings and situations more deeply. Encourage self-discovery.

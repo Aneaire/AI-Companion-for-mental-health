@@ -147,6 +147,11 @@ export function ImpersonateThread({
   const [agentNextSteps, setAgentNextSteps] = useState<string[]>([]);
   const [lastImpersonationSender, setLastImpersonationSender] = useState<"user" | "ai" | null>(null);
   
+  // Conversation state tracking for loop detection
+  const [conversationThemes, setConversationThemes] = useState<Set<string>>(new Set());
+  const [repetitionCount, setRepetitionCount] = useState<Map<string, number>>(new Map());
+  const [lastIntervention, setLastIntervention] = useState<number>(0);
+  
   // TTS function for generating audio from text
   const generateTTS = async (text: string, voiceId: string, modelId?: string) => {
     if (!conversationPreferences.enableTTS) return;
@@ -186,6 +191,55 @@ export function ImpersonateThread({
     return undefined;
   };
 
+  // Helper function to detect conversation loops and themes
+  const analyzeConversationForLoops = (messages: Message[]) => {
+    const recentMessages = messages.slice(-6); // Last 3 exchanges
+    const themes = new Set<string>();
+    const repetitions = new Map<string, number>();
+    
+    // Common repetitive phrases to track
+    const repetitivePhrases = [
+      "walking on eggshells", "exhausting", "draining", "tiring",
+      "it sounds like", "that must feel", "it's like", "it's understandable",
+      "i guess", "honestly", "it's just"
+    ];
+    
+    recentMessages.forEach(msg => {
+      const text = msg.text.toLowerCase();
+      
+      // Track repetitive phrases
+      repetitivePhrases.forEach(phrase => {
+        if (text.includes(phrase)) {
+          const count = repetitions.get(phrase) || 0;
+          repetitions.set(phrase, count + 1);
+        }
+      });
+      
+      // Extract themes (simplified)
+      if (text.includes("family") || text.includes("parents") || text.includes("brother")) {
+        themes.add("family conflict");
+      }
+      if (text.includes("exhaust") || text.includes("tired") || text.includes("drain")) {
+        themes.add("exhaustion");
+      }
+      if (text.includes("argu") || text.includes("fight") || text.includes("bicker")) {
+        themes.add("arguments");
+      }
+    });
+    
+    // Check for loops
+    const hasLoop = Array.from(repetitions.values()).some(count => count >= 2);
+    const themeRepetition = themes.size <= 2 && recentMessages.length >= 4; // Stuck on same themes
+    
+    return {
+      hasLoop,
+      themeRepetition,
+      repetitions: Object.fromEntries(repetitions),
+      themes: Array.from(themes),
+      needsIntervention: hasLoop || themeRepetition
+    };
+  };
+
   // Helper function to control conversation flow with proper state management
   const executeConversationTurn = async (
     turnType: "therapist" | "impostor",
@@ -201,37 +255,58 @@ export function ImpersonateThread({
     try {
       let response = "";
       
-       if (turnType === "therapist") {
-         // Therapist's turn - get observer strategy silently, then stream immediately
-         let observerStrategy = "";
-         let observerRationale = "";
-         let observerNextSteps: string[] = [];
-         let observerSentiment = "";
-         
-         try {
-           const messagesForObserver = currentContext.messages.slice(-5).map(msg => ({
-             text: msg.text,
-             sender: msg.sender === "ai" ? "ai" : "user"
-           }));
-           
-           const sessionInitialForm = selectedThreadId
-             ? getInitialForm(selectedThreadId)
-             : undefined;
-             
-           const observerRes = await impersonateObserverApi.getSuggestion({
-             messages: messagesForObserver,
-             ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-           });
-           observerStrategy = observerRes.strategy || "";
-           observerRationale = observerRes.rationale || "";
-           observerNextSteps = observerRes.next_steps || [];
-           observerSentiment = observerRes.sentiment || "";
-           setAgentStrategy(observerStrategy);
-           setAgentRationale(observerRationale);
-           setAgentNextSteps(observerNextSteps);
-         } catch (e) {
-           console.warn("Observer analysis failed:", e);
-         }
+        if (turnType === "therapist") {
+          // Therapist's turn - analyze for loops and get observer strategy
+          let observerStrategy = "";
+          let observerRationale = "";
+          let observerNextSteps: string[] = [];
+          let observerSentiment = "";
+          
+          // Analyze conversation for loops
+          const loopAnalysis = analyzeConversationForLoops(currentContext.messages);
+          console.log("[LOOP DETECTION]", loopAnalysis);
+          
+          // Add intervention if needed
+          let interventionInstruction = "";
+          if (loopAnalysis.needsIntervention && Date.now() - lastIntervention > 30000) { // Max once per 30 seconds
+            interventionInstruction = `
+              CONVERSATION LOOP DETECTED - IMMEDIATE ACTION REQUIRED:
+              The conversation is repeating themes/phrases. You MUST:
+              1. Use a conversation breaker: "I'm going to shift gears completely here..."
+              2. Ask about a completely different aspect of their life
+              3. Introduce a new topic: work, friends, hobbies, childhood, future plans
+              4. DO NOT acknowledge the loop - just change direction
+              
+              Current repetitive patterns: ${JSON.stringify(loopAnalysis.repetitions)}
+              Current stuck themes: ${loopAnalysis.themes.join(", ")}
+            `;
+            setLastIntervention(Date.now());
+          }
+          
+          try {
+            const messagesForObserver = currentContext.messages.slice(-5).map(msg => ({
+              text: msg.text,
+              sender: msg.sender === "ai" ? "ai" : "user"
+            }));
+            
+            const sessionInitialForm = selectedThreadId
+              ? getInitialForm(selectedThreadId)
+              : undefined;
+              
+            const observerRes = await impersonateObserverApi.getSuggestion({
+              messages: messagesForObserver,
+              ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
+            });
+            observerStrategy = observerRes.strategy || "";
+            observerRationale = observerRes.rationale || "";
+            observerNextSteps = observerRes.next_steps || [];
+            observerSentiment = observerRes.sentiment || "";
+            setAgentStrategy(observerStrategy);
+            setAgentRationale(observerRationale);
+            setAgentNextSteps(observerNextSteps);
+          } catch (e) {
+            console.warn("Observer analysis failed:", e);
+          }
         
          // Get therapist response
          const abortController = new AbortController();
@@ -291,49 +366,62 @@ export function ImpersonateThread({
             return voiceInstructions;
           };
           
-          // Rich therapeutic instructions for therapist
+          // AGGRESSIVE anti-lexical-loop therapeutic instructions
           const naturalConversationInstructions = `
-            CRITICAL: You are a skilled therapist conducting a meaningful therapeutic session. Focus on creating depth, progression, and genuine connection.
+            IMMEDIATE RULES - NO EXCEPTIONS:
             
-            THERAPEUTIC FRAMEWORK:
-            1. AVOID Dead Ends - Never let conversations stall with simple acknowledgments
-            2. ELABORATE - Add depth, context, and meaning to responses
-            3. ANCHOR & VALIDATE - Ground emotions in experience, show genuine understanding
-            4. PROBE DEEPER - Ask meaningful questions that uncover underlying issues
+             1. FORBIDDEN PHRASES (NEVER use these):
+                - "It sounds like" (BANNED)
+                - "That must feel" (BANNED) 
+                - "It sounds" (BANNED)
+                - "That sounds" (BANNED)
+                - "It's like" (BANNED)
+                - "It's understandable" (BANNED)
+                - "carrying a really heavy load" (BANNED)
+                - "heavy load" (BANNED)
+                - "carrying" (BANNED - when referring to burdens)
+                - "takes courage" (BANNED)
+                - "acknowledge you're struggling" (BANNED)
             
-            ADVANCED TECHNIQUES:
-            - Use Socratic questioning to guide self-discovery
-            - Identify patterns and gently point them out
-            - Connect current feelings to past experiences
-            - Explore the "why" behind the "what"
-            - Validate emotions while exploring their origins
-            - Use metaphors and analogies to deepen understanding
-            - Reflect both content and emotional tone
-            - Normalize experiences while exploring uniqueness
+            2. MANDATORY RESPONSE PATTERNS (choose ONE each turn):
+               A) "Tell me more about the last time that happened..."
+               B) "What does that look like specifically when..."
+               C) "Can you give me a concrete example of..."
+               D) "When you say [their exact words], what does that actually look like in practice?"
+               E) "Let's get specific - what happened on the most recent occasion when..."
+               F) "I want to understand the mechanics of this - how does [their issue] actually play out?"
             
-            RICH RESPONSE PATTERNS:
-            Instead of: "That sounds difficult"
-            Use: "That sounds incredibly difficult. I'm hearing that this isn't just about the surface issue - there's something deeper about feeling trapped that's really weighing on you. Can we explore what 'trapped' feels like in your body?"
-
-            Instead of: "Tell me more"
-            Use: "I want to understand this better. When you say [their words], what's happening inside you in that moment? What does that bring up from your past?"
-
-            Instead of: "How does that make you feel?"
-            Use: "That's a powerful experience. I'm curious about the emotional landscape here - what's the dominant feeling, and what other emotions are layered underneath it?"
-
-            DEEP EXPLORATION QUESTIONS:
-            - "What's the story behind this feeling?"
-            - "When was the first time you experienced something like this?"
-            - "What does this part of you need right now?"
-            - "If this feeling had a voice, what would it want to say?"
-            - "What's the cost of carrying this?"
-            - "What would happen if you let yourself fully feel this?"
+            3. CONVERSATION BREAKERS (use when conversation loops):
+               A) "I'm going to shift gears completely. Let's talk about something that might seem unrelated..."
+               B) "You know what I'm curious about? What would happen if you tried the opposite approach?"
+               C) "Can we zoom out for a second? What's the bigger pattern here that we might be missing?"
+               D) "Let me ask you something completely different that might give us new perspective..."
             
-            PERSONA CONNECTION:
-            - Reference their specific persona details naturally
-            - Connect their current struggles to their persona background
-            - Show you remember and understand their unique situation
-            - Use their name/persona context to personalize interventions
+            4. SPECIFICITY FORCERS:
+               - Always ask for specific examples, times, places, people
+               - Never accept vague descriptions - drill down
+               - Use "What exactly..." "How specifically..." "When precisely..."
+            
+             5. LOOP DETECTION (if you hear yourself repeating):
+                - STOP immediately
+                - Use a conversation breaker from #3
+                - Ask about a completely different aspect of their life
+             
+             6. ANTI-REPETITION REQUIREMENTS:
+                - NEVER use the exact same phrases or metaphors in consecutive responses
+                - Track what you've said and avoid repeating it
+                - Each response must approach the problem from a different angle
+                - Vary your questioning techniques and opening phrases
+             
+             7. CURRENT SITUATION ANALYSIS:
+                They're talking about work pressure, perfectionism, and impact on sleep/focus.
+                AVOID: Don't let them keep describing the feeling vaguely
+                INSTEAD: Ask for specific work incidents, exact projects, deadlines, performance reviews
+             
+             EXAMPLE GOOD RESPONSES:
+                "You mentioned the pressure is affecting your sleep - tell me about the most recent night this happened. What work-related thoughts were keeping you awake?"
+                "When you say 'striving for perfection,' can you give me a specific example from this week? What project were you working on?"
+                "You mentioned it's 'taken over your life' - what specific activities have you given up because of work demands?"
             
             ${getTherapistVoiceInstructions()}
           `;
@@ -350,8 +438,8 @@ export function ImpersonateThread({
             ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
             ...(observerSentiment ? { sentiment: observerSentiment } : {}),
             systemInstruction: observerStrategy 
-              ? `${observerStrategy} ${naturalConversationInstructions} ${getPreferencesInstruction(conversationPreferences)}`
-              : `${naturalConversationInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
+              ? `${observerStrategy} ${interventionInstruction} ${naturalConversationInstructions} ${getPreferencesInstruction(conversationPreferences)}`
+              : `${interventionInstruction} ${naturalConversationInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
             ...(conversationPreferences ? { conversationPreferences } : {}),
           });
          
@@ -440,64 +528,99 @@ export function ImpersonateThread({
             return voiceInstructions;
           };
           
-          // Rich persona-driven instructions for impostor
-          const impostorNaturalInstructions = `
-            CRITICAL: You are NOT an AI - you are a real person with a rich inner world, specific problems, and a unique personality. EMBODY your persona completely.
-            
-            PERSONA EMBODIMENT FRAMEWORK:
-            1. LIVE THE PROBLEM - Don't just mention problems, experience them in real-time
-            2. SPECIFICITY & DETAIL - Use concrete examples, not general statements  
-            3. EMOTIONAL AUTHENTICITY - Show genuine feelings, not described feelings
-            4. PROGRESSIVE VULNERABILITY - Reveal deeper layers gradually
-            5. ACTIVE PARTICIPATION - Ask questions, show curiosity, engage actively
-            
-            AVOID DEAD ENDS - Never give one-word answers or simple confirmations
-            ELABORATE - Add context, examples, personal history, and emotional depth
-            ANCHOR IN EXPERIENCE - Ground everything in specific life events and feelings
-            RESPOND RICHLY - Give the therapist material to work with
-            
-            RICH RESPONSE EXAMPLES:
-            Instead of: "Yeah, it's hard."
-            Use: "It's incredibly hard. Just yesterday I was at the grocery store and suddenly felt this wave of panic - my hands started shaking, I couldn't remember what I needed to buy. It's like my brain just... short-circuits. Does that ever happen to you?"
+           // Check for conversational loops before proceeding
+           if (detectConversationalLoop()) {
+             console.log("[LOOP DETECTION] Conversational loop detected, applying intervention");
+             
+             const interventionMsg: Message = {
+               sender: "impostor",
+               text: "You know what? I realize I've been repeating myself. Let me be more specific. Yesterday at 2:30 PM, during the budget review meeting, my heart was racing so fast I could feel it in my throat when my director asked me to present the Q3 projections. I had to grip the table to stop my hands from shaking, and I could barely read my own notes. That's the kind of specific moment that's been happening almost daily.",
+               timestamp: new Date(),
+               contextId: "impersonate",
+             };
+             addMessage(interventionMsg);
+             setLastImpersonationSender("impostor");
+             
+             return {
+               response: interventionMsg.text,
+               nextTurn: "therapist",
+             };
+           }
 
-            Instead of: "I feel anxious."
-            Use: "The anxiety isn't just in my head - it's physical. My chest gets tight, I feel like I can't get enough air, and there's this buzzing feeling under my skin. It started after my mom got sick last year. I think I'm still carrying that fear of losing someone."
-
-            Instead of: "I don't know."
-            Use: "That's the thing - I genuinely don't know, and that's what scares me. I used to be so decisive, so sure of everything. Now I second-guess every choice, even what to have for breakfast. It's like I've lost trust in my own judgment."
-
-            DEEP PERSONA EXPLORATION:
-            - Connect current struggles to specific life events
-            - Show how problems affect daily life (work, relationships, self-care)
-            - Reveal hopes, fears, dreams, and disappointments
-            - Share moments of success and failure
-            - Show internal conflicts and contradictions
-            - Demonstrate coping mechanisms (healthy and unhealthy)
-            - Express values, beliefs, and worldview
-            
-            EMOTIONAL RANGE:
-            - Show frustration, anger, sadness, fear, joy, confusion
-            - Demonstrate defense mechanisms and moments of breakthrough
-            - Express both rational thoughts and irrational fears
-            - Show moments of clarity and moments of confusion
-            - Reveal vulnerabilities and strengths
-            
-            ENGAGEMENT PATTERNS:
-            - Ask therapist questions about their experience or methods
-            - Show curiosity about the therapeutic process
-            - Express doubts about therapy or hope for change
-            - Bring in specific examples from the past week
-            - Share dreams, memories, or sudden insights
-            - Show resistance and openness in the same session
-            
-            ${getImpostorVoiceInstructions()}
-          `;
+           // AGGRESSIVE anti-lexical-loop persona instructions
+           const impostorNaturalInstructions = `
+             CRITICAL ANTI-LOOP INSTRUCTIONS - READ CAREFULLY:
+             
+              1. BANNED PHRASES (NEVER use these):
+                 - "exhausting", "relentless", "treadmill", "overwhelming", "grueling", "endless"
+                 - "cycle", "vicious cycle", "hamster wheel", "rat race", "grind", "hustle", "burnout"
+                 - "walking on eggshells", "draining", "tiring", "I guess", "honestly", "It's just"
+             
+             2. MANDATORY NEW INFORMATION:
+                EVERY response MUST introduce at least ONE specific incident, detail, or sensory experience that hasn't been mentioned before
+             
+             3. WORK-PRESSURE SPECIFIC REQUIREMENTS:
+                - Describe specific projects, deadlines, meetings, performance reviews
+                - Include exact times, places, people's names, and specific events
+                - Talk about concrete work incidents: presentations, client calls, feedback sessions
+                - Include physical symptoms: racing heart, shaky hands, sweating, voice trembling
+             
+             4. SPECIFICITY REQUIREMENT:
+                Instead of generalities, provide concrete examples:
+                - "Yesterday at 3 PM, my manager called me into his office..."
+                - "Last Tuesday, I spent three hours rewriting a single email..."
+                - "This morning during the team standup, my hands were shaking so much..."
+             
+             5. SENSORY DETAILS:
+                Include what you saw, heard, felt, or experienced physically:
+                - "The fluorescent lights give me headaches..."
+                - "I could feel my heart pounding in my throat..."
+                - "My palms were sweating on the conference table..."
+             
+             6. RESPONSE DIVERSITY PATTERNS:
+                A) "The other day at [specific time], I was [specific activity] when [specific incident]..."
+                B) "What's really hitting me hard right now is [specific new detail about work]..."
+                C) "I haven't told anyone this, but [specific work-related memory]..."
+                D) "Last [day], [specific work event] occurred and it made me realize..."
+                E) "You know what I keep coming back to? [specific concrete work detail]..."
+             
+             7. PROBLEM-SPECIFIC EXAMPLES:
+                - Performance anxiety: "During the quarterly review, my voice was shaking when I presented the numbers..."
+                - Work pressure: "The client called at 7 AM demanding changes, and I had to cancel my doctor's appointment..."
+                - Deadlines: "I was up until 2 AM finishing the proposal because my boss moved the deadline up by two days..."
+             
+             8. MINIMUM RESPONSE REQUIREMENTS:
+                - Your response MUST be at least 100 words long
+                - MUST include at least 2 specific incidents/examples
+                - MUST include physical sensations or reactions
+                - MUST NOT end with questions to the therapist
+                - MUST provide new information not mentioned before
+                - AVOID brief responses like "I don't know" or "It feels heavy"
+             
+             9. LOOP PREVENTION:
+                If you catch yourself repeating a theme:
+                - STOP immediately
+                - Say: "Actually, let me give you a completely different example..."
+                - Share a new specific work incident with different details
+             
+             10. RESPONSE STRUCTURE:
+                 Start with a specific incident, include sensory details, and end with a new realization or concern.
+                 DO NOT give brief, vague answers. Always elaborate with concrete examples.
+             
+             CURRENT PERSONA: ${userProfileData?.name || 'Unknown'}, Age: ${userProfileData?.age || 'Unknown'}
+             FOCUS: Work pressure and performance anxiety with specific, detailed examples
+             AVOID: All banned phrases, brief responses, and generalities
+             INSTEAD: Concrete work incidents with times, places, people, and physical reactions (minimum 100 words)
+             
+             ${getImpostorVoiceInstructions()}
+           `;
           
           const impostorResponse = await impostorApi.sendMessage({
             sessionId: selectedThreadId!,
             message: lastMessage || "",
             userProfile: userProfileData,
             preferredName: threadData?.preferredName,
+            personaId: threadData?.personaId || undefined,
             signal: abortController.signal,
             systemInstruction: `${impostorNaturalInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
             ...(conversationPreferences ? { conversationPreferences } : {}),
@@ -749,6 +872,56 @@ export function ImpersonateThread({
       );
     }
   }, [currentContext.messages, selectedThreadId, threadData, personaData]);
+
+  // Detect conversational loops and repetitive patterns
+  const detectConversationalLoop = (): boolean => {
+    const recentMessages = currentContext.messages.slice(-6); // Last 6 messages
+    const impostorMessages = recentMessages.filter(m => m.sender === "impostor");
+    
+    if (impostorMessages.length < 3) return false;
+    
+    // Check for banned repetitive phrases
+    const bannedPhrases = [
+      "exhausting", "relentless", "treadmill", "overwhelming", 
+      "grueling", "endless", "cycle", "vicious cycle", 
+      "hamster wheel", "rat race", "grind", "hustle", "burnout"
+    ];
+    
+    const lastThreeImpostorMessages = impostorMessages.slice(-3);
+    const phraseUsage = bannedPhrases.filter(phrase => 
+      lastThreeImpostorMessages.some(msg => 
+        msg.text.toLowerCase().includes(phrase.toLowerCase())
+      )
+    );
+    
+    // If more than 2 banned phrases used in last 3 messages, it's a loop
+    if (phraseUsage.length > 2) return true;
+    
+    // Check for repetitive sentence patterns
+    const sentencePatterns = lastThreeImpostorMessages.map(msg => {
+      const sentences = msg.text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      return sentences.map(s => s.trim().toLowerCase().replace(/\s+/g, ' '));
+    });
+    
+    // Look for similar sentence structures across messages
+    let patternMatches = 0;
+    for (let i = 0; i < sentencePatterns.length - 1; i++) {
+      for (let j = i + 1; j < sentencePatterns.length; j++) {
+        const similarities = sentencePatterns[i].filter(s1 => 
+          sentencePatterns[j].some(s2 => 
+            s1.length > 10 && s2.length > 10 && 
+            (s1.includes(s2.substring(0, 10)) || s2.includes(s1.substring(0, 10)))
+          )
+        );
+        if (similarities.length > 0) patternMatches++;
+      }
+    }
+    
+    return patternMatches > 2;
+  };
+
+
+
   const handleStartImpersonation = async (startFromMessageIndex?: number) => {
     if (!userProfile?.id) {
       toast.error("User profile not loaded.");
@@ -807,14 +980,19 @@ export function ImpersonateThread({
       let lastMessage = startingMessage ? startingMessage.text : "";
       let currentTurnType: "therapist" | "impostor";
       
-       // Determine who should start the conversation
-       if (lastImpersonationSender === "user" || lastImpersonationSender === null) {
+        // Determine who should start the conversation
+        // For new conversations (no previous messages), always start with impostor
+        const hasPreviousMessages = currentContext.messages.some(m => m.text && m.text.trim() !== "");
+        if (!hasPreviousMessages) {
+          currentTurnType = "impostor"; // Impostor starts first in new conversations
+          console.log("[CONVERSATION CONTROL] New conversation detected - impostor will start first");
+        } else if (lastImpersonationSender === "user" || lastImpersonationSender === null) {
          currentTurnType = "therapist";
-       } else {
+        } else {
          currentTurnType = "impostor";
-       }
-       
-       console.log(`[CONVERSATION CONTROL] Starting conversation with ${currentTurnType} turn (lastSender: ${lastImpersonationSender})`);
+        }
+         
+        console.log(`[CONVERSATION CONTROL] Starting conversation with ${currentTurnType} turn (lastSender: ${lastImpersonationSender}, hasPreviousMessages: ${hasPreviousMessages})`);
       
       console.log(`[CONVERSATION CONTROL] Starting conversation with ${currentTurnType} turn`);
       
