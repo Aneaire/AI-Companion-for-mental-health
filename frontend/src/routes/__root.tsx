@@ -1,4 +1,5 @@
 import { UserProfileDialog } from "@/components/UserProfileDialog";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@clerk/clerk-react";
 import {
   createRootRouteWithContext,
@@ -80,7 +81,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     }, [isError]);
 
     return (
-      <>
+      <TooltipProvider>
         <div className="min-h-screen w-screen relative overflow-auto">
           <ParticlesBackground />
           <div className="relative z-10 min-h-full w-full flex flex-col">
@@ -117,7 +118,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
           </div>
         </div>
         <Toaster />
-      </>
+      </TooltipProvider>
     );
   },
 });

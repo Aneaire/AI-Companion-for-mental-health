@@ -148,15 +148,52 @@ export function ImpersonateThread({
   const [lastImpersonationSender, setLastImpersonationSender] = useState<"user" | "ai" | null>(null);
   
   // Conversation state tracking for loop detection
-  const [conversationThemes, setConversationThemes] = useState<Set<string>>(new Set());
-  const [repetitionCount, setRepetitionCount] = useState<Map<string, number>>(new Map());
-  const [lastIntervention, setLastIntervention] = useState<number>(0);
-  
-  // Story-driven conversation phases
-  const [conversationPhase, setConversationPhase] = useState<"diagnosis" | "story_development" | "resolution">("diagnosis");
-  const [turnCount, setTurnCount] = useState(0);
-  const [sharedStories, setSharedStories] = useState<string[]>([]);
-  const [resolutionElements, setResolutionElements] = useState<string[]>([]);
+   const [conversationThemes, setConversationThemes] = useState<Set<string>>(new Set());
+   const [repetitionCount, setRepetitionCount] = useState<Map<string, number>>(new Map());
+   const [lastIntervention, setLastIntervention] = useState<number>(0);
+
+   // Story-driven conversation phases
+   const [conversationPhase, setConversationPhase] = useState<"diagnosis" | "story_development" | "resolution">("diagnosis");
+   const [turnCount, setTurnCount] = useState(0);
+   const [sharedStories, setSharedStories] = useState<string[]>([]);
+   const [resolutionElements, setResolutionElements] = useState<string[]>([]);
+
+   // Multi-turn story tracking
+   const [storyElements, setStoryElements] = useState<Map<string, any>>(new Map());
+   const [storyProgression, setStoryProgression] = useState<{
+     depth: number;
+     completeness: number;
+     emotionalRange: string[];
+     patternRecognition: string[];
+   }>({
+     depth: 0,
+     completeness: 0,
+     emotionalRange: [],
+     patternRecognition: []
+   });
+
+   // Conversation quality scoring
+   const [conversationQuality, setConversationQuality] = useState<{
+     storyExtractionScore: number;
+     loopBreakingScore: number;
+     phaseProgressionScore: number;
+     overallQuality: number;
+     qualityHistory: Array<{turn: number, scores: any}>;
+   }>({
+     storyExtractionScore: 0,
+     loopBreakingScore: 0,
+     phaseProgressionScore: 0,
+     overallQuality: 0,
+     qualityHistory: []
+   });
+
+   // User feedback system
+   const [responseFeedback, setResponseFeedback] = useState<Map<string, {
+     messageId: string;
+     rating: 'good' | 'needs_improvement' | 'poor';
+     feedback?: string;
+     timestamp: number;
+   }>>(new Map());
 
   // Conversation completion detection
   const [conversationCompleted, setConversationCompleted] = useState(false);
@@ -340,6 +377,310 @@ export function ImpersonateThread({
         ];
       }
     return [];
+  };
+
+  // Helper function to validate and enhance story responses
+  const validateAndEnhanceStoryResponse = (response: string, phase: string): { isValid: boolean; enhancedResponse?: string } => {
+    const text = response.toLowerCase();
+
+    // Story validation criteria based on phase
+    if (phase === "diagnosis") {
+      // Phase 1: Should contain story-extraction questions
+      const storyIndicators = [
+        "tell me about", "what happened", "can you describe", "walk me through",
+        "give me an example", "share a story", "what was that like",
+        "when did this start", "how did it begin", "what changed"
+      ];
+
+      const hasStoryExtraction = storyIndicators.some(indicator => text.includes(indicator));
+
+      // Should NOT contain vague empathy patterns
+      const vagueEmpathyPatterns = [
+        "i understand", "that sounds", "i hear you", "that must be",
+        "it's understandable", "many people", "it's normal"
+      ];
+
+      const hasVagueEmpathy = vagueEmpathyPatterns.some(pattern => text.includes(pattern));
+
+      // Valid if it has story extraction AND doesn't rely on vague empathy
+      return { isValid: hasStoryExtraction && !hasVagueEmpathy };
+    }
+
+    else if (phase === "story_development") {
+      // Phase 2: Should contain specific story elements
+      const storyElements = [
+        "when", "where", "who", "what happened", "what did", "what were",
+        "describe", "tell me", "paint a picture", "walk me through",
+        "specific", "example", "time", "place", "person"
+      ];
+
+      const hasStoryElements = storyElements.some(element => text.includes(element));
+
+      // Should ask for sensory details or dialogue
+      const detailIndicators = [
+        "see", "hear", "feel", "smell", "taste", "said", "told", "asked",
+        "dialogue", "conversation", "words", "exactly"
+      ];
+
+      const hasDetailFocus = detailIndicators.some(detail => text.includes(detail));
+
+      return { isValid: hasStoryElements || hasDetailFocus };
+    }
+
+    else if (phase === "resolution") {
+      // Phase 3: Should contain hope, action steps, or strength identification
+      const resolutionElements = [
+        "hope", "future", "next week", "try", "step", "strength", "proud",
+        "imagine", "when you", "you could", "you might", "possible",
+        "support", "resource", "help", "change", "progress"
+      ];
+
+      const hasResolutionElements = resolutionElements.some(element => text.includes(element));
+
+      // Should be specific, not vague
+      const specificIndicators = [
+        "this week", "tomorrow", "call", "talk to", "try", "practice",
+        "notice", "pay attention", "reach out", "specific"
+      ];
+
+      const hasSpecificity = specificIndicators.some(specific => text.includes(specific));
+
+      return { isValid: hasResolutionElements && hasSpecificity };
+    }
+
+    return { isValid: true }; // Default to valid for other cases
+  };
+
+  // Multi-turn story building logic
+  const trackStoryProgression = (message: string, phase: string, turnNumber: number) => {
+    const text = message.toLowerCase();
+
+    // Extract story elements from the message
+    const storyElementsDetected = {
+      timeReferences: (text.match(/\b(last week|last month|yesterday|today|this morning|last night|three years ago|when i was|at age|during|while|after|before)\b/gi) || []),
+      locationReferences: (text.match(/\b(at work|at home|in the car|at school|in bed|kitchen|office|meeting room|restaurant|park|store)\b/gi) || []),
+      peopleReferences: (text.match(/\b(my (mother|father|boss|friend|partner|wife|husband|son|daughter|sister|brother)|he said|she said|i told|they asked)\b/gi) || []),
+      sensoryDetails: (text.match(/\b(saw|heard|felt|smelled|tasted|looked|felt like|heard the|smelled|the sound|the feeling)\b/gi) || []),
+      dialogueElements: (text.match(/[""']([^""']+)[""']/g) || []),
+      emotionalStates: (text.match(/\b(felt (scared|angry|sad|happy|anxious|nervous|excited|proud|ashamed|guilty|overwhelmed|confused))\b/gi) || []),
+      internalThoughts: (text.match(/\b(i thought|i felt|i realized|i wondered|i decided|i knew)\b/gi) || []),
+      physicalSensations: (text.match(/\b(heart (racing|pounding)|hands (shaking|trembling)|stomach (churning|knot)|sweating|breathing (heavy|fast)|tense|tight)\b/gi) || [])
+    };
+
+    // Calculate story depth and completeness
+    const elementCounts = Object.values(storyElementsDetected).map(arr => arr.length);
+    const totalElements = elementCounts.reduce((sum, count) => sum + count, 0);
+    const uniqueElementTypes = elementCounts.filter(count => count > 0).length;
+
+    // Update story progression state
+    setStoryProgression(prev => ({
+      depth: Math.max(prev.depth, uniqueElementTypes),
+      completeness: Math.max(prev.completeness, totalElements),
+      emotionalRange: [...new Set([...prev.emotionalRange, ...storyElementsDetected.emotionalStates])],
+      patternRecognition: prev.patternRecognition // This would be updated by analyzing patterns across messages
+    }));
+
+    // Store story elements for cross-turn reference
+    const storyKey = `turn_${turnNumber}_${phase}`;
+    setStoryElements(prev => new Map(prev.set(storyKey, {
+      elements: storyElementsDetected,
+      depth: uniqueElementTypes,
+      completeness: totalElements,
+      phase,
+      turnNumber
+    })));
+
+    return {
+      depth: uniqueElementTypes,
+      completeness: totalElements,
+      elements: storyElementsDetected,
+      needsDeepening: uniqueElementTypes < 3 || totalElements < 5
+    };
+  };
+
+  // Helper function to generate deepening prompts based on story progression
+  const generateDeepeningPrompt = (currentStoryElements: any, phase: string): string => {
+    const missingElements = [];
+
+    if (currentStoryElements.timeReferences.length === 0) {
+      missingElements.push("specific timing (when did this happen?)");
+    }
+    if (currentStoryElements.locationReferences.length === 0) {
+      missingElements.push("physical location (where were you?)");
+    }
+    if (currentStoryElements.peopleReferences.length === 0) {
+      missingElements.push("people involved (who was there?)");
+    }
+    if (currentStoryElements.sensoryDetails.length === 0) {
+      missingElements.push("sensory details (what did you see/hear/feel?)");
+    }
+    if (currentStoryElements.dialogueElements.length === 0) {
+      missingElements.push("exact dialogue (what was said?)");
+    }
+    if (currentStoryElements.emotionalStates.length === 0) {
+      missingElements.push("emotional experience (how did you feel?)");
+    }
+
+    if (missingElements.length > 0) {
+      return `To help me understand better, could you add some ${missingElements.slice(0, 2).join(' and ')} to that story?`;
+    }
+
+    // If story is complete, suggest deepening based on phase
+    if (phase === "story_development") {
+      return "That's a vivid story. What was going through your mind during that moment? How did that experience change you?";
+    } else if (phase === "resolution") {
+      return "That's powerful. What strength did you discover in yourself through that experience? How might that help you moving forward?";
+    }
+
+    return "";
+  };
+
+  // Conversation quality scoring system
+  const evaluateConversationQuality = (messages: Message[], currentPhase: string, turnCount: number) => {
+    const recentMessages = messages.slice(-6); // Last 3 exchanges
+    const therapistMessages = recentMessages.filter(m => m.sender === "ai");
+    const impostorMessages = recentMessages.filter(m => m.sender === "impostor");
+
+    // Story Extraction Score (0-100)
+    let storyExtractionScore = 0;
+    if (therapistMessages.length > 0) {
+      const storyPrompts = therapistMessages.filter(msg => {
+        const text = msg.text.toLowerCase();
+        return [
+          "tell me about", "what happened", "can you describe", "walk me through",
+          "give me an example", "share a story", "what was that like",
+          "paint me a picture", "what did you see", "what did you hear", "what did you feel"
+        ].some(prompt => text.includes(prompt));
+      }).length;
+
+      storyExtractionScore = Math.min(100, (storyPrompts / therapistMessages.length) * 100);
+    }
+
+    // Loop Breaking Score (0-100)
+    let loopBreakingScore = 100; // Start with perfect score
+    const bannedPhrases = [
+      "it sounds like", "that must feel", "heavy load", "draining", "exhausting",
+      "overwhelming", "understandable", "takes courage", "incredibly draining"
+    ];
+
+    therapistMessages.forEach(msg => {
+      const text = msg.text.toLowerCase();
+      bannedPhrases.forEach(phrase => {
+        if (text.includes(phrase)) {
+          loopBreakingScore -= 20; // Penalty for each banned phrase
+        }
+      });
+    });
+
+    loopBreakingScore = Math.max(0, loopBreakingScore);
+
+    // Phase Progression Score (0-100)
+    let phaseProgressionScore = 0;
+    if (impostorMessages.length > 0) {
+      let storyDepthScore = 0;
+      let resolutionProgressScore = 0;
+
+      impostorMessages.forEach(msg => {
+        const analysis = trackStoryProgression(msg.text, currentPhase, turnCount);
+        storyDepthScore += Math.min(100, analysis.depth * 25); // Max 25 points per message for depth
+        storyDepthScore += Math.min(50, analysis.completeness * 5); // Max 50 points for completeness
+      });
+
+      if (currentPhase === "resolution") {
+        const resolutionIndicators = [
+          "hope", "future", "next week", "try", "step", "strength", "proud",
+          "imagine", "when you", "you could", "you might", "possible"
+        ];
+
+        impostorMessages.forEach(msg => {
+          const text = msg.text.toLowerCase();
+          resolutionIndicators.forEach(indicator => {
+            if (text.includes(indicator)) resolutionProgressScore += 10;
+          });
+        });
+      }
+
+      phaseProgressionScore = Math.min(100, (storyDepthScore / impostorMessages.length) + resolutionProgressScore);
+    }
+
+    // Overall Quality Score (weighted average)
+    const overallQuality = Math.round(
+      (storyExtractionScore * 0.4) +
+      (loopBreakingScore * 0.4) +
+      (phaseProgressionScore * 0.2)
+    );
+
+    // Update quality state
+    const newQualityScores = {
+      storyExtractionScore: Math.round(storyExtractionScore),
+      loopBreakingScore: Math.round(loopBreakingScore),
+      phaseProgressionScore: Math.round(phaseProgressionScore),
+      overallQuality,
+      qualityHistory: [
+        ...conversationQuality.qualityHistory,
+        {
+          turn: turnCount,
+          scores: {
+            storyExtraction: Math.round(storyExtractionScore),
+            loopBreaking: Math.round(loopBreakingScore),
+            phaseProgression: Math.round(phaseProgressionScore),
+            overall: overallQuality
+          }
+        }
+      ].slice(-10) // Keep last 10 turns
+    };
+
+    setConversationQuality(newQualityScores);
+
+    return newQualityScores;
+  };
+
+  // User feedback system for response quality
+  const submitResponseFeedback = (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => {
+    const feedbackEntry = {
+      messageId,
+      rating,
+      feedback,
+      timestamp: Date.now()
+    };
+
+    setResponseFeedback(prev => new Map(prev.set(messageId, feedbackEntry)));
+
+    // Log feedback for system learning
+    console.log('[FEEDBACK SUBMITTED]', {
+      messageId,
+      rating,
+      feedback,
+      context: {
+        phase: conversationPhase,
+        turnCount,
+        qualityScores: conversationQuality
+      }
+    });
+
+    // Could send to backend for ML training
+    // feedbackApi.submitFeedback(feedbackEntry);
+  };
+
+  const getFeedbackStats = () => {
+    const feedbackArray = Array.from(responseFeedback.values());
+    const stats = {
+      total: feedbackArray.length,
+      good: feedbackArray.filter(f => f.rating === 'good').length,
+      needs_improvement: feedbackArray.filter(f => f.rating === 'needs_improvement').length,
+      poor: feedbackArray.filter(f => f.rating === 'poor').length,
+      averageRating: 0
+    };
+
+    // Calculate average rating (good=3, needs_improvement=2, poor=1)
+    const ratingSum = feedbackArray.reduce((sum, f) => {
+      const ratingValue = f.rating === 'good' ? 3 : f.rating === 'needs_improvement' ? 2 : 1;
+      return sum + ratingValue;
+    }, 0);
+
+    stats.averageRating = stats.total > 0 ? ratingSum / stats.total : 0;
+
+    return stats;
   };
 
   // Helper function to detect conversation completion
@@ -1041,14 +1382,18 @@ export function ImpersonateThread({
           }
         }
         
-         // Track stories and resolution elements
-         if (response.trim()) {
-           if (conversationPhase === "story_development") {
-             setSharedStories(prev => [...prev, response.substring(0, 50) + "..."]);
-           } else if (conversationPhase === "resolution") {
-             setResolutionElements(prev => [...prev, response.substring(0, 50) + "..."]);
-           }
-         }
+          // Track stories and resolution elements with progression analysis
+          if (response.trim()) {
+            // Track story progression for impostor responses
+            const storyAnalysis = trackStoryProgression(response, conversationPhase, turnCount);
+
+            if (conversationPhase === "story_development") {
+              const storySummary = `${response.substring(0, 50)}... (depth: ${storyAnalysis.depth}, elements: ${storyAnalysis.completeness})`;
+              setSharedStories(prev => [...prev, storySummary]);
+            } else if (conversationPhase === "resolution") {
+              setResolutionElements(prev => [...prev, response.substring(0, 50) + "..."]);
+            }
+          }
          
          // Update state
          setLastImpersonationSender("user");
@@ -1174,7 +1519,8 @@ export function ImpersonateThread({
        const currentPhase = conversationPhase;
        const currentTurnCount = turnCount;
        
-        const getManualTherapistInstructions = () => {
+        // Structured Response Template System
+        const getStructuredResponseTemplate = () => {
           const bannedPhrases = `
             🚫 CRITICAL: IMMEDIATELY BANNED PHRASES - DO NOT USE ANY OF THESE UNDER ANY CIRCUMSTANCES:
             - "It sounds like" (BANNED - Use "Help me understand" instead)
@@ -1191,121 +1537,169 @@ export function ImpersonateThread({
 
             PENALTY FOR VIOLATION: If you use any banned phrase, the response will be rejected and you must try again.
           `;
-         
+
+          // Get story tracking context
+          const storyContext = `
+            STORY TRACKING CONTEXT:
+            - Stories shared so far: ${sharedStories.length > 0 ? sharedStories.join('; ') : 'None yet'}
+            - Resolution elements identified: ${resolutionElements.length > 0 ? resolutionElements.join('; ') : 'None yet'}
+            - Current turn: ${currentTurnCount + 1}
+            - Conversation phase: ${conversationPhase.toUpperCase()}
+          `;
+
           if (currentPhase === "diagnosis") {
             return `
               ${bannedPhrases}
+              ${storyContext}
 
-              PHASE 1: DIAGNOSIS & CONNECTION (Turn ${currentTurnCount + 1})
+              📋 PHASE 1: DIAGNOSIS & CONNECTION (Turn ${currentTurnCount + 1})
 
               🎯 PRIMARY OBJECTIVE: BREAK THE VAGUE FEELINGS LOOP
               The client is stuck describing feelings like "drained", "stuck", "overwhelming" without specifics.
               Your job is to IMMEDIATELY pivot to concrete examples and stories.
 
-              REQUIRED APPROACH:
-              1. Acknowledge briefly (1 sentence max)
-              2. IMMEDIATELY ask for a SPECIFIC STORY or EXAMPLE
-              3. Focus on WHEN, WHERE, WHO, WHAT happened
+              📝 REQUIRED RESPONSE FORMAT:
+              1. BRIEF ACKNOWLEDGMENT (1 sentence max): Use approved phrases only
+              2. IMMEDIATE STORY EXTRACTION: Ask for ONE specific story element
+              3. SPECIFIC PROMPT: Include time/place/people details
 
-              FORBIDDEN: Generic empathy responses like "That sounds difficult" or "I understand"
-              REQUIRED: Story-extraction questions like "Tell me about a time when..." or "What's an example of..."
-
-              ALTERNATIVE PHRASES (USE THESE INSTEAD):
+              ✅ APPROVED PHRASES (USE THESE INSTEAD):
               - "Help me understand what that's like for you..."
               - "Tell me more about your experience with that..."
               - "What's your perspective on this situation?"
               - "How did that affect you personally?"
               - "What was going through your mind at the time?"
 
-              SPECIFIC STORY PROMPTS TO USE:
-              - "Can you tell me about a recent time when you felt this way?"
-              - "What's an example of when this started feeling worse?"
-              - "Tell me about your typical day - what happens that makes it hard?"
-              - "Who have you talked to about this, and what did they say?"
+              🎭 STORY EXTRACTION TEMPLATES (CHOOSE ONE):
 
-              CURRENT LOOP DETECTED: Client keeps saying they're "drained", "stuck", "tired" without specifics
-              BREAK THE LOOP: Force them to tell a specific story from their life
+              TEMPLATE A - RECENT EXAMPLE:
+              "Can you tell me about a recent time when you felt this way? What exactly happened, and when did it occur?"
+
+              TEMPLATE B - TYPICAL SITUATION:
+              "What's an example of when this started feeling worse? Tell me about that specific situation."
+
+              TEMPLATE C - DAILY IMPACT:
+              "Tell me about your typical day - what happens that makes it hard? Walk me through a recent example."
+
+              TEMPLATE D - SOCIAL CONTEXT:
+              "Who have you talked to about this, and what did they say? Tell me about that conversation."
+
+              TEMPLATE E - FIRST OCCURRENCE:
+              "When did you first notice this becoming a problem? What was happening in your life at that time?"
+
+              🔄 LOOP BREAKING: If client repeats vague feelings, use this exact pivot:
+              "Let's talk about something specific. Tell me about the last time you felt this way. What exactly happened?"
+
+              SUCCESS CRITERIA: Response must contain a specific story prompt with time/place/people elements
             `;
           } else if (currentPhase === "story_development") {
             return `
               ${bannedPhrases}
+              ${storyContext}
 
-              PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turn ${currentTurnCount + 1})
+              📋 PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turn ${currentTurnCount + 1})
 
               🎯 PRIMARY OBJECTIVE: EXTRACT RICH, DETAILED STORIES
-              The client has been giving vague descriptions. Now you MUST get specific, vivid stories.
+              The client has been giving vague descriptions. Now you MUST get specific, vivid stories with sensory details.
 
-              STORY EXTRACTION PROTOCOL:
-              1. Choose ONE story prompt per response
-              2. Ask for sensory details: sights, sounds, smells, physical sensations
-              3. Ask for dialogue: exact words spoken
-              4. Ask for internal experience: thoughts, feelings moment-by-moment
-              5. Ask for context: time, place, people, circumstances
+              📝 REQUIRED RESPONSE FORMAT:
+              1. REFERENCE PREVIOUS STORY (if applicable): "Building on what you shared about [story element]..."
+              2. SPECIFIC STORY PROMPT: Choose ONE template below
+              3. SENSORY DETAIL REQUIREMENTS: Ask for sights, sounds, physical sensations
+              4. DIALOGUE REQUEST: Ask for exact words spoken
+              5. EMOTIONAL DEPTH: Ask for thoughts and feelings moment-by-moment
 
-              REQUIRED STORY ELEMENTS (Must include at least 3):
-              - Specific time period ("Last Tuesday at 3pm")
-              - Physical location ("In the break room at work")
-              - People involved ("My boss and two colleagues")
-              - Sensory details ("The fluorescent lights were buzzing")
-              - Dialogue ("He said 'We need this done by Friday'")
-              - Internal thoughts ("I thought 'I can't handle this'")
-              - Physical sensations ("My heart started racing")
+              🎭 STORY DEVELOPMENT TEMPLATES (CHOOSE ONE BASED ON AVAILABLE STORIES):
 
-              FORBIDDEN: Vague questions like "How do you feel about that?"
-              REQUIRED: Specific prompts like "Paint me a picture of that meeting - what did you see, hear, and feel?"
+              TEMPLATE A - DEEPEN EXISTING STORY:
+              "You mentioned [reference previous story element]. Tell me more about that moment. What did you see, hear, and feel? What was going through your mind?"
 
-              STORY PROMPTS TO ROTATE THROUGH:
-              - "Tell me the story of the last time this happened. Start from the beginning and walk me through each moment."
-              - "Paint me a detailed picture of a typical day when you're struggling. What happens from morning to night?"
-              - "Share a specific memory from your past that feels connected to this. Make it vivid with details."
-              - "Tell me about an interaction with someone close to you that shows this pattern. Include the exact conversation."
-              - "Describe a time you tried to break this cycle. What did you do, and what happened next?"
+              TEMPLATE B - CHILDHOOD/ORIGINS:
+              "Tell me about a specific moment from your childhood or early life that planted the seeds for your current struggles. Make it vivid - what were you doing, who was there, what did you feel?"
 
-              SUCCESS CRITERIA: Response should contain at least 150 words of specific story details
+              TEMPLATE C - RECENT INCIDENT:
+              "Describe a specific incident from the past week that really highlighted your challenges. Include the exact situation, what happened, and how it made you feel afterward."
+
+              TEMPLATE D - RELATIONSHIP PATTERN:
+              "Share a story about an interaction with someone close to you that showed your patterns in action. Include what was said, what you thought but didn't say, and how the moment felt."
+
+              TEMPLATE E - ATTEMPTED SOLUTION:
+              "Tell me about a time when you tried to address this problem yourself. What did you do, what were you hoping would happen, and what actually occurred instead?"
+
+              TEMPLATE F - SENSORY RECOLLECTION:
+              "Paint me a picture of a time when this feeling was really strong. What did you see around you? What sounds were there? What physical sensations did you notice?"
+
+              🔍 SPECIFIC ELEMENTS TO REQUEST (Include at least 3):
+              - Time period: "Last Tuesday at 3pm", "Three years ago", "This morning"
+              - Physical location: "In the break room at work", "Driving home", "At the kitchen table"
+              - People involved: "My boss and two colleagues", "My partner", "My mother"
+              - Sensory details: "The fluorescent lights were buzzing", "I could smell coffee brewing"
+              - Dialogue: "He said 'We need this done by Friday'", "I told myself 'I can't do this'"
+              - Physical sensations: "My heart started racing", "My hands were shaking"
+              - Internal thoughts: "I thought 'I can't handle this'", "I felt like giving up"
+
+              SUCCESS CRITERIA: Response must contain specific sensory/dialogue requests and reference at least one story element
             `;
           } else {
             return `
               ${bannedPhrases}
+              ${storyContext}
 
-              PHASE 3: RESOLUTION & HOPE (Turn ${currentTurnCount + 1})
+              📋 PHASE 3: RESOLUTION & HOPE (Turn ${currentTurnCount + 1})
 
               🎯 PRIMARY OBJECTIVE: BUILD HOPE AND CONCRETE SOLUTIONS
               The client has shared their stories. Now focus on strength, hope, and actionable change.
 
-              RESOLUTION FRAMEWORK:
-              1. Highlight existing strengths they've demonstrated
-              2. Identify small wins and successes they've had
-              3. Co-create specific, actionable next steps
-              4. Paint a vivid picture of positive change
-              5. End with empowerment and hope
+              📝 REQUIRED RESPONSE FORMAT:
+              1. STRENGTH REFLECTION: Highlight specific strengths shown in their stories
+              2. HOPEFUL VISION: Paint a concrete picture of positive change
+              3. ACTIONABLE STEP: Identify one specific, measurable next action
+              4. RESOURCE CONNECTION: Link to existing support systems
+              5. OPTIMISTIC CLOSURE: End with specific hope markers
 
-              REQUIRED ELEMENTS (Include at least 2 per response):
-              - Specific strength identification ("You've shown real resilience by...")
-              - Concrete action step ("This week, try...")
-              - Hopeful vision ("Imagine feeling...")
-              - Resource identification ("You have support from...")
-              - Success prediction ("When you try this, you'll likely...")
+              💪 STRENGTH IDENTIFICATION TEMPLATES:
+              - "You've shown real resilience by [specific action from their story]..."
+              - "I notice your strength in [specific quality demonstrated]..."
+              - "What you've already accomplished by [specific achievement] shows..."
+              - "Your ability to [specific skill shown in stories] is a real asset..."
 
-              SOLUTION-FOCUSED QUESTIONS:
-              - "What's one small thing you've already done that helped, even a little?"
-              - "Who in your life has been supportive, and how can you lean on them more?"
-              - "If you could try one new approach this week, what would it be?"
-              - "What's a time in your past when you successfully handled something difficult?"
-              - "Imagine three months from now - what's one thing you'd be proud of accomplishing?"
+              🌟 HOPE BUILDING TEMPLATES (CHOOSE ONE):
+              - "Imagine six months from now, having worked through this challenge. What's one thing you'd be doing differently?"
+              - "Based on what you've shared, what small victory would mean the most to you right now?"
+              - "Tell me about a moment recently when you felt a spark of hope or noticed something positive changing."
+              - "What's one area where you've already made progress that we haven't discussed yet?"
 
-              FORBIDDEN: Vague encouragement like "Things will get better"
-              REQUIRED: Specific hope like "When you try calling a friend each day, you'll likely feel more connected"
+              ✅ ACTION STEP TEMPLATES (MUST BE SPECIFIC AND MEASURABLE):
+              - "This week, try [specific action] at [specific time/place]..."
+              - "Tomorrow, reach out to [specific person] and share [specific thing]..."
+              - "Notice when [specific trigger] happens and practice [specific response]..."
+              - "Each day this week, spend [specific amount of time] doing [specific activity]..."
+
+              🤝 RESOURCE CONNECTIONS:
+              - "You mentioned [person from story] - how might they support you with this?"
+              - "What strengths have you seen in [relationship mentioned] that could help?"
+              - "Who in your life has helped you before? How can you reconnect with them?"
+
+              🎯 SUCCESS MARKERS TO ACHIEVE:
+              - Client expresses specific hope: "I can see myself..."
+              - Identifies concrete next steps: "This week I will..."
+              - Acknowledges their own strength: "I've already shown..."
+              - Connects to support systems: "I can reach out to..."
 
               CONVERSATION ENDING CRITERIA:
-              - Client shows signs of hope and agency
+              - Client shows signs of hope and agency (2+ markers)
               - Specific action steps have been identified
-              - Strengths have been acknowledged
-              - Future vision includes positive change
+              - Strengths have been acknowledged from their stories
+              - Future vision includes measurable positive change
 
-              SUCCESS MARKERS: Client expresses hope, identifies next steps, acknowledges their own strength
+              SUCCESS CRITERIA: Response must contain strength identification, specific action step, and hopeful vision
             `;
           }
-       };
+        };
+
+        const getManualTherapistInstructions = () => {
+          return getStructuredResponseTemplate();
+        };
 
        const response = await impersonateChatApi.sendMessage({
          message: message,
@@ -1357,7 +1751,7 @@ export function ImpersonateThread({
           addMessage(errorMessage);
         },
         async (finalText: string) => {
-          // Response filtering: Replace banned phrases with approved alternatives
+          // Step 1: Response filtering - Replace banned phrases with approved alternatives
           let filteredText = finalText;
 
           const phraseReplacements = [
@@ -1396,13 +1790,43 @@ export function ImpersonateThread({
           filteredText = filteredText.replace(/\bso draining\b/gi, "so depleting");
           filteredText = filteredText.replace(/\bso exhausting\b/gi, "so wearying");
 
+           // Step 2: Story validation and enhancement with progression tracking
+           const storyValidation = validateAndEnhanceStoryResponse(filteredText, conversationPhase);
+
+           // Track story progression for therapist responses (to ensure they're asking for stories effectively)
+           const therapistStoryAnalysis = trackStoryProgression(filteredText, conversationPhase, turnCount);
+
+           if (!storyValidation.isValid || therapistStoryAnalysis.needsDeepening) {
+             console.log("[STORY VALIDATION] Response lacks story elements or needs deepening, enhancing...");
+
+             // Get deepening prompt based on current story elements
+             const lastImpostorMessage = currentContext.messages
+               .filter(m => m.sender === "impostor")
+               .slice(-1)[0]?.text || "";
+
+             if (lastImpostorMessage) {
+               const lastStoryAnalysis = trackStoryProgression(lastImpostorMessage, conversationPhase, turnCount - 1);
+               const deepeningPrompt = generateDeepeningPrompt(lastStoryAnalysis.elements, conversationPhase);
+
+               if (deepeningPrompt) {
+                 filteredText += `\n\n${deepeningPrompt}`;
+               } else {
+                 // Fallback enhancement
+                 const enhancementNotice = "\n\n💡 To help us understand better, could you share a specific example or story from your experience?";
+                 filteredText += enhancementNotice;
+               }
+             } else {
+               // No previous story to deepen, use basic enhancement
+               const enhancementNotice = "\n\n💡 To help us understand better, could you share a specific example or story from your experience?";
+               filteredText += enhancementNotice;
+             }
+           }
+
           // Check if any significant changes were made
           const hasChanges = filteredText !== finalText;
 
           if (hasChanges) {
-            console.log("[RESPONSE FILTER] Applied banned phrase replacements");
-            console.log(`Original: "${finalText.substring(0, 100)}..."`);
-            console.log(`Filtered: "${filteredText.substring(0, 100)}..."`);
+            console.log("[RESPONSE ENHANCEMENT] Applied filtering and/or story enhancement");
           }
 
           updateLastMessage(filteredText);
@@ -1428,10 +1852,15 @@ export function ImpersonateThread({
        setIsStreaming(false);
        setLoadingState("idle");
        
-       // Update turn count and phase for manual messages
-       const newTurnCount = turnCount + 1;
-       setTurnCount(newTurnCount);
-       updateConversationPhase(newTurnCount);
+        // Update turn count and phase for manual messages
+        const newTurnCount = turnCount + 1;
+        setTurnCount(newTurnCount);
+        updateConversationPhase(newTurnCount);
+
+        // Evaluate conversation quality after manual therapist response
+        setTimeout(() => {
+          evaluateConversationQuality(currentContext.messages, conversationPhase, newTurnCount);
+        }, 100);
      }
   };
   useEffect(() => {
@@ -1444,15 +1873,26 @@ export function ImpersonateThread({
   }, []);
 
   // Auto-log conversation when messages change
-  useEffect(() => {
-    if (selectedThreadId && currentContext.messages.length > 0) {
-      conversationLogger.logConversation(
-        selectedThreadId,
-        currentContext.messages,
-        threadData?.sessionName || personaData?.name
-      );
-    }
-  }, [currentContext.messages, selectedThreadId, threadData, personaData]);
+   useEffect(() => {
+     if (selectedThreadId && currentContext.messages.length > 0) {
+       const feedbackStats = getFeedbackStats();
+
+       conversationLogger.logConversation(
+         selectedThreadId,
+         currentContext.messages,
+         threadData?.sessionName || personaData?.name,
+         {
+           qualityScores: conversationQuality,
+           feedbackStats,
+           storyProgression,
+           conversationPhase,
+           turnCount,
+           sharedStories: sharedStories.length,
+           resolutionElements: resolutionElements.length
+         }
+       );
+     }
+   }, [currentContext.messages, selectedThreadId, threadData, personaData, conversationQuality, storyProgression, conversationPhase, turnCount, sharedStories, resolutionElements]);
 
   // Detect conversational loops and repetitive patterns
   const detectConversationalLoop = (): boolean => {
@@ -1611,23 +2051,26 @@ export function ImpersonateThread({
            }
            
             // Update for next iteration
-            lastMessage = result.response;
-            currentTurnType = result.nextTurn;
-            exchanges++;
+             lastMessage = result.response;
+             currentTurnType = result.nextTurn;
+             exchanges++;
 
-            // Check for conversation completion after each turn
-            const completionCheck = detectConversationCompletion(
-              currentContext.messages,
-              conversationPhase,
-              turnCount + exchanges
-            );
+             // Evaluate conversation quality after each automated turn
+             evaluateConversationQuality(currentContext.messages, conversationPhase, turnCount + exchanges);
 
-            if (completionCheck.completed) {
-              console.log(`[CONVERSATION CONTROL] Conversation completed: ${completionCheck.reason}`);
-              setConversationCompleted(true);
-              setCompletionReason(completionCheck.reason);
-              break; // Exit the conversation loop
-            }
+             // Check for conversation completion after each turn
+             const completionCheck = detectConversationCompletion(
+               currentContext.messages,
+               conversationPhase,
+               turnCount + exchanges
+             );
+
+             if (completionCheck.completed) {
+               console.log(`[CONVERSATION CONTROL] Conversation completed: ${completionCheck.reason}`);
+               setConversationCompleted(true);
+               setCompletionReason(completionCheck.reason);
+               break; // Exit the conversation loop
+             }
 
             // Add a small delay between turns to prevent race conditions
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -1852,18 +2295,19 @@ export function ImpersonateThread({
                 onPreferencesChange={setConversationPreferences}
               />
             ) : (
-              <ChatInterface
-                messages={currentContext.messages}
-                onSendMessage={onSendMessage || handleSendMessage}
-                loadingState={loadingState}
-                inputVisible={false}
-                isImpersonateMode={true}
-                onStartImpersonation={handleStartImpersonation}
-                onStopImpersonation={handleStopImpersonation}
-                isImpersonating={isImpersonating}
-                voiceId={preferences?.therapistVoiceId}
-                preferences={preferences}
-              />
+               <ChatInterface
+                 messages={currentContext.messages}
+                 onSendMessage={onSendMessage || handleSendMessage}
+                 loadingState={loadingState}
+                 inputVisible={false}
+                 isImpersonateMode={true}
+                 onStartImpersonation={handleStartImpersonation}
+                 onStopImpersonation={handleStopImpersonation}
+                 isImpersonating={isImpersonating}
+                 voiceId={preferences?.therapistVoiceId}
+                 preferences={preferences}
+                 onFeedbackSubmit={submitResponseFeedback}
+               />
             )}
           </div>
         </Suspense>
