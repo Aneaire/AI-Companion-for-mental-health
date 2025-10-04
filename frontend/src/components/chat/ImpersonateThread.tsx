@@ -152,6 +152,16 @@ export function ImpersonateThread({
   const [repetitionCount, setRepetitionCount] = useState<Map<string, number>>(new Map());
   const [lastIntervention, setLastIntervention] = useState<number>(0);
   
+  // Story-driven conversation phases
+  const [conversationPhase, setConversationPhase] = useState<"diagnosis" | "story_development" | "resolution">("diagnosis");
+  const [turnCount, setTurnCount] = useState(0);
+  const [sharedStories, setSharedStories] = useState<string[]>([]);
+  const [resolutionElements, setResolutionElements] = useState<string[]>([]);
+
+  // Conversation completion detection
+  const [conversationCompleted, setConversationCompleted] = useState(false);
+  const [completionReason, setCompletionReason] = useState<string>("");
+  
   // TTS function for generating audio from text
   const generateTTS = async (text: string, voiceId: string, modelId?: string) => {
     if (!conversationPreferences.enableTTS) return;
@@ -240,48 +250,241 @@ export function ImpersonateThread({
     };
   };
 
+   // Helper function to determine conversation phase based on turn count
+   const updateConversationPhase = (currentTurn: number) => {
+     if (currentTurn <= 4) {
+       setConversationPhase("diagnosis");
+     } else if (currentTurn <= 8) {
+       setConversationPhase("story_development");
+     } else {
+       setConversationPhase("resolution");
+     }
+   };
+
+    // Helper function to generate detailed story prompts based on persona background
+    const generateStoryPrompts = (persona: any, phase: string) => {
+      const background = persona?.background || "";
+      const problemDescription = persona?.problemDescription || "";
+      const age = parseInt(persona?.age) || 25;
+      const personality = persona?.personality || "";
+      const fullName = persona?.fullName || "the person";
+
+      // Extract key elements from background for personalized prompts
+      const hasFamilyMentions = background.toLowerCase().includes('family') || background.toLowerCase().includes('parents') || background.toLowerCase().includes('mother') || background.toLowerCase().includes('father');
+      const hasWorkMentions = background.toLowerCase().includes('work') || background.toLowerCase().includes('job') || background.toLowerCase().includes('career') || background.toLowerCase().includes('startup');
+      const hasRelationshipMentions = background.toLowerCase().includes('partner') || background.toLowerCase().includes('relationship') || background.toLowerCase().includes('friend');
+      const hasChildhoodMentions = background.toLowerCase().includes('childhood') || background.toLowerCase().includes('grew up') || background.toLowerCase().includes('young');
+
+      if (phase === "story_development") {
+        const personalizedPrompts = [];
+
+        // Childhood/family focused prompts if relevant
+        if (hasFamilyMentions || hasChildhoodMentions || age < 35) {
+          personalizedPrompts.push(
+            `Tell me about a specific moment from your childhood or family life that you think planted the seeds for your current struggles. Make it vivid - what were you doing, who was there, what did you feel in that moment?`
+          );
+        } else {
+          personalizedPrompts.push(
+            `Share a memory from your past that feels connected to what you're experiencing now. Paint a detailed picture of that moment - the setting, the people involved, your thoughts and feelings.`
+          );
+        }
+
+        // Work/school focused prompts if relevant
+        if (hasWorkMentions || age >= 22) {
+          personalizedPrompts.push(
+            `Describe a specific incident at work or in your professional life that really highlighted your challenges. Include the exact situation, what happened, and how it made you feel afterward.`
+          );
+        } else {
+          personalizedPrompts.push(
+            `Tell me about a recent experience in your daily life that exemplified your struggles. Be specific about what happened, when it occurred, and the immediate aftermath.`
+          );
+        }
+
+        // Relationship focused prompts if relevant
+        if (hasRelationshipMentions) {
+          personalizedPrompts.push(
+            `Share a story about an interaction with someone close to you that showed your patterns in action. Include what was said, what you thought but didn't say, and how the moment felt.`
+          );
+        } else {
+          personalizedPrompts.push(
+            `Describe a moment when you tried to connect with someone but your usual patterns got in the way. What happened in that interaction, and what went through your mind?`
+          );
+        }
+
+        // Attempted solution prompts
+        personalizedPrompts.push(
+          `Tell me about a time when you tried to address this problem yourself. What did you do, what were you hoping would happen, and what actually occurred instead?`
+        );
+
+        // Age-appropriate additional prompts
+        if (age < 30) {
+          personalizedPrompts.push(
+            `As someone in your ${age}s, tell me about a recent experience with friends or social situations that triggered your struggles. What made that moment particularly challenging?`
+          );
+        } else if (age >= 40) {
+          personalizedPrompts.push(
+            `With your life experience, share a story about a situation where you recognized your patterns but still couldn't break free. What wisdom have you gained from that experience?`
+          );
+        }
+
+        return personalizedPrompts.slice(0, 4); // Return up to 4 prompts
+
+      } else if (phase === "resolution") {
+        return [
+          `Share a small but meaningful moment recently when you felt a spark of hope or noticed something positive changing. What happened, and why did it matter to you?`,
+          `Imagine ${fullName}'s life six months from now, having made progress on these challenges. Paint a detailed picture of a typical day - what would be different, what would feel better?`,
+          `Tell me about someone in your life (past or present) who has shown you what positive change looks like. What did they do or say that inspired you?`,
+          `Describe a future scenario where you handle a challenging situation with confidence and skill. Walk me through exactly what you would do differently and how it would feel.`,
+          `What's one small victory or moment of pride you've experienced recently, even if it seems insignificant? Why did that moment stand out to you?`,
+          `If you could give your younger self advice about dealing with ${problemDescription.toLowerCase().split(' ').slice(0, 3).join(' ')}, what would you say?`
+        ];
+      }
+    return [];
+  };
+
+  // Helper function to detect conversation completion
+  const detectConversationCompletion = (messages: Message[], currentPhase: string, turnCount: number): { completed: boolean; reason: string } => {
+    if (turnCount < 8) return { completed: false, reason: "" }; // Need minimum turns
+
+    const recentMessages = messages.slice(-4); // Last 4 exchanges
+    const impostorMessages = recentMessages.filter(m => m.sender === "impostor");
+
+    if (impostorMessages.length < 2) return { completed: false, reason: "" };
+
+    // Check for resolution indicators in recent impostor messages
+    const resolutionIndicators = [
+      "feel hopeful", "things will be different", "learned from this", "moving forward",
+      "feel better", "see a path", "grateful for", "proud of myself", "stronger now",
+      "different approach", "new perspective", "growth", "healing", "progress",
+      "looking forward", "excited about", "confident that", "believe in myself"
+    ];
+
+    const hopeIndicators = [
+      "hope", "future", "tomorrow", "next week", "next month", "six months",
+      "year from now", "imagine", "picture", "envision", "see myself"
+    ];
+
+    let resolutionScore = 0;
+    let hopeScore = 0;
+
+    impostorMessages.forEach(msg => {
+      const text = msg.text.toLowerCase();
+
+      // Count resolution indicators
+      resolutionIndicators.forEach(indicator => {
+        if (text.includes(indicator)) resolutionScore++;
+      });
+
+      // Count hope indicators
+      hopeIndicators.forEach(indicator => {
+        if (text.includes(indicator)) hopeScore++;
+      });
+    });
+
+    // Check for explicit completion signals
+    const completionSignals = [
+      "i think that helps", "i feel better", "that makes sense", "thank you for listening",
+      "i've got what i needed", "that was helpful", "i feel understood", "i can work with this"
+    ];
+
+    const hasCompletionSignal = recentMessages.some(msg =>
+      completionSignals.some(signal => msg.text.toLowerCase().includes(signal))
+    );
+
+    // Completion conditions
+    const hasEnoughResolution = resolutionScore >= 2;
+    const hasEnoughHope = hopeScore >= 2;
+    const inResolutionPhase = currentPhase === "resolution";
+    const sufficientTurns = turnCount >= 10;
+
+    if (hasCompletionSignal && (hasEnoughResolution || hasEnoughHope)) {
+      return { completed: true, reason: "Natural completion with resolution indicators" };
+    }
+
+    if (inResolutionPhase && sufficientTurns && (hasEnoughResolution || hasEnoughHope)) {
+      return { completed: true, reason: "Resolution phase completed with hope elements" };
+    }
+
+    if (turnCount >= 12 && (resolutionScore >= 3 || hopeScore >= 3)) {
+      return { completed: true, reason: "Extended conversation reached resolution" };
+    }
+
+    return { completed: false, reason: "" };
+  };
+
   // Helper function to control conversation flow with proper state management
-  const executeConversationTurn = async (
-    turnType: "therapist" | "impostor",
-    lastMessage: string,
-    userProfileData: any
-  ): Promise<{ response: string; nextTurn: "therapist" | "impostor" }> => {
-    console.log(`[CONVERSATION CONTROL] Starting ${turnType} turn with message: "${lastMessage.substring(0, 50)}..."`);
-    
-    setIsProcessingTurn(true);
-    setCurrentTurn(turnType);
-    conversationTurnRef.current = turnType;
-    
-    try {
-      let response = "";
-      
-        if (turnType === "therapist") {
+   const executeConversationTurn = async (
+     turnType: "therapist" | "impostor",
+     lastMessage: string,
+     userProfileData: any
+   ): Promise<{ response: string; nextTurn: "therapist" | "impostor" }> => {
+     console.log(`[CONVERSATION CONTROL] Starting ${turnType} turn with message: "${lastMessage.substring(0, 50)}..."`);
+     
+     setIsProcessingTurn(true);
+     setCurrentTurn(turnType);
+     conversationTurnRef.current = turnType;
+     
+     // Update turn count and phase
+     const newTurnCount = turnCount + 1;
+     setTurnCount(newTurnCount);
+     updateConversationPhase(newTurnCount);
+     
+     try {
+       let response = "";
+       
+         if (turnType === "therapist") {
           // Therapist's turn - analyze for loops and get observer strategy
           let observerStrategy = "";
           let observerRationale = "";
           let observerNextSteps: string[] = [];
           let observerSentiment = "";
           
-          // Analyze conversation for loops
-          const loopAnalysis = analyzeConversationForLoops(currentContext.messages);
-          console.log("[LOOP DETECTION]", loopAnalysis);
-          
-          // Add intervention if needed
-          let interventionInstruction = "";
-          if (loopAnalysis.needsIntervention && Date.now() - lastIntervention > 30000) { // Max once per 30 seconds
-            interventionInstruction = `
-              CONVERSATION LOOP DETECTED - IMMEDIATE ACTION REQUIRED:
-              The conversation is repeating themes/phrases. You MUST:
-              1. Use a conversation breaker: "I'm going to shift gears completely here..."
-              2. Ask about a completely different aspect of their life
-              3. Introduce a new topic: work, friends, hobbies, childhood, future plans
-              4. DO NOT acknowledge the loop - just change direction
-              
-              Current repetitive patterns: ${JSON.stringify(loopAnalysis.repetitions)}
-              Current stuck themes: ${loopAnalysis.themes.join(", ")}
-            `;
-            setLastIntervention(Date.now());
-          }
+           // Analyze conversation for loops
+           const loopAnalysis = analyzeConversationForLoops(currentContext.messages);
+           console.log("[LOOP DETECTION]", loopAnalysis);
+
+           // Check if therapist is using banned phrases in recent responses
+           const recentTherapistMessages = currentContext.messages.filter(m => m.sender === "ai").slice(-2);
+           const therapistUsingBannedPhrases = recentTherapistMessages.some(msg => {
+             const text = msg.text.toLowerCase();
+             return ["it sounds like", "that must feel", "heavy load", "draining", "exhausting", "overwhelming", "understandable", "takes courage", "incredibly draining"].some(phrase =>
+               text.includes(phrase)
+             );
+           });
+
+           // Add intervention if needed - enhanced for current loop patterns
+           let interventionInstruction = "";
+           if ((loopAnalysis.needsIntervention || therapistUsingBannedPhrases) && Date.now() - lastIntervention > 30000) { // Max once per 30 seconds
+             interventionInstruction = `
+               🚨 CRITICAL LOOP DETECTED - IMMEDIATE INTERVENTION REQUIRED:
+
+               CURRENT LOOP PATTERN: ${therapistUsingBannedPhrases ? 'THERAPIST IS USING BANNED PHRASES + ' : ''}Client repeatedly describes feeling "drained", "stuck", "overwhelming", "tired" without specific stories or examples.
+
+               FORBIDDEN RESPONSES:
+               - "It sounds incredibly draining"
+               - "That must feel overwhelming"
+               - "I understand you're stuck"
+               - Any variation of acknowledging vague feelings
+
+               REQUIRED INTERVENTION STRATEGY:
+               1. BREAK THE PATTERN: Use an immediate pivot - "Let's talk about something specific..."
+               2. FORCE A STORY: Ask for ONE concrete example from their actual life
+               3. SPECIFIC PROMPTS ONLY:
+                  - "Tell me about the last time you felt this way. What exactly happened?"
+                  - "What's one specific thing that happened yesterday that made you feel drained?"
+                  - "Can you walk me through a recent day when this was really bad?"
+                  - "Tell me about an interaction with someone that triggered this feeling."
+
+               4. NO EMPATHY FIRST: Skip the "I hear you" - go straight to story extraction
+               5. MAKE IT CONCRETE: Ask for times, places, people, exact words spoken
+
+               LOOP PATTERNS DETECTED: ${JSON.stringify(loopAnalysis.repetitions)}
+               THEMES: ${loopAnalysis.themes.join(", ")}
+
+               SUCCESS: Next response must contain a specific story prompt, not vague empathy.
+             `;
+             setLastIntervention(Date.now());
+           }
           
           try {
             const messagesForObserver = currentContext.messages.slice(-5).map(msg => ({
@@ -366,65 +569,123 @@ export function ImpersonateThread({
             return voiceInstructions;
           };
           
-          // AGGRESSIVE anti-lexical-loop therapeutic instructions
-          const naturalConversationInstructions = `
-            IMMEDIATE RULES - NO EXCEPTIONS:
-            
-             1. FORBIDDEN PHRASES (NEVER use these):
-                - "It sounds like" (BANNED)
-                - "That must feel" (BANNED) 
-                - "It sounds" (BANNED)
-                - "That sounds" (BANNED)
-                - "It's like" (BANNED)
-                - "It's understandable" (BANNED)
-                - "carrying a really heavy load" (BANNED)
-                - "heavy load" (BANNED)
-                - "carrying" (BANNED - when referring to burdens)
-                - "takes courage" (BANNED)
-                - "acknowledge you're struggling" (BANNED)
-            
-            2. MANDATORY RESPONSE PATTERNS (choose ONE each turn):
-               A) "Tell me more about the last time that happened..."
-               B) "What does that look like specifically when..."
-               C) "Can you give me a concrete example of..."
-               D) "When you say [their exact words], what does that actually look like in practice?"
-               E) "Let's get specific - what happened on the most recent occasion when..."
-               F) "I want to understand the mechanics of this - how does [their issue] actually play out?"
-            
-            3. CONVERSATION BREAKERS (use when conversation loops):
-               A) "I'm going to shift gears completely. Let's talk about something that might seem unrelated..."
-               B) "You know what I'm curious about? What would happen if you tried the opposite approach?"
-               C) "Can we zoom out for a second? What's the bigger pattern here that we might be missing?"
-               D) "Let me ask you something completely different that might give us new perspective..."
-            
-            4. SPECIFICITY FORCERS:
-               - Always ask for specific examples, times, places, people
-               - Never accept vague descriptions - drill down
-               - Use "What exactly..." "How specifically..." "When precisely..."
-            
-             5. LOOP DETECTION (if you hear yourself repeating):
-                - STOP immediately
-                - Use a conversation breaker from #3
-                - Ask about a completely different aspect of their life
+           // Story-driven therapeutic instructions based on conversation phase
+           const getPhaseSpecificInstructions = () => {
+             const storyPrompts = generateStoryPrompts(userProfileData, conversationPhase);
              
-             6. ANTI-REPETITION REQUIREMENTS:
-                - NEVER use the exact same phrases or metaphors in consecutive responses
-                - Track what you've said and avoid repeating it
-                - Each response must approach the problem from a different angle
-                - Vary your questioning techniques and opening phrases
+             if (conversationPhase === "diagnosis") {
+               return `
+                 PHASE 1: DIAGNOSIS & CONNECTION (Turns 1-4)
+                 
+                 GOALS: Build therapeutic alliance, understand core issues, establish context
+                 
+                 ALLOWED PHRASES (use these instead of banned ones):
+                 - "Help me understand what that's like for you..."
+                 - "What's your experience with that?"
+                 - "Tell me about a time when..."
+                 - "How did that affect you?"
+                 - "What was going through your mind?"
+                 
+                 FOCUS AREAS:
+                 - Build rapport and trust
+                 - Understand the problem's impact on daily life
+                 - Explore when this started and how it evolved
+                 - Identify what they've tried before
+                 - Establish their goals for therapy
+                 
+                 STORY PREPARATION:
+                 - Ask about their background, family, work situation
+                 - Inquire about specific instances that illustrate the problem
+                 - Explore their support system and coping mechanisms
+                 
+                 EXAMPLE RESPONSES:
+                 "Tell me about when you first noticed this becoming a problem. What was happening in your life at that time?"
+                 "Help me understand how this affects your day-to-day. Can you walk me through a typical day?"
+                 "What does your support system look like? Who do you turn to when things get difficult?"
+               `;
+             } else if (conversationPhase === "story_development") {
+               return `
+                 PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turns 5-8)
+                 
+                 GOALS: Share specific stories, explore emotional depth, create narrative richness
+                 
+                 STORY PROMPTS TO USE:
+                 ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                 ')}
+                 
+                 NARRATIVE TECHNIQUES:
+                 - "Paint me a picture of that moment. What did you see, hear, feel?"
+                 - "Tell me the story of what happened, from beginning to end."
+                 - "What was the dialogue in that situation? What did you say vs. what you thought?"
+                 - "How did that story change you or your perspective?"
+                 
+                 FOCUS AREAS:
+                 - Extract detailed, specific stories from their background
+                 - Explore the emotional impact of these experiences
+                 - Connect stories to their current struggles
+                 - Identify patterns and themes in their narratives
+                 - Build a rich tapestry of their life experience
+                 
+                 EXAMPLE RESPONSES:
+                 "Tell me a specific story from your childhood that shaped how you approach challenges today."
+                 "Paint me a picture of the most recent time this happened. What were the specific details?"
+                 "What's the story behind that relationship? How did it evolve over time?"
+               `;
+             } else {
+               return `
+                 PHASE 3: RESOLUTION & HOPE (Turns 9-12)
+                 
+                 GOALS: Problem-solving, breakthrough moments, happy ending development
+                 
+                 RESOLUTION PROMPTS:
+                 ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                 ')}
+                 
+                 SOLUTION-FOCUSED TECHNIQUES:
+                 - "Imagine your life six months from now. What's different?"
+                 - "Tell me about a time you felt proud of how you handled a similar situation."
+                 - "What would your future self, who has overcome this, tell you today?"
+                 - "What's one small step you could take this week that would move you forward?"
+                 
+                 FOCUS AREAS:
+                 - Co-create solutions and strategies
+                 - Highlight strengths and resources they already have
+                 - Develop a hopeful vision for the future
+                 - Create concrete action steps
+                 - Ensure the conversation ends with empowerment and hope
+                 
+                 HAPPY ENDING ELEMENTS:
+                 - Specific positive changes they've made
+                 - New coping strategies they've discovered
+                 - Improved relationships or situations
+                 - A clear vision for their continued growth
+                 - Feelings of hope, capability, and optimism
+                 
+                 EXAMPLE RESPONSES:
+                 "Tell me about a moment recently when you felt hopeful or proud of your progress."
+                 "Paint a picture of your life a year from now, having worked through this challenge."
+                 "What strengths have you discovered in yourself through this process?"
+               `;
+             }
+           };
+
+           const storyDrivenInstructions = `
+             STORY-DRIVEN CONVERSATION SYSTEM
              
-             7. CURRENT SITUATION ANALYSIS:
-                They're talking about work pressure, perfectionism, and impact on sleep/focus.
-                AVOID: Don't let them keep describing the feeling vaguely
-                INSTEAD: Ask for specific work incidents, exact projects, deadlines, performance reviews
+             ${getPhaseSpecificInstructions()}
              
-             EXAMPLE GOOD RESPONSES:
-                "You mentioned the pressure is affecting your sleep - tell me about the most recent night this happened. What work-related thoughts were keeping you awake?"
-                "When you say 'striving for perfection,' can you give me a specific example from this week? What project were you working on?"
-                "You mentioned it's 'taken over your life' - what specific activities have you given up because of work demands?"
-            
-            ${getTherapistVoiceInstructions()}
-          `;
+             UNIVERSAL RULES:
+             1. NEVER use these phrases: "It sounds like", "That must feel", "heavy load", "takes courage"
+             2. ALWAYS adapt your approach to the current conversation phase
+             3. FOCUS on stories and specific examples, not vague feelings
+             4. BUILD toward a hopeful resolution by the final phase
+             5. TRACK what stories have been shared and don't repeat them
+             
+             CURRENT PHASE: ${conversationPhase.toUpperCase()} (Turn ${newTurnCount})
+             PERSONA: ${userProfileData?.fullName || 'Unknown'}, Age ${userProfileData?.age || 'Unknown'}
+             BACKGROUND: ${userProfileData?.background || 'Not specified'}
+             PROBLEM: ${userProfileData?.problemDescription || 'Not specified'}
+             
+             ${getTherapistVoiceInstructions()}
+           `;
           
           const therapistResponse = await impersonateChatApi.sendMessage({
             message: lastMessage,
@@ -438,8 +699,8 @@ export function ImpersonateThread({
             ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
             ...(observerSentiment ? { sentiment: observerSentiment } : {}),
             systemInstruction: observerStrategy 
-              ? `${observerStrategy} ${interventionInstruction} ${naturalConversationInstructions} ${getPreferencesInstruction(conversationPreferences)}`
-              : `${interventionInstruction} ${naturalConversationInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
+              ? `${observerStrategy} ${interventionInstruction} ${storyDrivenInstructions} ${getPreferencesInstruction(conversationPreferences)}`
+              : `${interventionInstruction} ${storyDrivenInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
             ...(conversationPreferences ? { conversationPreferences } : {}),
           });
          
@@ -458,8 +719,46 @@ export function ImpersonateThread({
              console.log("[CONVERSATION CONTROL] Impersonation stopped during therapist response - will complete current response");
            }
            
-           addMessage(tempAiMessage);
-           response = await processStreamingResponse(reader, updateLastMessage);
+            addMessage(tempAiMessage);
+            response = await processStreamingResponse(reader, updateLastMessage);
+
+            // Post-process response to check for banned phrases
+            const bannedPhrases = [
+              "it sounds like", "that must feel", "heavy load", "draining", "exhausting",
+              "overwhelming", "understandable", "takes courage", "incredibly draining",
+              "wading through mud", "stuck in mud", "paralyzed", "walking on eggshells"
+            ];
+
+            const containsBannedPhrases = bannedPhrases.some(phrase =>
+              response.toLowerCase().includes(phrase.toLowerCase())
+            );
+
+            // Apply response filtering instead of rejection
+            const phraseReplacements = [
+              ["it sounds like", "help me understand"],
+              ["that must feel", "what's that like for you"],
+              ["heavy load", "significant challenge"],
+              ["draining", "depleting"],
+              ["exhausting", "wearying"],
+              ["overwhelming", "intense"],
+              ["understandable", "many people experience this"],
+              ["takes courage", "requires strength"],
+              ["incredibly draining", "particularly depleting"],
+              ["wading through mud", "moving through resistance"],
+              ["stuck in mud", "facing resistance"],
+              ["paralyzed", "feeling stuck"],
+              ["walking on eggshells", "navigating carefully"]
+            ];
+
+            // Apply replacements to the response
+            phraseReplacements.forEach(([banned, replacement]) => {
+              const regex = new RegExp(`\\b${banned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+              response = response.replace(regex, replacement);
+            });
+
+            if (containsBannedPhrases) {
+              console.log("[RESPONSE FILTER] Applied banned phrase replacements to automated response");
+            }
          }
         
         // Update state
@@ -547,73 +846,156 @@ export function ImpersonateThread({
              };
            }
 
-           // AGGRESSIVE anti-lexical-loop persona instructions
-           const impostorNaturalInstructions = `
-             CRITICAL ANTI-LOOP INSTRUCTIONS - READ CAREFULLY:
-             
-              1. BANNED PHRASES (NEVER use these):
-                 - "exhausting", "relentless", "treadmill", "overwhelming", "grueling", "endless"
-                 - "cycle", "vicious cycle", "hamster wheel", "rat race", "grind", "hustle", "burnout"
-                 - "walking on eggshells", "draining", "tiring", "I guess", "honestly", "It's just"
-             
-             2. MANDATORY NEW INFORMATION:
-                EVERY response MUST introduce at least ONE specific incident, detail, or sensory experience that hasn't been mentioned before
-             
-             3. WORK-PRESSURE SPECIFIC REQUIREMENTS:
-                - Describe specific projects, deadlines, meetings, performance reviews
-                - Include exact times, places, people's names, and specific events
-                - Talk about concrete work incidents: presentations, client calls, feedback sessions
-                - Include physical symptoms: racing heart, shaky hands, sweating, voice trembling
-             
-             4. SPECIFICITY REQUIREMENT:
-                Instead of generalities, provide concrete examples:
-                - "Yesterday at 3 PM, my manager called me into his office..."
-                - "Last Tuesday, I spent three hours rewriting a single email..."
-                - "This morning during the team standup, my hands were shaking so much..."
-             
-             5. SENSORY DETAILS:
-                Include what you saw, heard, felt, or experienced physically:
-                - "The fluorescent lights give me headaches..."
-                - "I could feel my heart pounding in my throat..."
-                - "My palms were sweating on the conference table..."
-             
-             6. RESPONSE DIVERSITY PATTERNS:
-                A) "The other day at [specific time], I was [specific activity] when [specific incident]..."
-                B) "What's really hitting me hard right now is [specific new detail about work]..."
-                C) "I haven't told anyone this, but [specific work-related memory]..."
-                D) "Last [day], [specific work event] occurred and it made me realize..."
-                E) "You know what I keep coming back to? [specific concrete work detail]..."
-             
-             7. PROBLEM-SPECIFIC EXAMPLES:
-                - Performance anxiety: "During the quarterly review, my voice was shaking when I presented the numbers..."
-                - Work pressure: "The client called at 7 AM demanding changes, and I had to cancel my doctor's appointment..."
-                - Deadlines: "I was up until 2 AM finishing the proposal because my boss moved the deadline up by two days..."
-             
-             8. MINIMUM RESPONSE REQUIREMENTS:
-                - Your response MUST be at least 100 words long
-                - MUST include at least 2 specific incidents/examples
-                - MUST include physical sensations or reactions
-                - MUST NOT end with questions to the therapist
-                - MUST provide new information not mentioned before
-                - AVOID brief responses like "I don't know" or "It feels heavy"
-             
-             9. LOOP PREVENTION:
-                If you catch yourself repeating a theme:
-                - STOP immediately
-                - Say: "Actually, let me give you a completely different example..."
-                - Share a new specific work incident with different details
-             
-             10. RESPONSE STRUCTURE:
-                 Start with a specific incident, include sensory details, and end with a new realization or concern.
-                 DO NOT give brief, vague answers. Always elaborate with concrete examples.
-             
-             CURRENT PERSONA: ${userProfileData?.name || 'Unknown'}, Age: ${userProfileData?.age || 'Unknown'}
-             FOCUS: Work pressure and performance anxiety with specific, detailed examples
-             AVOID: All banned phrases, brief responses, and generalities
-             INSTEAD: Concrete work incidents with times, places, people, and physical reactions (minimum 100 words)
-             
-             ${getImpostorVoiceInstructions()}
-           `;
+            // Story-driven persona instructions based on conversation phase
+            const getPersonaPhaseInstructions = () => {
+              const storyPrompts = generateStoryPrompts(userProfileData, conversationPhase);
+              
+              if (conversationPhase === "diagnosis") {
+                return `
+                  PHASE 1: DIAGNOSIS & CONNECTION (Turns 1-4)
+                  
+                  YOUR ROLE: Establish your character and share initial context about your struggles
+                  
+                  STORY ELEMENTS TO INTRODUCE:
+                  - Your background and how the problem developed
+                  - When you first noticed this becoming an issue
+                  - How it affects your daily life and relationships
+                  - What you've tried before and what hasn't worked
+                  - Your hopes for therapy
+                  
+                  COMMUNICATION STYLE:
+                  - Be somewhat reserved but willing to share
+                  - Show vulnerability but maintain some defenses
+                  - Use specific examples from your life
+                  - Express genuine concern about your situation
+                  
+                  BASED ON YOUR PERSONA:
+                  ${userProfileData?.background ? `Background: ${userProfileData.background}` : ''}
+                  ${userProfileData?.problemDescription ? `Problem: ${userProfileData.problemDescription}` : ''}
+                  ${userProfileData?.personality ? `Personality: ${userProfileData.personality}` : ''}
+                  
+                  EXAMPLE OPENINGS:
+                  "I've been dealing with this for about [time] now. It started when [specific event]..."
+                  "In my family, we always [pattern], and I think that's why I struggle with [problem]..."
+                  "At work, I'm known as [reputation], but internally I feel [contradiction]..."
+                `;
+              } else if (conversationPhase === "story_development") {
+                return `
+                  PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turns 5-8)
+                  
+                  YOUR ROLE: Share rich, detailed stories that illustrate your struggles and personality
+                  
+                  STORY PROMPTS TO CHOOSE FROM:
+                  ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                  ')}
+                  
+                  STORYTELLING REQUIREMENTS:
+                  - Choose ONE prompt per response and develop it fully
+                  - Include specific details: times, places, people, dialogue
+                  - Share sensory details and internal thoughts
+                  - Show emotions through actions and words, not just descriptions
+                  - Connect the story to your current struggles
+                  - Be vulnerable and authentic
+                  
+                  NARRATIVE TECHNIQUES:
+                  - "Let me tell you about the time that [specific incident]..."
+                  - "I'll never forget when [event] happened. I was [age/place] and..."
+                  - "The other day, [specific situation] occurred, and it reminded me of..."
+                  - "Growing up, my [family member] always used to say [quote], and that shaped..."
+                  
+                  PERSONA CONSISTENCY:
+                  - Stay true to your established personality and background
+                  - Show how your problem manifests in different contexts
+                  - Reveal deeper layers of your character through stories
+                  - Demonstrate your coping mechanisms and defense patterns
+                  
+                  MINIMUM REQUIREMENTS:
+                  - 150+ words per response
+                  - At least 2 specific details or anecdotes
+                  - Emotional depth and vulnerability
+                  - Clear connection to your therapeutic goals
+                `;
+              } else {
+                return `
+                  PHASE 3: RESOLUTION & HOPE (Turns 9-12)
+                  
+                  YOUR ROLE: Show growth, insight, and movement toward positive change
+                  
+                  RESOLUTION STORY PROMPTS:
+                  ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                  ')}
+                  
+                  BREAKTHROUGH ELEMENTS:
+                  - Share "aha!" moments and new insights
+                  - Describe trying new behaviors and having success
+                  - Talk about hope and future possibilities
+                  - Show how your perspective has shifted
+                  - Demonstrate increased self-awareness and agency
+                  
+                  POSITIVE CHANGE INDICATORS:
+                  - "For the first time, I tried [new behavior] and..."
+                  - "I realized that [insight] changes everything because..."
+                  - "What gives me hope now is [specific reason]..."
+                  - "I can see a future where I'm [positive outcome]..."
+                  - "The difference between last week and now is [specific change]..."
+                  
+                  HAPPY ENDING DEVELOPMENT:
+                  - Show concrete improvements in daily life
+                  - Describe better relationships or communication
+                  - Share new coping strategies that work
+                  - Express optimism about the future
+                  - Demonstrate self-compassion and growth
+                  
+                  CLOSING ELEMENTS:
+                  - Gratitude for the therapeutic process
+                  - Specific plans for continued growth
+                  - Recognition of your own strength and resilience
+                  - Hopeful vision for your future
+                  - Sense of closure and empowerment
+                  
+                  MINIMUM REQUIREMENTS:
+                  - 150+ words per response
+                  - At least 2 examples of positive change
+                  - Genuine hope and optimism
+                  - Clear demonstration of growth
+                `;
+              }
+            };
+
+             const storyDrivenPersonaInstructions = `
+               STORY-DRIVEN PERSONA SYSTEM
+
+               ${getPersonaPhaseInstructions()}
+
+               🚫 CRITICAL BANNED PHRASES FOR PERSONA (NEVER USE):
+               - "exhausting", "overwhelming", "draining", "tiring"
+               - "I guess", "honestly", "just", "like"
+               - "wading through mud", "stuck", "paralyzed"
+               - "don't know", "can't", "won't"
+
+               ✅ REQUIRED ALTERNATIVE PHRASES:
+               - Instead of "exhausting": "wearying", "depleting", "challenging"
+               - Instead of "overwhelming": "intense", "significant", "substantial"
+               - Instead of "I guess": "I've noticed", "I've found", "I've experienced"
+               - Instead of "stuck": "facing resistance", "encountering obstacles", "navigating difficulty"
+
+               UNIVERSAL RULES:
+               1. ALWAYS tell specific stories with concrete details (times, places, people, dialogue)
+               2. STAY IN CHARACTER consistently with your persona background
+               3. SHOW emotions through actions and dialogue, not just labels
+               4. PROGRESS naturally through the conversation phases
+               5. NEVER repeat the same stories or examples
+               6. RESPOND TO THERAPIST'S QUESTIONS WITH SPECIFIC EXAMPLES
+
+               CURRENT PHASE: ${conversationPhase.toUpperCase()} (Turn ${newTurnCount})
+               PERSONA: ${userProfileData?.fullName || 'Unknown'}, Age ${userProfileData?.age || 'Unknown'}
+               BACKGROUND: ${userProfileData?.background || 'Not specified'}
+               PROBLEM: ${userProfileData?.problemDescription || 'Not specified'}
+               PERSONALITY: ${userProfileData?.personality || 'Not specified'}
+
+               STORIES SHARED SO FAR: ${sharedStories.join(', ') || 'None'}
+               RESOLUTION ELEMENTS: ${resolutionElements.join(', ') || 'None yet'}
+
+               ${getImpostorVoiceInstructions()}
+             `;
           
           const impostorResponse = await impostorApi.sendMessage({
             sessionId: selectedThreadId!,
@@ -622,7 +1004,7 @@ export function ImpersonateThread({
             preferredName: threadData?.preferredName,
             personaId: threadData?.personaId || undefined,
             signal: abortController.signal,
-            systemInstruction: `${impostorNaturalInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
+            systemInstruction: `${storyDrivenPersonaInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
             ...(conversationPreferences ? { conversationPreferences } : {}),
           });
          
@@ -659,16 +1041,25 @@ export function ImpersonateThread({
           }
         }
         
-        // Update state
-        setLastImpersonationSender("user");
-        console.log(`[CONVERSATION CONTROL] Impostor completed, response length: ${response.length}`);
-        
-        // Generate TTS
-        if (response.trim()) {
-          generateTTS(response.trim(), conversationPreferences.impostorVoiceId, conversationPreferences.impostorModel);
-        }
-        
-        return { response: response.trim(), nextTurn: "therapist" };
+         // Track stories and resolution elements
+         if (response.trim()) {
+           if (conversationPhase === "story_development") {
+             setSharedStories(prev => [...prev, response.substring(0, 50) + "..."]);
+           } else if (conversationPhase === "resolution") {
+             setResolutionElements(prev => [...prev, response.substring(0, 50) + "..."]);
+           }
+         }
+         
+         // Update state
+         setLastImpersonationSender("user");
+         console.log(`[CONVERSATION CONTROL] Impostor completed, response length: ${response.length}`);
+         
+         // Generate TTS
+         if (response.trim()) {
+           generateTTS(response.trim(), conversationPreferences.impostorVoiceId, conversationPreferences.impostorModel);
+         }
+         
+         return { response: response.trim(), nextTurn: "therapist" };
       }
       
     } catch (error) {
@@ -696,14 +1087,19 @@ export function ImpersonateThread({
            // Fetch messages for this thread using the new impersonate chat API
            const rawMessages =
              await impersonateChatApi.getMessages(selectedThreadId);
-           clearMessages();
-           // Convert and add messages
-           const sortedMessages = convertRawMessagesToMessages(
-             rawMessages,
-             true // isImpersonateMode
-           );
-           sortedMessages.forEach((msg) => addMessage(msg));
-          setShowChat(true);
+            clearMessages();
+            // Reset conversation state when loading thread
+            setTurnCount(0);
+            setConversationPhase("diagnosis");
+            setSharedStories([]);
+            setResolutionElements([]);
+            // Convert and add messages
+            const sortedMessages = convertRawMessagesToMessages(
+              rawMessages,
+              true // isImpersonateMode
+            );
+            sortedMessages.forEach((msg) => addMessage(msg));
+           setShowChat(true);
           // Fetch and set the correct initial form for this thread
           await fetchThreadInitialForm(selectedThreadId);
         } catch (error) {
@@ -774,20 +1170,153 @@ export function ImpersonateThread({
             console.log("[THERAPIST CALL] currentContext.messages length:", currentContext.messages.length);
             console.log("[THERAPIST CALL] last message in context:", currentContext.messages[currentContext.messages.length - 1]?.text?.substring(0, 50));
             console.log("[THERAPIST CALL] full context messages:", currentContext.messages.map(m => ({ sender: m.sender, text: m.text.substring(0, 30) + "..." })));
-      const response = await impersonateChatApi.sendMessage({
-        message: message,
-        threadId: selectedThreadId!,
-        userId: String(userProfile.id),
-        context: contextData,
-        sender: "user",
-        ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-        ...(getPreferencesInstruction(conversationPreferences)
-          ? {
-              systemInstruction: getPreferencesInstruction(conversationPreferences),
-            }
-          : {}),
-        ...(conversationPreferences ? { conversationPreferences } : {}),
-      });
+       // Apply story-driven instructions even for manual messages
+       const currentPhase = conversationPhase;
+       const currentTurnCount = turnCount;
+       
+        const getManualTherapistInstructions = () => {
+          const bannedPhrases = `
+            🚫 CRITICAL: IMMEDIATELY BANNED PHRASES - DO NOT USE ANY OF THESE UNDER ANY CIRCUMSTANCES:
+            - "It sounds like" (BANNED - Use "Help me understand" instead)
+            - "That must feel" (BANNED - Use "What's that like for you" instead)
+            - "heavy load" (BANNED - Use "significant challenge" instead)
+            - "draining" (BANNED - Use "depleting" instead)
+            - "exhausting" (BANNED - Use "wearying" instead)
+            - "walking on eggshells" (BANNED - Use "navigating carefully" instead)
+            - "It's understandable" (BANNED - Use "Many people experience this" instead)
+            - "takes courage" (BANNED - Use "requires strength" instead)
+            - "overwhelming" (BANNED - Use "intense" instead)
+            - "paralyzed" (BANNED - Use "feeling stuck" instead)
+            - "stuck in mud" (BANNED - Use "moving through resistance" instead)
+
+            PENALTY FOR VIOLATION: If you use any banned phrase, the response will be rejected and you must try again.
+          `;
+         
+          if (currentPhase === "diagnosis") {
+            return `
+              ${bannedPhrases}
+
+              PHASE 1: DIAGNOSIS & CONNECTION (Turn ${currentTurnCount + 1})
+
+              🎯 PRIMARY OBJECTIVE: BREAK THE VAGUE FEELINGS LOOP
+              The client is stuck describing feelings like "drained", "stuck", "overwhelming" without specifics.
+              Your job is to IMMEDIATELY pivot to concrete examples and stories.
+
+              REQUIRED APPROACH:
+              1. Acknowledge briefly (1 sentence max)
+              2. IMMEDIATELY ask for a SPECIFIC STORY or EXAMPLE
+              3. Focus on WHEN, WHERE, WHO, WHAT happened
+
+              FORBIDDEN: Generic empathy responses like "That sounds difficult" or "I understand"
+              REQUIRED: Story-extraction questions like "Tell me about a time when..." or "What's an example of..."
+
+              ALTERNATIVE PHRASES (USE THESE INSTEAD):
+              - "Help me understand what that's like for you..."
+              - "Tell me more about your experience with that..."
+              - "What's your perspective on this situation?"
+              - "How did that affect you personally?"
+              - "What was going through your mind at the time?"
+
+              SPECIFIC STORY PROMPTS TO USE:
+              - "Can you tell me about a recent time when you felt this way?"
+              - "What's an example of when this started feeling worse?"
+              - "Tell me about your typical day - what happens that makes it hard?"
+              - "Who have you talked to about this, and what did they say?"
+
+              CURRENT LOOP DETECTED: Client keeps saying they're "drained", "stuck", "tired" without specifics
+              BREAK THE LOOP: Force them to tell a specific story from their life
+            `;
+          } else if (currentPhase === "story_development") {
+            return `
+              ${bannedPhrases}
+
+              PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turn ${currentTurnCount + 1})
+
+              🎯 PRIMARY OBJECTIVE: EXTRACT RICH, DETAILED STORIES
+              The client has been giving vague descriptions. Now you MUST get specific, vivid stories.
+
+              STORY EXTRACTION PROTOCOL:
+              1. Choose ONE story prompt per response
+              2. Ask for sensory details: sights, sounds, smells, physical sensations
+              3. Ask for dialogue: exact words spoken
+              4. Ask for internal experience: thoughts, feelings moment-by-moment
+              5. Ask for context: time, place, people, circumstances
+
+              REQUIRED STORY ELEMENTS (Must include at least 3):
+              - Specific time period ("Last Tuesday at 3pm")
+              - Physical location ("In the break room at work")
+              - People involved ("My boss and two colleagues")
+              - Sensory details ("The fluorescent lights were buzzing")
+              - Dialogue ("He said 'We need this done by Friday'")
+              - Internal thoughts ("I thought 'I can't handle this'")
+              - Physical sensations ("My heart started racing")
+
+              FORBIDDEN: Vague questions like "How do you feel about that?"
+              REQUIRED: Specific prompts like "Paint me a picture of that meeting - what did you see, hear, and feel?"
+
+              STORY PROMPTS TO ROTATE THROUGH:
+              - "Tell me the story of the last time this happened. Start from the beginning and walk me through each moment."
+              - "Paint me a detailed picture of a typical day when you're struggling. What happens from morning to night?"
+              - "Share a specific memory from your past that feels connected to this. Make it vivid with details."
+              - "Tell me about an interaction with someone close to you that shows this pattern. Include the exact conversation."
+              - "Describe a time you tried to break this cycle. What did you do, and what happened next?"
+
+              SUCCESS CRITERIA: Response should contain at least 150 words of specific story details
+            `;
+          } else {
+            return `
+              ${bannedPhrases}
+
+              PHASE 3: RESOLUTION & HOPE (Turn ${currentTurnCount + 1})
+
+              🎯 PRIMARY OBJECTIVE: BUILD HOPE AND CONCRETE SOLUTIONS
+              The client has shared their stories. Now focus on strength, hope, and actionable change.
+
+              RESOLUTION FRAMEWORK:
+              1. Highlight existing strengths they've demonstrated
+              2. Identify small wins and successes they've had
+              3. Co-create specific, actionable next steps
+              4. Paint a vivid picture of positive change
+              5. End with empowerment and hope
+
+              REQUIRED ELEMENTS (Include at least 2 per response):
+              - Specific strength identification ("You've shown real resilience by...")
+              - Concrete action step ("This week, try...")
+              - Hopeful vision ("Imagine feeling...")
+              - Resource identification ("You have support from...")
+              - Success prediction ("When you try this, you'll likely...")
+
+              SOLUTION-FOCUSED QUESTIONS:
+              - "What's one small thing you've already done that helped, even a little?"
+              - "Who in your life has been supportive, and how can you lean on them more?"
+              - "If you could try one new approach this week, what would it be?"
+              - "What's a time in your past when you successfully handled something difficult?"
+              - "Imagine three months from now - what's one thing you'd be proud of accomplishing?"
+
+              FORBIDDEN: Vague encouragement like "Things will get better"
+              REQUIRED: Specific hope like "When you try calling a friend each day, you'll likely feel more connected"
+
+              CONVERSATION ENDING CRITERIA:
+              - Client shows signs of hope and agency
+              - Specific action steps have been identified
+              - Strengths have been acknowledged
+              - Future vision includes positive change
+
+              SUCCESS MARKERS: Client expresses hope, identifies next steps, acknowledges their own strength
+            `;
+          }
+       };
+
+       const response = await impersonateChatApi.sendMessage({
+         message: message,
+         threadId: selectedThreadId!,
+         userId: String(userProfile.id),
+         context: contextData,
+         sender: "user",
+         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
+         systemInstruction: `${getManualTherapistInstructions()} ${getPreferencesInstruction(conversationPreferences)}`,
+         ...(conversationPreferences ? { conversationPreferences } : {}),
+       });
       if (typeof onThreadActivity === "function" && selectedThreadId) {
         onThreadActivity(selectedThreadId);
       }
@@ -827,9 +1356,56 @@ export function ImpersonateThread({
           };
           addMessage(errorMessage);
         },
-        (finalText: string) => {
-          // Final text is already processed by the formatter
-          updateLastMessage(finalText);
+        async (finalText: string) => {
+          // Response filtering: Replace banned phrases with approved alternatives
+          let filteredText = finalText;
+
+          const phraseReplacements = [
+            // Exact phrase replacements
+            ["it sounds like", "help me understand"],
+            ["that must feel", "what's that like for you"],
+            ["heavy load", "significant challenge"],
+            ["draining", "depleting"],
+            ["exhausting", "wearying"],
+            ["overwhelming", "intense"],
+            ["understandable", "many people experience this"],
+            ["takes courage", "requires strength"],
+            ["incredibly draining", "particularly depleting"],
+            ["wading through mud", "moving through resistance"],
+            ["stuck in mud", "facing resistance"],
+            ["paralyzed", "feeling stuck"],
+            ["walking on eggshells", "navigating carefully"],
+            ["I hear you", "I understand"],
+            ["I understand", "Help me understand"],
+            ["that sounds difficult", "that seems challenging"],
+            ["that sounds really challenging", "help me understand what that's like"],
+            ["it's completely understandable", "many people feel this way"],
+            ["it sounds incredibly draining", "that seems particularly depleting"]
+          ];
+
+          // Apply replacements
+          phraseReplacements.forEach(([banned, replacement]) => {
+            // Use word boundaries to avoid partial matches
+            const regex = new RegExp(`\\b${banned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+            filteredText = filteredText.replace(regex, replacement);
+          });
+
+          // Additional pattern replacements for common variations
+          filteredText = filteredText.replace(/\bit sounds\b/gi, "help me understand");
+          filteredText = filteredText.replace(/\bthat must be\b/gi, "what's that like");
+          filteredText = filteredText.replace(/\bso draining\b/gi, "so depleting");
+          filteredText = filteredText.replace(/\bso exhausting\b/gi, "so wearying");
+
+          // Check if any significant changes were made
+          const hasChanges = filteredText !== finalText;
+
+          if (hasChanges) {
+            console.log("[RESPONSE FILTER] Applied banned phrase replacements");
+            console.log(`Original: "${finalText.substring(0, 100)}..."`);
+            console.log(`Filtered: "${filteredText.substring(0, 100)}..."`);
+          }
+
+          updateLastMessage(filteredText);
         }
       );
       await processor.processStream(response);
@@ -848,10 +1424,15 @@ export function ImpersonateThread({
         contextId: "impersonate",
       };
       addMessage(errorMessage);
-    } finally {
-      setIsStreaming(false);
-      setLoadingState("idle");
-    }
+     } finally {
+       setIsStreaming(false);
+       setLoadingState("idle");
+       
+       // Update turn count and phase for manual messages
+       const newTurnCount = turnCount + 1;
+       setTurnCount(newTurnCount);
+       updateConversationPhase(newTurnCount);
+     }
   };
   useEffect(() => {
     isImpersonatingRef.current = isImpersonating;
@@ -875,27 +1456,28 @@ export function ImpersonateThread({
 
   // Detect conversational loops and repetitive patterns
   const detectConversationalLoop = (): boolean => {
-    const recentMessages = currentContext.messages.slice(-6); // Last 6 messages
-    const impostorMessages = recentMessages.filter(m => m.sender === "impostor");
-    
-    if (impostorMessages.length < 3) return false;
-    
-    // Check for banned repetitive phrases
+    const recentMessages = currentContext.messages.slice(-8); // Last 8 messages for better detection
+    const therapistMessages = recentMessages.filter(m => m.sender === "ai");
+
+    if (therapistMessages.length < 3) return false;
+
+    // Check for banned repetitive phrases in therapist responses
     const bannedPhrases = [
-      "exhausting", "relentless", "treadmill", "overwhelming", 
-      "grueling", "endless", "cycle", "vicious cycle", 
-      "hamster wheel", "rat race", "grind", "hustle", "burnout"
+      "it sounds like", "that must feel", "heavy load", "draining", "exhausting",
+      "overwhelming", "understandable", "takes courage", "incredibly draining",
+      "stuck in mud", "wading through mud", "paralyzed", "walking on eggshells",
+      "heavy is a good word", "that sounds difficult", "i understand", "i hear you"
     ];
-    
-    const lastThreeImpostorMessages = impostorMessages.slice(-3);
-    const phraseUsage = bannedPhrases.filter(phrase => 
-      lastThreeImpostorMessages.some(msg => 
+
+    const lastThreeTherapistMessages = therapistMessages.slice(-3);
+    const phraseUsage = bannedPhrases.filter(phrase =>
+      lastThreeTherapistMessages.some(msg =>
         msg.text.toLowerCase().includes(phrase.toLowerCase())
       )
     );
-    
-    // If more than 2 banned phrases used in last 3 messages, it's a loop
-    if (phraseUsage.length > 2) return true;
+
+    // If more than 1 banned phrase used in last 3 therapist messages, it's a loop
+    if (phraseUsage.length > 1) return true;
     
     // Check for repetitive sentence patterns
     const sentencePatterns = lastThreeImpostorMessages.map(msg => {
@@ -948,9 +1530,17 @@ export function ImpersonateThread({
       clearMessages();
       msgs.forEach((msg) => addMessage(msg));
     });
-    // Set max exchanges based on podcast mode
-    const maxExchanges = preferences?.podcastMode ? 5 : 10;
-    setImpersonateMaxExchanges(maxExchanges);
+       // Set max exchanges based on podcast mode and story-driven approach
+       const maxExchanges = preferences?.podcastMode ? 6 : 12; // Allow more turns for story development
+       setImpersonateMaxExchanges(maxExchanges);
+       
+        // Reset conversation state for new session
+        setTurnCount(0);
+        setConversationPhase("diagnosis");
+        setSharedStories([]);
+        setResolutionElements([]);
+        setConversationCompleted(false);
+        setCompletionReason("");
     setIsImpersonating(true);
     isImpersonatingRef.current = true;
     setLoadingState("generating");
@@ -1020,18 +1610,32 @@ export function ImpersonateThread({
              break;
            }
            
-           // Update for next iteration
-           lastMessage = result.response;
-           currentTurnType = result.nextTurn;
-           exchanges++;
-           
-           // Add a small delay between turns to prevent race conditions
-           await new Promise((resolve) => setTimeout(resolve, 100));
-           
-           // Update thread activity
-           if (typeof onThreadActivity === "function" && selectedThreadId) {
-             onThreadActivity(selectedThreadId);
-           }
+            // Update for next iteration
+            lastMessage = result.response;
+            currentTurnType = result.nextTurn;
+            exchanges++;
+
+            // Check for conversation completion after each turn
+            const completionCheck = detectConversationCompletion(
+              currentContext.messages,
+              conversationPhase,
+              turnCount + exchanges
+            );
+
+            if (completionCheck.completed) {
+              console.log(`[CONVERSATION CONTROL] Conversation completed: ${completionCheck.reason}`);
+              setConversationCompleted(true);
+              setCompletionReason(completionCheck.reason);
+              break; // Exit the conversation loop
+            }
+
+            // Add a small delay between turns to prevent race conditions
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            // Update thread activity
+            if (typeof onThreadActivity === "function" && selectedThreadId) {
+              onThreadActivity(selectedThreadId);
+            }
            
          } catch (error) {
            if ((error as Error).message === "Impersonation stopped") {
@@ -1176,6 +1780,20 @@ export function ImpersonateThread({
                 {isImpersonating && (
                   <div className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full animate-pulse">
                     {lastImpersonationSender === "user" || lastImpersonationSender === null ? "Therapist Turn" : "Impostor Turn"}
+                  </div>
+                )}
+                <div className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  conversationPhase === "diagnosis" ? "bg-blue-100 text-blue-700" :
+                  conversationPhase === "story_development" ? "bg-purple-100 text-purple-700" :
+                  "bg-green-100 text-green-700"
+                }`}>
+                  {conversationPhase === "diagnosis" ? "Phase 1: Diagnosis" :
+                   conversationPhase === "story_development" ? "Phase 2: Stories" :
+                   "Phase 3: Resolution"} (Turn {turnCount})
+                </div>
+                {conversationCompleted && (
+                  <div className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                    ✅ Conversation Complete
                   </div>
                 )}
                 {isProcessingTurn && (
