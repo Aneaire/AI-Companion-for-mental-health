@@ -232,9 +232,9 @@ export function ImpersonateThread({
     voiceId: string,
     modelId?: string
   ) => {
-    if (!conversationPreferences.enableTTS) return;
+    if (!conversationPreferences.enableTTS && !conversationPreferences.podcastMode) return;
     try {
-      const shouldAutoPlay = conversationPreferences.ttsAutoPlay ?? false;
+      const shouldAutoPlay = conversationPreferences.podcastMode ? true : (conversationPreferences.ttsAutoPlay ?? false);
       const speed = conversationPreferences.ttsSpeed ?? 1.0;
       const audioUrl = await textToSpeech(
         text,
