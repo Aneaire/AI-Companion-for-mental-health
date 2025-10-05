@@ -204,9 +204,10 @@ export function ImpersonateThread({
     if (!conversationPreferences.enableTTS) return;
     try {
       const shouldAutoPlay = conversationPreferences.ttsAutoPlay ?? false;
-      const audioUrl = await textToSpeech(text, voiceId, shouldAutoPlay, modelId);
+      const speed = conversationPreferences.ttsSpeed ?? 1.0;
+      const audioUrl = await textToSpeech(text, voiceId, shouldAutoPlay, modelId, speed);
       // The audio will autoplay from the textToSpeech function if auto-play is enabled
-      console.log("TTS generated for voice:", voiceId, "model:", modelId, "autoPlay:", shouldAutoPlay);
+      console.log("TTS generated for voice:", voiceId, "model:", modelId, "autoPlay:", shouldAutoPlay, "speed:", speed);
     } catch (error) {
       console.error("TTS generation failed:", error);
       // Don't show error toast as it might interrupt the conversation

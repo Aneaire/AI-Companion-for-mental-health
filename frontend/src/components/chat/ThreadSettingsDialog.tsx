@@ -1458,26 +1458,26 @@ export function ThreadSettingsDialog({
                       x
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    Adjust playback speed (0.5x to 2.0x)
-                  </p>
-                  <Slider
-                    value={[
-                      context === "main"
-                        ? (preferences.mainTTSSpeed ?? 1.0)
-                        : (preferences.ttsSpeed ?? 1.0),
-                    ]}
-                    onValueChange={(value) =>
-                      updateVoicePreference(
-                        context === "main" ? "mainTTSSpeed" : "ttsSpeed",
-                        value[0]
-                      )
-                    }
-                    min={0.5}
-                    max={2.0}
-                    step={0.1}
-                    className="w-full"
-                  />
+                   <p className="text-sm text-gray-600">
+                     Adjust playback speed (0.5x to 1.5x)
+                   </p>
+                   <Slider
+                     value={[
+                       context === "main"
+                         ? (preferences.mainTTSSpeed ?? 1.0)
+                         : (preferences.ttsSpeed ?? 1.0),
+                     ]}
+                     onValueChange={(value) =>
+                       updateVoicePreference(
+                         context === "main" ? "mainTTSSpeed" : "ttsSpeed",
+                         value[0]
+                       )
+                     }
+                     min={0.5}
+                     max={1.5}
+                     step={0.1}
+                     className="w-full"
+                   />
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>Slower</span>
                     <span>Faster</span>

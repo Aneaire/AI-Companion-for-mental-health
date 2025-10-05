@@ -133,9 +133,10 @@ const MessageBubble = memo(({
     if (!message.text || message.text.trim() === "") return;
 
     try {
-      // Determine the correct voiceId and modelId based on message sender
+      // Determine the correct voiceId, modelId, and speed based on message sender
       let audioVoiceId = voiceId;
       let audioModelId = "eleven_flash_v2_5"; // default fallback
+      let audioSpeed = 1.0; // default speed
       if (preferences) {
         if (isImpersonateMode) {
           // In impersonate mode, use different logic
@@ -143,28 +144,33 @@ const MessageBubble = memo(({
             // AI messages in impersonate mode are from the therapist
             audioVoiceId = preferences.therapistVoiceId;
             audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.ttsSpeed ?? 1.0;
           } else if (message.sender === "impostor") {
             // Impostor messages use impostor voice settings
             audioVoiceId = preferences.impostorVoiceId;
             audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.ttsSpeed ?? 1.0;
           }
         } else {
           // Regular mode
           if (message.sender === "therapist") {
             audioVoiceId = preferences.therapistVoiceId;
             audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.mainTTSSpeed ?? 1.0;
           } else if (message.sender === "impostor") {
             audioVoiceId = preferences.impostorVoiceId;
             audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.mainTTSSpeed ?? 1.0;
           } else if (message.sender === "ai") {
             audioVoiceId = preferences.mainTTSVoiceId;
             audioModelId = preferences.mainTTSModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.mainTTSSpeed ?? 1.0;
           }
         }
       }
 
       // Get audio URL (will use cache if available)
-      const url = await textToSpeech(message.text, audioVoiceId, false, audioModelId);
+      const url = await textToSpeech(message.text, audioVoiceId, false, audioModelId, audioSpeed);
       setAudioUrl(url);
 
       // Add to audio queue for sequential playback
@@ -184,7 +190,8 @@ const MessageBubble = memo(({
           console.error("Audio playback failed:", error);
           setIsPlaying(false);
           setAudioUrl(null);
-        }
+        },
+        audioSpeed
       );
     } catch (error) {
       console.error("Failed to queue audio:", error);

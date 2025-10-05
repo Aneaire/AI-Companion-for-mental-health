@@ -2,7 +2,7 @@ import client from "./client";
 import { audioCache } from "@/lib/audioCache";
 import { playAudioSequentially } from "@/lib/audioQueue";
 
-const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = true, modelId?: string): Promise<string> => {
+const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = true, modelId?: string, speed?: number): Promise<string> => {
   const selectedVoiceId = voiceId || import.meta.env.VITE_ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
 
   // Check if audio is already cached locally
@@ -12,7 +12,7 @@ const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = 
 
     if (autoPlay) {
       // Add to audio queue for sequential playback
-      playAudioSequentially(cachedAudioUrl);
+      playAudioSequentially(cachedAudioUrl, undefined, undefined, undefined, speed);
     }
 
     return cachedAudioUrl;
@@ -41,7 +41,7 @@ const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = 
 
         if (autoPlay) {
           // Add to audio queue for sequential playback
-          playAudioSequentially(serverUrl);
+          playAudioSequentially(serverUrl, undefined, undefined, undefined, speed);
         }
 
         return serverUrl;
@@ -62,6 +62,7 @@ const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = 
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.5,
+        volume: 1.0, // 100% volume
       },
     },
     { responseType: "blob" }
@@ -74,7 +75,7 @@ const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = 
 
   if (autoPlay) {
     // Add to audio queue for sequential playback
-    playAudioSequentially(url);
+    playAudioSequentially(url, undefined, undefined, undefined, speed);
   }
 
   return url;

@@ -5,6 +5,7 @@
 
 interface AudioQueueItem {
   url: string;
+  speed?: number;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: Error) => void;
@@ -69,6 +70,10 @@ class AudioQueueManager {
 
       // Create and play audio
       const audio = new Audio(item.url);
+      // Apply speed setting if provided
+      if (item.speed && item.speed >= 0.5 && item.speed <= 1.5) {
+        audio.playbackRate = item.speed;
+      }
       this.currentAudio = audio;
 
       audio.onended = () => {
@@ -111,9 +116,10 @@ export const playAudioSequentially = (
   url: string,
   onStart?: () => void,
   onEnd?: () => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  speed?: number
 ): void => {
-  audioQueue.enqueue({ url, onStart, onEnd, onError });
+  audioQueue.enqueue({ url, onStart, onEnd, onError, speed });
 };
 
 export const stopAllAudio = (): void => {
