@@ -853,201 +853,219 @@ export function ImpersonateThread({
             console.warn("Observer analysis failed:", e);
           }
         
-         // Get therapist response
-         const abortController = new AbortController();
-         abortControllerRef.current = abortController;
-         
-         const contextData = currentContext.messages.map((msg) => ({
-           role: msg.sender === "ai" ? "model" : "user",
-           text: msg.text,
-           timestamp: msg.timestamp.getTime(),
-           ...(msg.contextId ? { contextId: msg.contextId } : {}),
-         }));
-         
-          // Voice-specific instructions for therapist
-          const getTherapistVoiceInstructions = () => {
-            if (!conversationPreferences.enableTTS) return "";
-            
-            const therapistVoiceId = conversationPreferences.therapistVoiceId;
-            let voiceInstructions = "";
-            
-            // Match voice characteristics to response style
-            if (therapistVoiceId?.includes("adam") || therapistVoiceId?.includes("male")) {
-              voiceInstructions = `
-                VOICE STYLE: You are speaking with a calm, warm male voice.
-                - Use a slightly deeper, more measured pace
-                - Be reassuring and steady, like a compassionate male therapist
-                - Use phrases like "I understand," "Let's work through this," "I'm here to help"
-                - Tone should be supportive and grounding
-                - Avoid overly emotional language - be the stable presence
-              `;
-            } else if (therapistVoiceId?.includes("rachel") || therapistVoiceId?.includes("bella") || therapistVoiceId?.includes("female")) {
-              voiceInstructions = `
-                VOICE STYLE: You are speaking with a warm, empathetic female voice.
-                - Use a gentle, nurturing tone
-                - Be more expressive in your empathy
-                - Use phrases like "I hear you," "That sounds so difficult," "You're doing great"
-                - Tone should be warm and validating
-                - Can be more emotionally expressive and comforting
-              `;
-            } else if (therapistVoiceId?.includes("sam") || therapistVoiceId?.includes("androgynous")) {
-              voiceInstructions = `
-                VOICE STYLE: You are speaking with a balanced, neutral voice.
-                - Use a calm, professional tone
-                - Be direct but compassionate
-                - Focus on clarity and understanding
-                - Tone should be supportive yet objective
-                - Balance warmth with professional boundaries
-              `;
-            } else {
-              voiceInstructions = `
-                VOICE STYLE: Adapt your speaking style to match the voice characteristics.
-                - Be warm and authentic to the voice's natural tone
-                - Match the energy and pacing of the selected voice
-                - Sound like a real therapist speaking naturally
-              `;
-            }
-            
-            return voiceInstructions;
-          };
-          
-           // Story-driven therapeutic instructions based on conversation phase
-           const getPhaseSpecificInstructions = () => {
-             const storyPrompts = generateStoryPrompts(userProfileData, conversationPhase);
-             
-             if (conversationPhase === "diagnosis") {
-               return `
-                 PHASE 1: DIAGNOSIS & CONNECTION (Turns 1-4)
-                 
-                 GOALS: Build therapeutic alliance, understand core issues, establish context
-                 
-                 ALLOWED PHRASES (use these instead of banned ones):
-                 - "Help me understand what that's like for you..."
-                 - "What's your experience with that?"
-                 - "Tell me about a time when..."
-                 - "How did that affect you?"
-                 - "What was going through your mind?"
-                 
-                 FOCUS AREAS:
-                 - Build rapport and trust
-                 - Understand the problem's impact on daily life
-                 - Explore when this started and how it evolved
-                 - Identify what they've tried before
-                 - Establish their goals for therapy
-                 
-                 STORY PREPARATION:
-                 - Ask about their background, family, work situation
-                 - Inquire about specific instances that illustrate the problem
-                 - Explore their support system and coping mechanisms
-                 
-                 EXAMPLE RESPONSES:
-                 "Tell me about when you first noticed this becoming a problem. What was happening in your life at that time?"
-                 "Help me understand how this affects your day-to-day. Can you walk me through a typical day?"
-                 "What does your support system look like? Who do you turn to when things get difficult?"
+          // Get therapist response
+          const abortController = new AbortController();
+          abortControllerRef.current = abortController;
+
+          const contextData = currentContext.messages.map((msg) => ({
+            role: msg.sender === "ai" ? "model" : "user",
+            text: msg.text,
+            timestamp: msg.timestamp.getTime(),
+            ...(msg.contextId ? { contextId: msg.contextId } : {}),
+          }));
+
+           // Voice-specific instructions for therapist
+           const getTherapistVoiceInstructions = () => {
+             if (!conversationPreferences.enableTTS) return "";
+
+             const therapistVoiceId = conversationPreferences.therapistVoiceId;
+             let voiceInstructions = "";
+
+             // Match voice characteristics to response style
+             if (therapistVoiceId?.includes("adam") || therapistVoiceId?.includes("male")) {
+               voiceInstructions = `
+                 VOICE STYLE: You are speaking with a calm, warm male voice.
+                 - Use a slightly deeper, more measured pace
+                 - Be reassuring and steady, like a compassionate male therapist
+                 - Use phrases like "I understand," "Let's work through this," "I'm here to help"
+                 - Tone should be supportive and grounding
+                 - Avoid overly emotional language - be the stable presence
                `;
-             } else if (conversationPhase === "story_development") {
-               return `
-                 PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turns 5-8)
-                 
-                 GOALS: Share specific stories, explore emotional depth, create narrative richness
-                 
-                 STORY PROMPTS TO USE:
-                 ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                 ')}
-                 
-                 NARRATIVE TECHNIQUES:
-                 - "Paint me a picture of that moment. What did you see, hear, feel?"
-                 - "Tell me the story of what happened, from beginning to end."
-                 - "What was the dialogue in that situation? What did you say vs. what you thought?"
-                 - "How did that story change you or your perspective?"
-                 
-                 FOCUS AREAS:
-                 - Extract detailed, specific stories from their background
-                 - Explore the emotional impact of these experiences
-                 - Connect stories to their current struggles
-                 - Identify patterns and themes in their narratives
-                 - Build a rich tapestry of their life experience
-                 
-                 EXAMPLE RESPONSES:
-                 "Tell me a specific story from your childhood that shaped how you approach challenges today."
-                 "Paint me a picture of the most recent time this happened. What were the specific details?"
-                 "What's the story behind that relationship? How did it evolve over time?"
+             } else if (therapistVoiceId?.includes("rachel") || therapistVoiceId?.includes("bella") || therapistVoiceId?.includes("female")) {
+               voiceInstructions = `
+                 VOICE STYLE: You are speaking with a warm, empathetic female voice.
+                 - Use a gentle, nurturing tone
+                 - Be more expressive in your empathy
+                 - Use phrases like "I hear you," "That sounds so difficult," "You're doing great"
+                 - Tone should be warm and validating
+                 - Can be more emotionally expressive and comforting
+               `;
+             } else if (therapistVoiceId?.includes("sam") || therapistVoiceId?.includes("androgynous")) {
+               voiceInstructions = `
+                 VOICE STYLE: You are speaking with a balanced, neutral voice.
+                 - Use a calm, professional tone
+                 - Be direct but compassionate
+                 - Focus on clarity and understanding
+                 - Tone should be supportive yet objective
+                 - Balance warmth with professional boundaries
                `;
              } else {
-               return `
-                 PHASE 3: RESOLUTION & HOPE (Turns 9-12)
-                 
-                 GOALS: Problem-solving, breakthrough moments, happy ending development
-                 
-                 RESOLUTION PROMPTS:
-                 ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                 ')}
-                 
-                 SOLUTION-FOCUSED TECHNIQUES:
-                 - "Imagine your life six months from now. What's different?"
-                 - "Tell me about a time you felt proud of how you handled a similar situation."
-                 - "What would your future self, who has overcome this, tell you today?"
-                 - "What's one small step you could take this week that would move you forward?"
-                 
-                 FOCUS AREAS:
-                 - Co-create solutions and strategies
-                 - Highlight strengths and resources they already have
-                 - Develop a hopeful vision for the future
-                 - Create concrete action steps
-                 - Ensure the conversation ends with empowerment and hope
-                 
-                 HAPPY ENDING ELEMENTS:
-                 - Specific positive changes they've made
-                 - New coping strategies they've discovered
-                 - Improved relationships or situations
-                 - A clear vision for their continued growth
-                 - Feelings of hope, capability, and optimism
-                 
-                 EXAMPLE RESPONSES:
-                 "Tell me about a moment recently when you felt hopeful or proud of your progress."
-                 "Paint a picture of your life a year from now, having worked through this challenge."
-                 "What strengths have you discovered in yourself through this process?"
+               voiceInstructions = `
+                 VOICE STYLE: Adapt your speaking style to match the voice characteristics.
+                 - Be warm and authentic to the voice's natural tone
+                 - Match the energy and pacing of the selected voice
+                 - Sound like a real therapist speaking naturally
                `;
              }
+
+             return voiceInstructions;
            };
 
-           const storyDrivenInstructions = `
-             STORY-DRIVEN CONVERSATION SYSTEM
-             
-             ${getPhaseSpecificInstructions()}
-             
-             UNIVERSAL RULES:
-             1. NEVER use these phrases: "It sounds like", "That must feel", "heavy load", "takes courage"
-             2. ALWAYS adapt your approach to the current conversation phase
-             3. FOCUS on stories and specific examples, not vague feelings
-             4. BUILD toward a hopeful resolution by the final phase
-             5. TRACK what stories have been shared and don't repeat them
-             
-             CURRENT PHASE: ${conversationPhase.toUpperCase()} (Turn ${newTurnCount})
-             PERSONA: ${userProfileData?.fullName || 'Unknown'}, Age ${userProfileData?.age || 'Unknown'}
-             BACKGROUND: ${userProfileData?.background || 'Not specified'}
-             PROBLEM: ${userProfileData?.problemDescription || 'Not specified'}
-             
-             ${getTherapistVoiceInstructions()}
-           `;
-          
-          const therapistResponse = await impersonateChatApi.sendMessage({
-            message: lastMessage,
-            threadId: selectedThreadId!,
-            userId: String(userProfile.id),
-            sender: "therapist",
-            signal: abortController.signal,
-            context: contextData,
-            ...(observerStrategy ? { systemInstruction: observerStrategy } : {}),
-            ...(observerRationale ? { observerRationale } : {}),
-            ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
-            ...(observerSentiment ? { sentiment: observerSentiment } : {}),
-            systemInstruction: observerStrategy 
-              ? `${observerStrategy} ${interventionInstruction} ${storyDrivenInstructions} ${getPreferencesInstruction(conversationPreferences)}`
-              : `${interventionInstruction} ${storyDrivenInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
-            ...(conversationPreferences ? { conversationPreferences } : {}),
-          });
-         
-         const reader = therapistResponse.body?.getReader();
-         if (reader) {
+            // Story-driven therapeutic instructions based on conversation phase
+            const getPhaseSpecificInstructions = () => {
+              const storyPrompts = generateStoryPrompts(userProfileData, conversationPhase);
+
+              if (conversationPhase === "diagnosis") {
+                return `
+                  PHASE 1: DIAGNOSIS & CONNECTION (Turns 1-4)
+
+                  GOALS: Build therapeutic alliance, understand core issues, establish context
+
+                  ALLOWED PHRASES (use these instead of banned ones):
+                  - "Help me understand what that's like for you..."
+                  - "What's your experience with that?"
+                  - "Tell me about a time when..."
+                  - "How did that affect you?"
+                  - "What was going through your mind?"
+
+                  FOCUS AREAS:
+                  - Build rapport and trust
+                  - Understand the problem's impact on daily life
+                  - Explore when this started and how it evolved
+                  - Identify what they've tried before
+                  - Establish their goals for therapy
+
+                  STORY PREPARATION:
+                  - Ask about their background, family, work situation
+                  - Inquire about specific instances that illustrate the problem
+                  - Explore their support system and coping mechanisms
+
+                  EXAMPLE RESPONSES:
+                  "Tell me about when you first noticed this becoming a problem. What was happening in your life at that time?"
+                  "Help me understand how this affects your day-to-day. Can you walk me through a typical day?"
+                  "What does your support system look like? Who do you turn to when things get difficult?"
+                `;
+              } else if (conversationPhase === "story_development") {
+                return `
+                  PHASE 2: STORY DEVELOPMENT & EXPLORATION (Turns 5-8)
+
+                  YOUR ROLE: Guide the client to share rich, detailed stories that illustrate their struggles and personality
+
+                  STORY PROMPTS TO CHOOSE FROM:
+                  ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                  ')}
+
+                  STORYTELLING REQUIREMENTS:
+                  - Choose ONE prompt per response and develop it fully
+                  - Include specific details: times, places, people, dialogue
+                  - Share sensory details and internal thoughts
+                  - Show emotions through actions and words, not just descriptions
+                  - Connect the story to their current struggles
+                  - Be vulnerable and authentic
+
+                  NARRATIVE TECHNIQUES:
+                  - "Let me tell you about the time that [specific incident]..."
+                  - "I'll never forget when [event] happened. I was [age/place] and..."
+                  - "The other day, [specific situation] occurred, and it reminded me of..."
+                  - "Growing up, my [family member] always used to say [quote], and that shaped..."
+
+                  PERSONA CONSISTENCY:
+                  - Stay true to your established personality and background
+                  - Show how your problem manifests in different contexts
+                  - Reveal deeper layers of your character through stories
+                  - Demonstrate your coping mechanisms and defense patterns
+
+                  MINIMUM REQUIREMENTS:
+                  - 150+ words per response
+                  - At least 2 specific details or anecdotes
+                  - Emotional depth and vulnerability
+                  - Clear connection to your therapeutic goals
+                `;
+              } else {
+                return `
+                  PHASE 3: RESOLUTION & HOPE (Turns 9-12)
+
+                  YOUR ROLE: Guide the client toward positive change and hope
+
+                  RESOLUTION STORY PROMPTS:
+                  ${storyPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n                  ')}
+
+                  BREAKTHROUGH ELEMENTS:
+                  - Share "aha!" moments and new insights
+                  - Describe trying new behaviors and having success
+                  - Talk about hope and future possibilities
+                  - Show how your perspective has shifted
+                  - Demonstrate increased self-awareness and agency
+
+                  POSITIVE CHANGE INDICATORS:
+                  - "For the first time, I tried [new behavior] and..."
+                  - "I realized that [insight] changes everything because..."
+                  - "What gives me hope now is [specific reason]..."
+                  - "I can see a future where I'm [positive outcome]..."
+                  - "The difference between last week and now is [specific change]..."
+
+                  HAPPY ENDING DEVELOPMENT:
+                  - Show concrete improvements in daily life
+                  - Describe better relationships or communication
+                  - Share new coping strategies that work
+                  - Express optimism about the future
+                  - Demonstrate self-compassion and growth
+
+                  CLOSING ELEMENTS:
+                  - Gratitude for the therapeutic process
+                  - Specific plans for continued growth
+                  - Recognition of your own strength and resilience
+                  - Hopeful vision for your future
+                  - Sense of closure and empowerment
+
+                  MINIMUM REQUIREMENTS:
+                  - 150+ words per response
+                  - At least 2 examples of positive change
+                  - Genuine hope and optimism
+                  - Clear demonstration of growth
+                `;
+              }
+            };
+
+            const storyDrivenInstructions = `
+              STORY-DRIVEN CONVERSATION SYSTEM
+
+              ${getPhaseSpecificInstructions()}
+
+              UNIVERSAL RULES:
+              1. NEVER use these phrases: "It sounds like", "That must feel", "heavy load", "takes courage"
+              2. ALWAYS adapt your approach to the current conversation phase
+              3. FOCUS on stories and specific examples, not vague feelings
+              4. BUILD toward a hopeful resolution by the final phase
+              5. TRACK what stories have been shared and don't repeat them
+
+              CURRENT PHASE: ${conversationPhase.toUpperCase()} (Turn ${newTurnCount})
+              PERSONA: ${userProfileData?.fullName || 'Unknown'}, Age ${userProfileData?.age || 'Unknown'}
+              BACKGROUND: ${userProfileData?.background || 'Not specified'}
+              PROBLEM: ${userProfileData?.problemDescription || 'Not specified'}
+
+              ${getTherapistVoiceInstructions()}
+            `;
+
+           try {
+             const therapistResponse = await impersonateChatApi.sendMessage({
+               message: lastMessage,
+               threadId: selectedThreadId!,
+               userId: String(userProfile.id),
+               sender: "therapist",
+               signal: abortController.signal,
+               context: contextData,
+               ...(observerStrategy ? { systemInstruction: observerStrategy } : {}),
+               ...(observerRationale ? { observerRationale } : {}),
+               ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
+               ...(observerSentiment ? { sentiment: observerSentiment } : {}),
+               systemInstruction: observerStrategy
+                 ? `${observerStrategy} ${interventionInstruction} ${storyDrivenInstructions} ${getPreferencesInstruction(conversationPreferences)}`
+                 : `${interventionInstruction} ${storyDrivenInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
+               ...(conversationPreferences ? { conversationPreferences } : {}),
+             });
+
+            const reader = therapistResponse.body?.getReader();
+            if (reader) {
            const tempAiMessage = {
              sender: "ai" as const,
              text: "",
@@ -1075,46 +1093,61 @@ export function ImpersonateThread({
               response.toLowerCase().includes(phrase.toLowerCase())
             );
 
-            // Apply response filtering instead of rejection
-            const phraseReplacements = [
-              ["it sounds like", "help me understand"],
-              ["that must feel", "what's that like for you"],
-              ["heavy load", "significant challenge"],
-              ["draining", "depleting"],
-              ["exhausting", "wearying"],
-              ["overwhelming", "intense"],
-              ["understandable", "many people experience this"],
-              ["takes courage", "requires strength"],
-              ["incredibly draining", "particularly depleting"],
-              ["wading through mud", "moving through resistance"],
-              ["stuck in mud", "facing resistance"],
-              ["paralyzed", "feeling stuck"],
-              ["walking on eggshells", "navigating carefully"]
-            ];
+               // Apply response filtering instead of rejection
+               const phraseReplacements = [
+                 ["it sounds like", "help me understand"],
+                 ["that must feel", "what's that like for you"],
+                 ["heavy load", "significant challenge"],
+                 ["draining", "depleting"],
+                 ["exhausting", "wearying"],
+                 ["overwhelming", "intense"],
+                 ["understandable", "many people experience this"],
+                 ["takes courage", "requires strength"],
+                 ["incredibly draining", "particularly depleting"],
+                 ["wading through mud", "moving through resistance"],
+                 ["stuck in mud", "facing resistance"],
+                 ["paralyzed", "feeling stuck"],
+                 ["walking on eggshells", "navigating carefully"]
+               ];
 
-            // Apply replacements to the response
-            phraseReplacements.forEach(([banned, replacement]) => {
-              const regex = new RegExp(`\\b${banned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
-              response = response.replace(regex, replacement);
-            });
+               // Apply replacements to the response
+               phraseReplacements.forEach(([banned, replacement]) => {
+                 const regex = new RegExp(`\\b${banned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+                 response = response.replace(regex, replacement);
+               });
 
-            if (containsBannedPhrases) {
-              console.log("[RESPONSE FILTER] Applied banned phrase replacements to automated response");
+               if (containsBannedPhrases) {
+                 console.log("[RESPONSE FILTER] Applied banned phrase replacements to automated response");
+               }
+            } else {
+              // API call succeeded but returned no body - provide fallback response
+              console.warn("[CONVERSATION CONTROL] Therapist API returned no response body, using fallback");
+              response = "I hear you sharing that specific experience. Can you tell me more about how that moment affected you afterward?";
             }
+          } catch (error) {
+            console.error("[CONVERSATION CONTROL] Therapist API call failed:", error);
+            // Provide a fallback response when API fails
+            response = "Thank you for sharing that experience. What was most challenging about that situation for you?";
+          }
+
+         // Update state
+         setLastImpersonationSender("ai");
+         console.log(`[CONVERSATION CONTROL] Therapist completed, response length: ${response.length}`);
+
+         // Generate TTS
+         if (response.trim()) {
+           generateTTS(response.trim(), conversationPreferences.therapistVoiceId, conversationPreferences.therapistModel);
          }
-        
-        // Update state
-        setLastImpersonationSender("ai");
-        console.log(`[CONVERSATION CONTROL] Therapist completed, response length: ${response.length}`);
-        
-        // Generate TTS
-        if (response.trim()) {
-          generateTTS(response.trim(), conversationPreferences.therapistVoiceId, conversationPreferences.therapistModel);
-        }
-        
-        return { response: response.trim(), nextTurn: "impostor" };
-        
-       } else {
+
+         // Ensure we have a valid response before continuing
+         if (!response.trim()) {
+           console.warn("[CONVERSATION CONTROL] Therapist response is empty, providing fallback");
+           response = "I appreciate you sharing that with me. Can you tell me more about what that experience was like for you?";
+         }
+
+         return { response: response.trim(), nextTurn: "impostor" };
+
+        } else {
          // Impostor's turn - go directly to streaming
          const abortController = new AbortController();
          abortControllerRef.current = abortController;
@@ -1339,34 +1372,44 @@ export function ImpersonateThread({
                ${getImpostorVoiceInstructions()}
              `;
           
-          const impostorResponse = await impostorApi.sendMessage({
-            sessionId: selectedThreadId!,
-            message: lastMessage || "",
-            userProfile: userProfileData,
-            preferredName: threadData?.preferredName,
-            personaId: threadData?.personaId || undefined,
-            signal: abortController.signal,
-            systemInstruction: `${storyDrivenPersonaInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
-            ...(conversationPreferences ? { conversationPreferences } : {}),
-          });
-         
-         const reader = impostorResponse.body?.getReader();
-         if (reader) {
-           const tempImpostorMessage = {
-             sender: "impostor" as const,
-             text: "",
-             timestamp: new Date(),
-             tempId: Date.now(),
-             contextId: "impersonate" as const,
-           };
-           
-           // Don't throw error - let the current response complete naturally
-           if (!isImpersonatingRef.current) {
-             console.log("[CONVERSATION CONTROL] Impersonation stopped during impostor response - will complete current response");
+          try {
+            const impostorResponse = await impostorApi.sendMessage({
+              sessionId: selectedThreadId!,
+              message: lastMessage || "",
+              userProfile: userProfileData,
+              preferredName: threadData?.preferredName,
+              personaId: threadData?.personaId || undefined,
+              signal: abortController.signal,
+              systemInstruction: `${storyDrivenPersonaInstructions} ${getPreferencesInstruction(conversationPreferences)}`,
+              ...(conversationPreferences ? { conversationPreferences } : {}),
+            });
+
+           const reader = impostorResponse.body?.getReader();
+           if (reader) {
+             const tempImpostorMessage = {
+               sender: "impostor" as const,
+               text: "",
+               timestamp: new Date(),
+               tempId: Date.now(),
+               contextId: "impersonate" as const,
+             };
+
+             // Don't throw error - let the current response complete naturally
+             if (!isImpersonatingRef.current) {
+               console.log("[CONVERSATION CONTROL] Impersonation stopped during impostor response - will complete current response");
+             }
+
+             addMessage(tempImpostorMessage);
+             response = await processStreamingResponse(reader, updateLastMessage);
+           } else {
+             // API call succeeded but returned no body - provide fallback response
+             console.warn("[CONVERSATION CONTROL] Impostor API returned no response body, using fallback");
+             response = "I understand. Let me think about how to respond to that.";
            }
-           
-           addMessage(tempImpostorMessage);
-           response = await processStreamingResponse(reader, updateLastMessage);
+         } catch (error) {
+           console.error("[CONVERSATION CONTROL] Impostor API call failed:", error);
+           // Provide a fallback response when API fails
+           response = "I hear what you're saying. Can you help me understand that better?";
          }
         
         // Save the impostor response
@@ -1396,15 +1439,21 @@ export function ImpersonateThread({
             }
           }
          
+         // Ensure we have a valid response before continuing
+         if (!response.trim()) {
+           console.warn("[CONVERSATION CONTROL] Impostor response is empty, providing fallback");
+           response = "I hear you. Let me try to express what I'm feeling about this.";
+         }
+
          // Update state
          setLastImpersonationSender("user");
          console.log(`[CONVERSATION CONTROL] Impostor completed, response length: ${response.length}`);
-         
+
          // Generate TTS
          if (response.trim()) {
            generateTTS(response.trim(), conversationPreferences.impostorVoiceId, conversationPreferences.impostorModel);
          }
-         
+
          return { response: response.trim(), nextTurn: "therapist" };
       }
       
@@ -2051,10 +2100,28 @@ export function ImpersonateThread({
              break;
            }
            
-            // Update for next iteration
-             lastMessage = result.response;
-             currentTurnType = result.nextTurn;
-             exchanges++;
+             // Check for repetitive responses to prevent loops
+             const recentResponses = currentContext.messages
+               .slice(-4)
+               .filter(m => m.sender === (currentTurnType === "therapist" ? "ai" : "impostor"))
+               .map(m => m.text.trim());
+
+             const isRepetitive = recentResponses.length >= 3 &&
+               recentResponses.every(resp => resp === result.response.trim() ||
+                 (resp.length > 50 && result.response.trim().length > 50 &&
+                  resp.substring(0, 50) === result.response.trim().substring(0, 50)));
+
+             if (isRepetitive) {
+               console.warn(`[CONVERSATION CONTROL] Detected repetitive ${currentTurnType} response, ending conversation`);
+               setConversationCompleted(true);
+               setCompletionReason("Conversation became repetitive - ending gracefully");
+               break;
+             }
+
+             // Update for next iteration
+              lastMessage = result.response;
+              currentTurnType = result.nextTurn;
+              exchanges++;
 
              // Evaluate conversation quality after each automated turn
              evaluateConversationQuality(currentContext.messages, conversationPhase, turnCount + exchanges);
