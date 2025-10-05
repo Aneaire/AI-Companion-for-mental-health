@@ -1365,7 +1365,20 @@ Expected output:
         // Impostor Behavior (for persona responses)
         if (prefs.impostorBehavior) {
           const impostor = prefs.impostorBehavior;
-          prefsText += "\n**Impostor Behavior Guidelines:**\n";
+          prefsText +=
+            "\n**Impostor Behavior Guidelines:**\n";
+          prefsText +=
+            "- **NATURAL CONVERSATION STYLE:** Respond like a real person sharing their experiences, not like filling out a detailed report.\n";
+          prefsText +=
+            "- **AVOID OVER-DETAILING:** Don't force specific times, exact measurements, or excessive sensory details unless they naturally come up.\n";
+          prefsText +=
+            "- **BALANCED SPECIFICITY:** Share enough detail to be authentic, but not so much that responses become mechanical or overwhelming.\n";
+          prefsText +=
+            "- **CONVERSATIONAL VARIETY:** Mix short responses with longer ones. Don't always give detailed accounts - sometimes just acknowledge or ask questions.\n";
+          prefsText +=
+            "- **AVOID REPETITION:** Don't repeat similar detailed stories or patterns. Keep responses fresh and varied.\n";
+          prefsText +=
+            "- **NATURAL PACING:** Don't feel compelled to provide exhaustive details in every response. Let the conversation flow naturally.\n";
 
           if (impostor.detailLevel !== undefined) {
             if (impostor.detailLevel <= 25) {
