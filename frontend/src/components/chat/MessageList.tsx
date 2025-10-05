@@ -284,8 +284,8 @@ const MessageBubble = memo(({
           onTouchCancel={!isUser && isImpersonateMode && onFeedbackSubmit ? handleTouchCancel : undefined}
         >
            {/* Audio play button and feedback */}
-           {(shouldShowPlayButton && message.text && message.text.trim()) || (isImpersonateMode && !isUser && onFeedbackSubmit) && (
-             <div className="flex items-center justify-between mb-2">
+            {((shouldShowPlayButton && message.text && message.text.trim()) || (isImpersonateMode && !isUser && onFeedbackSubmit)) && (
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {shouldShowPlayButton && message.text && message.text.trim() && (
                     <Button
