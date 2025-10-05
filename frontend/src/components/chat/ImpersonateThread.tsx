@@ -22,7 +22,7 @@ import {
   sanitizeInitialForm,
 } from "@/lib/utils";
 import textToSpeech from "@/services/elevenlabs/textToSpeech";
-import { useChatStore } from "@/stores/chatStore";
+import { useChatStore, type ConversationPreferences } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
 import { Brain, Loader2, MessageSquare, Radio, Settings } from "lucide-react";
@@ -927,9 +927,12 @@ export function ImpersonateThread({
   ): { completed: boolean; reason: string } => {
     if (turnCount < 8) return { completed: false, reason: "" }; // Need minimum turns
 
-    const recentMessages = messages.slice(-4); // Last 4 exchanges
+    const recentMessages = messages.slice(-6); // Last 6 exchanges for better analysis
     const impostorMessages = recentMessages.filter(
       (m) => m.sender === "impostor"
+    );
+    const therapistMessages = recentMessages.filter(
+      (m) => m.sender === "ai"
     );
 
     if (impostorMessages.length < 2) return { completed: false, reason: "" };
@@ -1005,6 +1008,67 @@ export function ImpersonateThread({
       )
     );
 
+    // NEW: Check for repetitive impostor-only conversations (stuck without therapist input)
+    const consecutiveImpostorMessages = messages.slice(-8).filter(
+      (m) => m.sender === "impostor"
+    );
+
+    // Check if we have many consecutive impostor messages without therapist input
+    const hasTooManyConsecutiveImpostor = consecutiveImpostorMessages.length >= 5;
+
+    // Check for repetitive patterns in impostor responses
+    const isRepetitive = (() => {
+      if (consecutiveImpostorMessages.length < 3) return false;
+
+      const responses = consecutiveImpostorMessages.slice(-4).map(m => m.text.toLowerCase().trim());
+
+      // Check if responses are very similar (contain same key phrases)
+      const keyPhrases = ["okay", "that makes sense", "it's just", "i guess", "hard to", "worry about", "what if"];
+
+      let repetitiveScore = 0;
+      responses.forEach((response, index) => {
+        if (index === 0) return; // Skip first response
+        const prevResponse = responses[index - 1];
+
+        // Count how many key phrases are repeated
+        keyPhrases.forEach(phrase => {
+          if (response.includes(phrase) && prevResponse.includes(phrase)) {
+            repetitiveScore++;
+          }
+        });
+
+        // Check for exact substring matches (longer than 20 chars)
+        const minLength = Math.min(response.length, prevResponse.length);
+        if (minLength > 20) {
+          for (let len = 20; len <= minLength; len++) {
+            const substrings = new Set();
+            for (let i = 0; i <= response.length - len; i++) {
+              substrings.add(response.substring(i, i + len));
+            }
+            for (let i = 0; i <= prevResponse.length - len; i++) {
+              if (substrings.has(prevResponse.substring(i, i + len))) {
+                repetitiveScore += 2; // Higher weight for long repeated substrings
+                break;
+              }
+            }
+          }
+        }
+      });
+
+      return repetitiveScore >= 6; // Threshold for considering it repetitive
+    })();
+
+    // Check if therapist has been absent for too long
+    const lastTherapistMessageIndex = messages.map((m, i) => ({ sender: m.sender, index: i }))
+      .filter(m => m.sender === "ai")
+      .pop()?.index;
+
+    const messagesSinceLastTherapist = lastTherapistMessageIndex !== undefined
+      ? messages.length - 1 - lastTherapistMessageIndex
+      : messages.length;
+
+    const therapistAbsentTooLong = messagesSinceLastTherapist >= 6; // No therapist response in last 6 messages
+
     // Completion conditions
     const hasEnoughResolution = resolutionScore >= 2;
     const hasEnoughHope = hopeScore >= 2;
@@ -1033,6 +1097,21 @@ export function ImpersonateThread({
       return {
         completed: true,
         reason: "Extended conversation reached resolution",
+      };
+    }
+
+    // NEW: Handle stuck conversations
+    if (therapistAbsentTooLong && (isRepetitive || hasTooManyConsecutiveImpostor)) {
+      return {
+        completed: true,
+        reason: "Conversation stuck in repetitive loop without therapist input - ending gracefully",
+      };
+    }
+
+    if (turnCount >= 15 && isRepetitive) {
+      return {
+        completed: true,
+        reason: "Extended conversation showing repetitive patterns - concluding session",
       };
     }
 
@@ -1711,11 +1790,11 @@ export function ImpersonateThread({
                5. NEVER repeat the same stories or examples
                6. RESPOND TO THERAPIST'S QUESTIONS WITH SPECIFIC EXAMPLES
 
-               CURRENT PHASE: ${conversationPhase.toUpperCase()} (Turn ${newTurnCount})
-               PERSONA: ${userProfileData?.fullName || "Unknown"}, Age ${userProfileData?.age || "Unknown"}
-               BACKGROUND: ${userProfileData?.background || "Not specified"}
-               PROBLEM: ${userProfileData?.problemDescription || "Not specified"}
-               PERSONALITY: ${userProfileData?.personality || "Not specified"}
+                CURRENT PHASE: ${conversationPhase.toUpperCase()} (Turn ${newTurnCount})
+                PERSONA: ${userProfileData?.fullName || "Unknown"}
+                BACKGROUND: ${userProfileData?.background || "Not specified"}
+                PROBLEM: ${userProfileData?.problemDescription || "Not specified"}
+                PERSONALITY: ${userProfileData?.personality || "Not specified"}
 
                STORIES SHARED SO FAR: ${sharedStories.join(", ") || "None"}
                RESOLUTION ELEMENTS: ${resolutionElements.join(", ") || "None yet"}
@@ -2582,14 +2661,27 @@ export function ImpersonateThread({
             turnCount + exchanges
           );
 
-          if (completionCheck.completed) {
-            console.log(
-              `[CONVERSATION CONTROL] Conversation completed: ${completionCheck.reason}`
-            );
-            setConversationCompleted(true);
-            setCompletionReason(completionCheck.reason);
-            break; // Exit the conversation loop
-          }
+           if (completionCheck.completed) {
+             console.log(
+               `[CONVERSATION CONTROL] Conversation completed: ${completionCheck.reason}`
+             );
+             setConversationCompleted(true);
+             setCompletionReason(completionCheck.reason);
+
+             // Add a proper ending message to show impersonation is complete
+             const endingMessage = {
+               sender: "ai" as const,
+               text: completionCheck.reason.includes("stuck in repetitive loop") ||
+                     completionCheck.reason.includes("repetitive patterns")
+                       ? "I notice we've been exploring similar themes. This seems like a natural place to conclude our conversation. The impersonation session has ended, and you've gained valuable insights into delegation and work-life balance. Remember, small steps toward change are still progress."
+                       : "Thank you for this therapeutic conversation. Our impersonation session has reached a natural conclusion. You've explored important themes around work stress and delegation. Remember that seeking professional help when needed is a sign of strength, not weakness.",
+               timestamp: new Date(),
+               contextId: "impersonate" as const,
+             };
+             addMessage(endingMessage);
+
+             break; // Exit the conversation loop
+           }
 
           // Add a small delay between turns to prevent race conditions
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -2774,22 +2866,26 @@ export function ImpersonateThread({
                 <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
                   Therapist & Patient
                 </div>
-                <div
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    conversationPhase === "diagnosis"
-                      ? "bg-blue-100 text-blue-700"
-                      : conversationPhase === "story_development"
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-green-100 text-green-700"
-                  }`}
-                >
-                  {conversationPhase === "diagnosis"
-                    ? "Phase 1: Diagnosis"
-                    : conversationPhase === "story_development"
-                      ? "Phase 2: Stories"
-                      : "Phase 3: Resolution"}{" "}
-                  (Turn {turnCount})
-                 </div>
+                 <div
+                   className={`px-2 py-1 text-xs font-medium rounded-full ${
+                     conversationCompleted
+                       ? "bg-green-100 text-green-700"
+                       : conversationPhase === "diagnosis"
+                         ? "bg-blue-100 text-blue-700"
+                         : conversationPhase === "story_development"
+                           ? "bg-purple-100 text-purple-700"
+                           : "bg-green-100 text-green-700"
+                   }`}
+                 >
+                   {conversationCompleted
+                     ? "Session Complete"
+                     : conversationPhase === "diagnosis"
+                       ? "Phase 1: Diagnosis"
+                       : conversationPhase === "story_development"
+                         ? "Phase 2: Stories"
+                         : "Phase 3: Resolution"}{" "}
+                   {conversationCompleted ? "" : `(Turn ${turnCount})`}
+                  </div>
               </div>
               <p className="text-sm text-gray-600">
                 Interactive role-playing for therapeutic scenarios
