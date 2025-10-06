@@ -7,17 +7,20 @@ import {
 } from "@/components/ui/dialog";
 import type { JSX } from "react";
 import ChatForm from "./ChatForm";
+import type { ConversationPreferences } from "@/stores/chatStore";
 
 export function ChatDialog({
   open,
   onOpenChange,
   onSubmit,
   onThreadCreated,
+  conversationPreferences,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (formData: any, aiResponse: string, sessionId: number) => void;
   onThreadCreated?: (session: any) => void;
+  conversationPreferences?: ConversationPreferences;
 }): JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,7 +43,7 @@ export function ChatDialog({
         </DialogHeader>
         {/* ChatForm takes up the rest of the available height within the dialog */}
         <div className="flex-1 overflow-y-auto">
-          <ChatForm onSubmit={onSubmit} onThreadCreated={onThreadCreated} />
+          <ChatForm onSubmit={onSubmit} onThreadCreated={onThreadCreated} conversationPreferences={conversationPreferences} />
         </div>
       </DialogContent>
     </Dialog>

@@ -478,11 +478,38 @@ export function ThreadSettingsDialog({
 
             <Separator />
 
-            <div>
-              <h3 className="text-lg font-semibold mb-4">
-                Detailed Settings
-              </h3>
-              <div className="space-y-4">
+             <div>
+               <h3 className="text-lg font-semibold mb-4">
+                 Detailed Settings
+               </h3>
+               <div className="space-y-4">
+                 {/* Language Selection */}
+                 <div className="flex items-center justify-between">
+                   <div className="space-y-0.5">
+                     <Label className="text-base">Response Language</Label>
+                     <p className="text-sm text-gray-600">
+                       Choose the language for AI responses
+                     </p>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                     <Button
+                       variant={preferences.language === "english" ? "default" : "outline"}
+                       size="sm"
+                       onClick={() => updatePreference("language", "english")}
+                     >
+                       English
+                     </Button>
+                     <Button
+                       variant={preferences.language === "filipino" ? "default" : "outline"}
+                       size="sm"
+                       onClick={() => updatePreference("language", "filipino")}
+                     >
+                       Filipino
+                     </Button>
+                   </div>
+                 </div>
+
+                 <Separator />
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-base">Brief and Concise</Label>

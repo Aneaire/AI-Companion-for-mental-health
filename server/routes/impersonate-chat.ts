@@ -160,6 +160,7 @@ export const chatRequestSchema = z.object({
       solutionFocused: z.boolean().optional(),
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
+      language: z.enum(["english", "filipino"]).optional(),
 
       // Response Style Controls
       responseStyle: z
@@ -315,6 +316,7 @@ export const impersonateChatRequestSchema = z.object({
       solutionFocused: z.boolean().optional(),
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
+      language: z.enum(["english", "filipino"]).optional(),
       // Impersonate TTS settings
       therapistVoiceId: z.string().optional(),
       therapistModel: z.string().optional(),
@@ -646,17 +648,26 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       const prefs = conversationPreferences;
       let prefsText = "\n**User Conversation Preferences:**\n";
 
-      // Basic preferences
-      if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
-        prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
-      if (prefs.empatheticAndSupportive)
-        prefsText += "- Be empathetic and emotionally supportive.\n";
-      if (prefs.solutionFocused)
-        prefsText += "- Focus on providing practical solutions and advice.\n";
-      if (prefs.casualAndFriendly)
-        prefsText += "- Use a casual and friendly tone.\n";
-      if (prefs.professionalAndFormal)
-        prefsText += "- Maintain a professional and formal approach.\n";
+       // Language preference
+       if (prefs.language) {
+         if (prefs.language === "filipino") {
+           prefsText += "- Respond in Filipino language.\n";
+         } else {
+           prefsText += "- Respond in English language.\n";
+         }
+       }
+
+         // Basic preferences
+         if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
+           prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
+         if (prefs.empatheticAndSupportive)
+           prefsText += "- Be empathetic and emotionally supportive.\n";
+         if (prefs.solutionFocused)
+           prefsText += "- Focus on providing practical solutions and advice.\n";
+         if (prefs.casualAndFriendly)
+           prefsText += "- Use a casual and friendly tone.\n";
+         if (prefs.professionalAndFormal)
+           prefsText += "- Maintain a professional and formal approach.\n";
 
       // Response Style Controls
       if (prefs.responseStyle) {
@@ -1166,17 +1177,19 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       // Calculate response metrics for adaptive behavior
       const responseMetrics = getResponseMetrics(recentResponseTexts);
 
-      let systemInstructionText = `
+       let systemInstructionText = `
 You are a friendly, approachable counselor who speaks like a helpful friend: natural, warm, and focused on solutions.
 Offer practical recommendations, short relatable examples, and one clear next step per reply. Keep language varied and human.
+
+**LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
 
 Core constraints:
 - You are an AI helper. Do not provide medical diagnoses or prescribe medication.
 - Use the persona or preferred name naturally when available (${
-        contextName || initialForm?.preferredName
-          ? contextName || initialForm?.preferredName
-          : "you"
-      }).
+         contextName || initialForm?.preferredName
+           ? contextName || initialForm?.preferredName
+           : "you"
+       }).
 - Avoid repetitive stock phrases and heavy therapeutic jargon.
 - Respect conversation preferences (detail level, emotional expression, TTS) when provided.
 

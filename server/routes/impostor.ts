@@ -62,13 +62,14 @@ export const impostorRoute = new Hono()
       userProfile: profileSchema.optional(),
       preferredName: z.string().optional(),
       personaId: z.number().optional(),
-       conversationPreferences: z
-         .object({
-           briefAndConcise: z.number().min(0).max(100).optional(),
-           empatheticAndSupportive: z.boolean().optional(),
-           solutionFocused: z.boolean().optional(),
-           casualAndFriendly: z.boolean().optional(),
-           professionalAndFormal: z.boolean().optional(),
+        conversationPreferences: z
+          .object({
+            briefAndConcise: z.number().min(0).max(100).optional(),
+            empatheticAndSupportive: z.boolean().optional(),
+            solutionFocused: z.boolean().optional(),
+            casualAndFriendly: z.boolean().optional(),
+            professionalAndFormal: z.boolean().optional(),
+            language: z.enum(["english", "filipino"]).optional(),
             // Impersonate TTS settings
             therapistVoiceId: z.string().optional(),
             therapistModel: z.string().optional(),
@@ -119,6 +120,8 @@ export const impostorRoute = new Hono()
       characterName
     }**. You are **${effectiveUserProfile.age}** years old.
 
+**LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
+
 **Your Current Life Situation/Core Challenge:** ${
       effectiveUserProfile.problemDescription
     }
@@ -140,6 +143,7 @@ ${
     ) {
       const prefs = conversationPreferences;
       let prefsText = "\n**User Conversation Preferences:**\n";
+
       if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
         prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
       if (prefs.empatheticAndSupportive)

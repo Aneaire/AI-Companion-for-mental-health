@@ -538,6 +538,7 @@ function Index() {
             // The form already handled the optimistic update for the threads list
             // No need to do additional async operations here
           }}
+          conversationPreferences={conversationPreferences}
         />
       </div>
       {/* Post-session dialog for loading/generation and form */}

@@ -9,6 +9,7 @@ export interface ConversationPreferences {
   solutionFocused: boolean;
   casualAndFriendly: boolean;
   professionalAndFormal: boolean;
+  language: "english" | "filipino"; // Language preference for AI responses
   
   // Response Style Controls
   responseStyle: {
@@ -157,6 +158,7 @@ export const useChatStore = create<ChatState>()(
           solutionFocused: false,
           casualAndFriendly: false,
           professionalAndFormal: false,
+          language: "english", // Default to English
           
           // Response Style Controls - defaults
           responseStyle: {
@@ -420,6 +422,7 @@ export const useChatStore = create<ChatState>()(
             solutionFocused: false,
             casualAndFriendly: false,
             professionalAndFormal: false,
+            language: "english",
             
             // Response Style Controls - defaults
             responseStyle: {

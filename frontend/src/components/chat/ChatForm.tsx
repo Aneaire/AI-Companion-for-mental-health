@@ -8,6 +8,7 @@ import type { JSX } from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import type { ConversationPreferences } from "@/stores/chatStore";
 
 // ShadCN UI Imports
 import {
@@ -147,11 +148,13 @@ const supportTypeOptions = [
 interface ChatFormProps {
   onSubmit: (formData: any, aiResponse: string, sessionId: number) => void;
   onThreadCreated?: (session: any) => void;
+  conversationPreferences?: ConversationPreferences;
 }
 
 const ChatForm = ({
   onSubmit,
   onThreadCreated,
+  conversationPreferences,
 }: ChatFormProps): JSX.Element => {
   // Set initial step to "emotions" to prompt for required field first
   // This helps guide the user immediately to the mandatory field
@@ -245,6 +248,7 @@ const ChatForm = ({
             initialForm: { ...data, preferredName: preferredNameToSend },
             userId: String(userProfile.id),
             sessionId: session.sessionId || session.id,
+            conversationPreferences: conversationPreferences,
           },
         });
 

@@ -111,6 +111,7 @@ export const chatRequestSchema = z.object({
       solutionFocused: z.boolean().optional(),
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
+      language: z.enum(["english", "filipino"]).optional(),
       // Main chat TTS settings
       mainTTSVoiceId: z.string().optional(),
       mainTTSModel: z.string().optional(),
@@ -173,6 +174,7 @@ export const impersonateChatRequestSchema = z.object({
       solutionFocused: z.boolean().optional(),
       casualAndFriendly: z.boolean().optional(),
       professionalAndFormal: z.boolean().optional(),
+      language: z.enum(["english", "filipino"]).optional(),
       
       // Response Style Controls
       responseStyle: z.object({
@@ -541,6 +543,8 @@ const chat = new Hono()
     let systemInstructionText = `
 You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
 
+**LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
+
 **Crucial Ethical and Professional Guidelines:**
 1.  **Strictly Adhere to Boundaries:** You are an AI and explicitly **not** a human therapist, medical professional, or crisis counselor. You **must** clearly state this disclaimer at the beginning of the session and if the user expresses a need for professional help or indicates a crisis.
 2.  **Safety First (Crisis Protocol):** If the user expresses any indication of suicidal thoughts, self-harm, harm to others, or severe distress requiring immediate intervention, you **must** interrupt the conversation to provide emergency contact information (e.g., "If you are in immediate danger, please contact 911 or a crisis hotline like the National Suicide Prevention Lifeline at 988."). Do not attempt to "treat" or "diagnose" a crisis; instead, prioritize immediate safety resources.
@@ -553,7 +557,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
 7.  **Guidance and Exploration:** Offer relevant, general coping strategies, gentle thought-provoking questions, and reflections to help the user explore their feelings and situations more deeply. Encourage self-discovery.
 8.  **Concise, Clear, and Human-like Language:** Keep responses focused, natural, and easy to understand. Avoid jargon or overly clinical language unless specifically requested by the user's persona. Your tone should be warm, compassionate, and authentic, reflecting a human therapist's mannerisms.
 9.  **Adapt to User Preferences:** Pay close attention to preferred response tone, character, or style from the initial form and subtly weave it into your communication style.
-10. **Follow-up Form Integration:** When a user's previous session follow-up form is provided, naturally reference their responses to show continuity between sessions. Acknowledge any progress, changes, or concerns they mentioned. This demonstrates you remember their previous session and are building upon their therapeutic journey.
+ 10. **Session Context:** ${followupFormAnswers ? 'This is a follow-up session. When a user\'s previous session follow-up form is provided, naturally reference their responses to show continuity between sessions. Acknowledge any progress, changes, or concerns they mentioned. This demonstrates you remember their previous session and are building upon their therapeutic journey.' : 'This is the first session with this user. Do not reference previous conversations or ask about how they\'ve been feeling since we last spoke, as this is a new therapeutic relationship.'}
 `;
 
     // Add conversationPreferences to the prompt if present
@@ -563,18 +567,18 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
     ) {
       const prefs = conversationPreferences;
       let prefsText = "\n**User Conversation Preferences:**\n";
-      
-      // Basic preferences
-      if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
-        prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
-      if (prefs.empatheticAndSupportive)
-        prefsText += "- Be empathetic and emotionally supportive.\n";
-      if (prefs.solutionFocused)
-        prefsText += "- Focus on providing practical solutions and advice.\n";
-      if (prefs.casualAndFriendly)
-        prefsText += "- Use a casual and friendly tone.\n";
-      if (prefs.professionalAndFormal)
-        prefsText += "- Maintain a professional and formal approach.\n";
+
+       // Basic preferences
+       if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
+         prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
+       if (prefs.empatheticAndSupportive)
+         prefsText += "- Be empathetic and emotionally supportive.\n";
+       if (prefs.solutionFocused)
+         prefsText += "- Focus on providing practical solutions and advice.\n";
+       if (prefs.casualAndFriendly)
+         prefsText += "- Use a casual and friendly tone.\n";
+       if (prefs.professionalAndFormal)
+         prefsText += "- Maintain a professional and formal approach.\n";
 
       // Response Style Controls
       if (prefs.responseStyle) {
@@ -1055,8 +1059,10 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         }
       }
 
-      let systemInstructionText = `
+    let systemInstructionText = `
 You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
+
+**LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
 
 **Crucial Ethical and Professional Guidelines:**
 1.  **Strictly Adhere to Boundaries:** You are an AI and explicitly **not** a human therapist, medical professional, or crisis counselor. You **must** clearly state this disclaimer at the beginning of the session and if the user expresses a need for professional help or indicates a crisis.
@@ -1078,7 +1084,17 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         conversationPreferences !== null
       ) {
         const prefs = conversationPreferences;
-        let prefsText = "\n**User Conversation Preferences:**\n";
+         let prefsText = "\n**User Conversation Preferences:**\n";
+
+        // Language preference
+        if (prefs.language) {
+          if (prefs.language === "filipino") {
+            prefsText += "- Respond in Filipino language.\n";
+          } else {
+            prefsText += "- Respond in English language.\n";
+          }
+        }
+
         if (prefs.briefAndConcise && prefs.briefAndConcise > 0)
           prefsText += `- Keep responses brief and concise (level: ${prefs.briefAndConcise}/100).\n`;
         if (prefs.empatheticAndSupportive)
