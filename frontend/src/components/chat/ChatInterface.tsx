@@ -19,6 +19,7 @@ interface ChatInterfaceProps {
   onRetryMessage?: (message: Message) => void;
   voiceId?: string;
   preferences?: ConversationPreferences;
+  onFeedbackSubmit?: (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => void;
 }
 
 export function ChatInterface({
@@ -33,6 +34,7 @@ export function ChatInterface({
   onRetryMessage,
   voiceId,
   preferences,
+  onFeedbackSubmit,
 }: ChatInterfaceProps): JSX.Element {
   const getLoadingBadge = () => {
     if (loadingState === "idle") return null;
@@ -91,14 +93,15 @@ export function ChatInterface({
               </p>
             </div>
           ) : (
-            <MessageList
-              messages={messages}
-              isLoading={loadingState}
-              onRetryMessage={onRetryMessage}
-              voiceId={voiceId}
-              preferences={preferences}
-              isImpersonateMode={isImpersonateMode}
-            />
+             <MessageList
+               messages={messages}
+               isLoading={loadingState}
+               onRetryMessage={onRetryMessage}
+               voiceId={voiceId}
+               preferences={preferences}
+               isImpersonateMode={isImpersonateMode}
+               onFeedbackSubmit={onFeedbackSubmit}
+             />
           )}
         </div>
       </ScrollArea>

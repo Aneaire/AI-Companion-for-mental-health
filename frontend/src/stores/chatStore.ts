@@ -9,6 +9,47 @@ export interface ConversationPreferences {
   solutionFocused: boolean;
   casualAndFriendly: boolean;
   professionalAndFormal: boolean;
+  
+  // Response Style Controls
+  responseStyle: {
+    questioningStyle: "open-ended" | "closed" | "direct" | "mixed";
+    emotionalTone: "analytical" | "emotional" | "balanced" | "adaptive";
+    interventionTiming: "immediate" | "delayed" | "minimal" | "opportunistic";
+  };
+  
+  // Therapeutic Approach
+  therapeuticApproach: {
+    focusAreas: ("cognitive" | "behavioral" | "humanistic" | "integrative" | "psychodynamic")[];
+    sessionPace: number; // 0-100 slider
+    depthLevel: "surface" | "deep" | "progressive" | "adaptive";
+    goalOrientation: "exploratory" | "solution-focused" | "psychoeducational" | "process-oriented";
+  };
+  
+  // Impostor-specific settings
+  impostorBehavior: {
+    detailLevel: number; // 0-100 slider
+    emotionalExpression: "reserved" | "expressive" | "variable" | "contextual";
+    responsePattern: "direct" | "indirect" | "mixed" | "situational";
+    informationSharing: "cautious" | "open" | "selective" | "progressive";
+    specificityEnforcement: number; // 0-100 slider
+    exampleFrequency: "rare" | "occasional" | "frequent" | "consistent";
+    sensoryDetailLevel: number; // 0-100 slider
+    timelineReferences: "vague" | "specific" | "mixed" | "flexible";
+  };
+  
+  // Therapeutic Feedback Style
+  feedbackStyle: {
+    constructiveFeedback: boolean;
+    liveAcknowledging: boolean;
+    validationLevel: number; // 0-100 slider
+    reinforcementType: "positive" | "balanced" | "growth-oriented" | "minimal";
+    feedbackTiming: "immediate" | "delayed" | "session-summary" | "opportunistic";
+    feedbackFocus: ("strengths" | "growth-areas" | "progress" | "insights" | "behavior-patterns")[];
+  };
+  
+  // Response Behavior
+  unpredictability: boolean;
+  
   // Main page TTS settings
   mainTTSVoiceId: string;
   mainTTSModel: string;
@@ -116,6 +157,47 @@ export const useChatStore = create<ChatState>()(
           solutionFocused: false,
           casualAndFriendly: false,
           professionalAndFormal: false,
+          
+          // Response Style Controls - defaults
+          responseStyle: {
+            questioningStyle: "mixed" as const,
+            emotionalTone: "balanced" as const,
+            interventionTiming: "opportunistic" as const,
+          },
+          
+          // Therapeutic Approach - defaults
+          therapeuticApproach: {
+            focusAreas: ["integrative"] as const,
+            sessionPace: 50, // Middle pace
+            depthLevel: "progressive" as const,
+            goalOrientation: "exploratory" as const,
+          },
+          
+          // Impostor Behavior - defaults
+          impostorBehavior: {
+            detailLevel: 70, //偏向详细
+            emotionalExpression: "variable" as const,
+            responsePattern: "mixed" as const,
+            informationSharing: "selective" as const,
+            specificityEnforcement: 80, // High specificity
+            exampleFrequency: "frequent" as const,
+            sensoryDetailLevel: 60, // Moderate sensory details
+            timelineReferences: "specific" as const,
+          },
+          
+          // Therapeutic Feedback Style - defaults
+          feedbackStyle: {
+            constructiveFeedback: true,
+            liveAcknowledging: true,
+            validationLevel: 70, // Moderate-high validation
+            reinforcementType: "balanced" as const,
+            feedbackTiming: "immediate" as const,
+            feedbackFocus: ["strengths", "progress"] as const,
+          },
+          
+          // Response Behavior - defaults
+          unpredictability: false,
+          
           // Main page TTS settings
           mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
           mainTTSModel: "eleven_flash_v2_5",
@@ -338,6 +420,47 @@ export const useChatStore = create<ChatState>()(
             solutionFocused: false,
             casualAndFriendly: false,
             professionalAndFormal: false,
+            
+            // Response Style Controls - defaults
+            responseStyle: {
+              questioningStyle: "mixed",
+              emotionalTone: "balanced",
+              interventionTiming: "opportunistic",
+            },
+            
+            // Therapeutic Approach - defaults
+            therapeuticApproach: {
+              focusAreas: ["integrative"],
+              sessionPace: 50,
+              depthLevel: "progressive",
+              goalOrientation: "exploratory",
+            },
+            
+            // Impostor Behavior - defaults
+            impostorBehavior: {
+              detailLevel: 70,
+              emotionalExpression: "variable",
+              responsePattern: "mixed",
+              informationSharing: "selective",
+              specificityEnforcement: 80,
+              exampleFrequency: "frequent",
+              sensoryDetailLevel: 60,
+              timelineReferences: "specific",
+            },
+            
+            // Therapeutic Feedback Style - defaults
+            feedbackStyle: {
+              constructiveFeedback: true,
+              liveAcknowledging: true,
+              validationLevel: 70,
+              reinforcementType: "balanced",
+              feedbackTiming: "immediate",
+              feedbackFocus: ["strengths", "progress"],
+            },
+            
+            // Response Behavior - defaults
+            unpredictability: false,
+            
             // Main page TTS settings
             mainTTSVoiceId: "21m00Tcm4TlvDq8ikWAM",
             mainTTSModel: "eleven_flash_v2_5",

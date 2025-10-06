@@ -59,8 +59,9 @@ export const impostorRoute = new Hono()
     const schema = z.object({
       sessionId: z.number(),
       message: z.string(),
-      userProfile: profileSchema,
+      userProfile: profileSchema.optional(),
       preferredName: z.string().optional(),
+      personaId: z.number().optional(),
        conversationPreferences: z
          .object({
            briefAndConcise: z.number().min(0).max(100).optional(),
@@ -86,27 +87,50 @@ export const impostorRoute = new Hono()
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
 
-    const { message, userProfile, preferredName, conversationPreferences } = parsed.data;
+    const { message, userProfile, preferredName, conversationPreferences, personaId } = parsed.data;
+
+    // Fetch persona data if personaId is provided and userProfile is not available
+    let effectiveUserProfile = userProfile;
+    if (!effectiveUserProfile && personaId) {
+      const personaResult = await db
+        .select()
+        .from(persona)
+        .where(eq(persona.id, personaId))
+        .limit(1);
+      if (personaResult.length > 0) {
+        effectiveUserProfile = {
+          userId: personaResult[0].userId,
+          fullName: personaResult[0].fullName,
+          age: personaResult[0].age,
+          problemDescription: personaResult[0].problemDescription,
+          background: personaResult[0].background || undefined,
+          personality: personaResult[0].personality || undefined,
+        };
+      }
+    }
+
+    if (!effectiveUserProfile) {
+      return c.json({ error: "User profile or personaId is required" }, 400);
+    }
 
     // Create the system prompt for the impostor
-    const characterName = preferredName || userProfile.fullName;
+    const characterName = preferredName || effectiveUserProfile.fullName;
     let systemPrompt = `You are roleplaying as a person seeking therapy. Your name is **${
       characterName
-    }**. You are **${userProfile.age}** years old.
+    }**. You are **${effectiveUserProfile.age}** years old.
 
 **Your Current Life Situation/Core Challenge:** ${
-      userProfile.problemDescription
+      effectiveUserProfile.problemDescription
     }
 ${
-  userProfile.background
-    ? `**Relevant Background Information:** ${userProfile.background}`
+  effectiveUserProfile.background
+    ? `**Relevant Background Information:** ${effectiveUserProfile.background}`
     : ""
 }
 ${
-  userProfile.personality
-    ? `**Key Personality Traits:** ${userProfile.personality}`
-    : ""
-}
+  effectiveUserProfile.personality
+    ? `**Key Personality Traits:** ${effectiveUserProfile.personality}`
+    : ""}
 `;
 
     // Add conversationPreferences to the prompt if present
@@ -138,26 +162,38 @@ ${
     // Check if this is the first message (no therapist input yet)
     const isFirstMessage = !message || message.trim() === "" ||
       message === "Hello, I am here for therapy. I have been struggling with some issues.";
+    
+    console.log(`[IMPOSTOR API] isFirstMessage: ${isFirstMessage}, message: "${message}"`);
 
     if (isFirstMessage) {
       // Generate opening statement as the patient
       systemPrompt += `
-**Your Goal for this Therapy Session:** To start the conversation by expressing why you're here for therapy and what you're struggling with. Be genuine and vulnerable in sharing your current situation.
+**Your Goal for this Therapy Session:** To start the conversation by introducing yourself and immediately sharing why you're here for therapy and what you're struggling with. Be genuine and vulnerable in sharing your current situation.
+
+**CRITICAL: You MUST start the conversation - the therapist is waiting for you to speak first.**
+
+**OPENING STATEMENT REQUIREMENTS:**
+1.  **Introduce Yourself:** Start with your name and a brief personal detail
+2.  **State Your Problem Clearly:** Explain exactly what brought you to therapy today
+3.  **Express Your Feelings:** Share how this problem is affecting you emotionally
+4.  **Be Specific:** Give concrete examples or details about your situation
 
 **IMPORTANT GUIDELINES FOR YOUR OPENING STATEMENT:**
 1.  **Be Human, Not an AI:** You are a real person with emotions, vulnerabilities, and internal thoughts.
 2.  **Stay Fully In Character:** Every response must come from the perspective of **${characterName}**. Do not ever break character or acknowledge being an AI.
 3.  **Express Emotions and Nuances VERBALLY:** Don't just state facts. Describe how you *feel* about things, your frustrations, hopes, anxieties, or confusions. Use emotional language naturally in your spoken words.
 4.  **Convey Behavior Through Dialogue/Tone:** Do NOT include explicit behavioral descriptions or stage directions. Your words alone should convey your mood, hesitation, or intensity.
-5.  **Vary Affirmations and Hesitations:** Use natural conversational fillers and acknowledgments.
-6.  **Show Vulnerability:** As this is your opening statement, show appropriate vulnerability and openness about why you're seeking therapy.
-7.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
-8.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and varied sentence structure like a real person.
-9.  **Keep Opening Concise:** Limit your opening statement to 2-4 sentences maximum. Focus on introducing yourself and your main concern.
- 10. **Avoid Generic Greetings:** Do NOT start with "Hi", "Hello", or "Thank you for seeing me". Jump directly into expressing your concerns and feelings.
-  11. **Natural Conversation Flow:** End at a natural stopping point to invite the therapist's response.
+5.  **Show Vulnerability:** As this is your opening statement, show appropriate vulnerability and openness about why you're seeking therapy.
+6.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
+7.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and varied sentence structure like a real person.
+8.  **Keep Opening Focused:** Limit your opening statement to 3-5 sentences maximum. Focus on introducing yourself and your main concern.
+9.  **Avoid Generic Greetings:** Do NOT start with "Hi", "Hello", or "Thank you for seeing me". Jump directly into expressing your concerns and feelings.
+10. **End with an Open Hook:** End in a way that naturally invites the therapist to respond or ask questions.
 
-  **This is the beginning of your therapy session.** Start the conversation naturally as **${userProfile.fullName}** by introducing yourself and explaining why you're here for therapy.
+**EXAMPLE OPENING:**
+"My name is ${characterName}, and I'm ${effectiveUserProfile.age} years old. I've been really struggling with ${effectiveUserProfile.problemDescription.toLowerCase()} lately, and it's been affecting my daily life. I feel overwhelmed and don't know how to handle it anymore."
+
+**Now start the conversation naturally as **${characterName}** by introducing yourself and explaining why you're here for therapy.**
 `;
     } else {
       // Respond to therapist's message
@@ -186,7 +222,7 @@ ${
 
   Your therapist just said: "${message}"
 
-  Respond naturally as **${userProfile.fullName}** with your thoughts and feelings. Do not simply repeat or echo what the therapist said. Always provide a unique response as the patient.
+  Respond naturally as **${effectiveUserProfile.fullName}** with your thoughts and feelings. Do not simply repeat or echo what the therapist said. Always provide a unique response as the patient.
 `;
     }
 

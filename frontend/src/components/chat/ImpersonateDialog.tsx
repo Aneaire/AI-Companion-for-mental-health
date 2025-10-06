@@ -35,7 +35,7 @@ export function ImpersonateDialog({
             Set up AI impersonation parameters
           </DialogDescription>
         </DialogHeader>
-        <div className="h-full overflow-y-auto p-2 sm:p-4 md:p-6">
+        <div className="h-full overflow-y-scroll p-1.5">
           <ImpersonateForm
             onSubmit={onSubmit}
             onThreadCreated={onThreadCreated}
@@ -45,4 +45,3 @@ export function ImpersonateDialog({
     </Dialog>
   );
 }
-

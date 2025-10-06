@@ -1,9 +1,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Message } from "@/types/chat";
 import type { ConversationPreferences } from "@/stores/chatStore";
-import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User, Play, Pause, Volume2, Clock } from "lucide-react";
+import { AlertCircle, BrainCircuit, MessageCircle, RefreshCw, User, Play, Pause, Volume2, Clock, ThumbsUp, ThumbsDown, Minus, Star } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { MessageFormattingUtils } from "@/lib/messageFormatter";
@@ -17,6 +18,7 @@ interface MessageListProps {
   voiceId?: string;
   preferences?: ConversationPreferences;
   isImpersonateMode?: boolean;
+  onFeedbackSubmit?: (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => void;
 }
 
 // Message formatting is now handled by MessageFormatter class
@@ -30,7 +32,8 @@ const MessageBubble = memo(({
   onRetry,
   voiceId,
   preferences,
-  isImpersonateMode = false
+  isImpersonateMode = false,
+  onFeedbackSubmit
 }: {
   message: Message;
   isUser: boolean;
@@ -39,6 +42,7 @@ const MessageBubble = memo(({
   voiceId?: string;
   preferences?: ConversationPreferences;
   isImpersonateMode?: boolean;
+  onFeedbackSubmit?: (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => void;
 }) => {
   const formatTime = (timestamp?: Date | number) => {
     if (!timestamp) return "";
@@ -63,6 +67,62 @@ const MessageBubble = memo(({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Feedback state
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [isLongPress, setIsLongPress] = useState(false);
+
+  // Long press detection
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseDown = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      setIsLongPress(true);
+      setShowFeedback(true);
+    }, 500); // 500ms for long press
+  };
+
+  const handleMouseUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    setIsLongPress(false);
+    setShowFeedback(false);
+  };
+
+  // Touch event handlers for mobile long press
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    longPressTimerRef.current = setTimeout(() => {
+      setIsLongPress(true);
+      setShowFeedback(true);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    setIsLongPress(false);
+    setShowFeedback(false);
+  };
+
   const handleRetry = useCallback(() => {
     if (onRetry && message.status === "failed") {
       onRetry(message);
@@ -73,9 +133,10 @@ const MessageBubble = memo(({
     if (!message.text || message.text.trim() === "") return;
 
     try {
-      // Determine the correct voiceId and modelId based on message sender
+      // Determine the correct voiceId, modelId, and speed based on message sender
       let audioVoiceId = voiceId;
       let audioModelId = "eleven_flash_v2_5"; // default fallback
+      let audioSpeed = 1.0; // default speed
       if (preferences) {
         if (isImpersonateMode) {
           // In impersonate mode, use different logic
@@ -83,28 +144,33 @@ const MessageBubble = memo(({
             // AI messages in impersonate mode are from the therapist
             audioVoiceId = preferences.therapistVoiceId;
             audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.ttsSpeed ?? 1.0;
           } else if (message.sender === "impostor") {
             // Impostor messages use impostor voice settings
             audioVoiceId = preferences.impostorVoiceId;
             audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.ttsSpeed ?? 1.0;
           }
         } else {
           // Regular mode
           if (message.sender === "therapist") {
             audioVoiceId = preferences.therapistVoiceId;
             audioModelId = preferences.therapistModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.mainTTSSpeed ?? 1.0;
           } else if (message.sender === "impostor") {
             audioVoiceId = preferences.impostorVoiceId;
             audioModelId = preferences.impostorModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.mainTTSSpeed ?? 1.0;
           } else if (message.sender === "ai") {
             audioVoiceId = preferences.mainTTSVoiceId;
             audioModelId = preferences.mainTTSModel || "eleven_flash_v2_5";
+            audioSpeed = preferences.mainTTSSpeed ?? 1.0;
           }
         }
       }
 
       // Get audio URL (will use cache if available)
-      const url = await textToSpeech(message.text, audioVoiceId, false, audioModelId);
+      const url = await textToSpeech(message.text, audioVoiceId, false, audioModelId, audioSpeed);
       setAudioUrl(url);
 
       // Add to audio queue for sequential playback
@@ -124,7 +190,8 @@ const MessageBubble = memo(({
           console.error("Audio playback failed:", error);
           setIsPlaying(false);
           setAudioUrl(null);
-        }
+        },
+        audioSpeed
       );
     } catch (error) {
       console.error("Failed to queue audio:", error);
@@ -201,7 +268,7 @@ const MessageBubble = memo(({
       )}
 
       <div
-        className={`max-w-[75%] sm:max-w-[75%] group ${
+        className={`max-w-[75%] sm:max-w-[75%] group relative ${
           isConsecutive ? "mt-1" : "mt-0"
         }`}
       >
@@ -212,51 +279,138 @@ const MessageBubble = memo(({
                   message.status === "failed" ? "from-red-500 to-red-600" : ""
                 }`
               : "bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-800"
-          }`}
+          } ${!isUser && isImpersonateMode && onFeedbackSubmit ? 'cursor-pointer' : ''}`}
           role="article"
           aria-label={isUser ? "User message" : "AI message"}
+          onMouseDown={!isUser && isImpersonateMode && onFeedbackSubmit ? handleMouseDown : undefined}
+          onMouseUp={!isUser && isImpersonateMode && onFeedbackSubmit ? handleMouseUp : undefined}
+          onMouseLeave={!isUser && isImpersonateMode && onFeedbackSubmit ? handleMouseLeave : undefined}
+          onMouseEnter={!isUser && isImpersonateMode && onFeedbackSubmit ? () => setShowFeedback(true) : undefined}
+          onTouchStart={!isUser && isImpersonateMode && onFeedbackSubmit ? handleTouchStart : undefined}
+          onTouchEnd={!isUser && isImpersonateMode && onFeedbackSubmit ? handleTouchEnd : undefined}
+          onTouchCancel={!isUser && isImpersonateMode && onFeedbackSubmit ? handleTouchCancel : undefined}
         >
-          {/* Audio play button */}
-           {shouldShowPlayButton && message.text && message.text.trim() && (
-            <div className="flex items-center justify-between mb-2">
-               <Button
-                 size="sm"
-                 variant="ghost"
-                  className={`h-6 px-2 text-xs ${
-                    isUser
-                      ? "text-blue-200 hover:text-blue-100 hover:bg-white/10"
-                      : "text-gray-600 hover:text-gray-700 hover:bg-gray-100"
-                  }`}
-                 onClick={isPlaying ? handleStopAudio : handlePlayAudio}
-                 disabled={!message.text || message.text.trim() === ""}
-               >
-                 {isPlaying ? (
-                   <>
-                     <Pause size={12} className="mr-1" />
-                     Stop
-                   </>
-                 ) : getAudioQueueLength() > 0 ? (
-                   <>
-                     <Clock size={12} className="mr-1" />
-                     Queued
-                   </>
-                 ) : (
-                   <>
-                     <Play size={12} className="mr-1" />
-                     Play
-                   </>
-                 )}
-               </Button>
-               {isPlaying && (
-                 <div className="flex items-center gap-1">
-                    <Volume2 size={10} className={isUser ? "text-blue-200" : "text-gray-500"} />
-                   <div className="w-8 h-1 bg-current opacity-30 rounded">
-                     <div className="w-full h-full bg-current animate-pulse rounded"></div>
+           {/* Audio play button and feedback */}
+            {((shouldShowPlayButton && message.text && message.text.trim()) || (isImpersonateMode && !isUser && onFeedbackSubmit)) && (
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {shouldShowPlayButton && message.text && message.text.trim() && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                       className={`h-6 px-2 text-xs ${
+                         isUser
+                           ? "text-blue-200 hover:text-blue-100 hover:bg-white/10"
+                           : "text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+                       }`}
+                      onClick={isPlaying ? handleStopAudio : handlePlayAudio}
+                      disabled={!message.text || message.text.trim() === ""}
+                    >
+                      {isPlaying ? (
+                        <>
+                          <Pause size={12} className="mr-1" />
+                          Stop
+                        </>
+                      ) : getAudioQueueLength() > 0 ? (
+                        <>
+                          <Clock size={12} className="mr-1" />
+                          Queued
+                        </>
+                      ) : (
+                        <>
+                          <Play size={12} className="mr-1" />
+                          Play
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {isPlaying && (
+                    <div className="flex items-center gap-1">
+                      <Volume2 size={10} className={isUser ? "text-blue-200" : "text-gray-500"} />
+                     <div className="w-8 h-1 bg-current opacity-30 rounded">
+                       <div className="w-full h-full bg-current animate-pulse rounded"></div>
+                     </div>
                    </div>
-                 </div>
-               )}
-            </div>
-          )}
+                  )}
+                </div>
+
+                {/* Feedback tooltip for AI messages in impersonate mode - completely hidden until hover or long press */}
+                {isImpersonateMode && !isUser && onFeedbackSubmit && (
+                  <div className={`absolute -top-2 -right-2 transition-opacity duration-200 ${showFeedback ? 'opacity-100' : 'opacity-0'}`}>
+                    {!feedbackSubmitted ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 bg-white/90 backdrop-blur-sm border border-gray-200 shadow-md hover:bg-white hover:shadow-lg rounded-full"
+                            title="Rate this response"
+                          >
+                            <Star size={12} className="text-gray-500" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="top"
+                          className="bg-white border border-gray-200 shadow-xl rounded-lg p-3 max-w-xs"
+                          sideOffset={8}
+                        >
+                          <div className="flex flex-col gap-2">
+                            <div className="text-xs font-medium text-gray-700 text-center">
+                              How was this response?
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-full transition-colors"
+                                onClick={() => {
+                                  const messageId = message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime()}`;
+                                  onFeedbackSubmit(messageId, 'good');
+                                  setFeedbackSubmitted(true);
+                                }}
+                                title="Good response"
+                              >
+                                <ThumbsUp size={16} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-full transition-colors"
+                                onClick={() => {
+                                  const messageId = message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime()}`;
+                                  onFeedbackSubmit(messageId, 'needs_improvement');
+                                  setFeedbackSubmitted(true);
+                                }}
+                                title="Needs improvement"
+                              >
+                                <Minus size={16} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                                onClick={() => {
+                                  const messageId = message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime()}`;
+                                  onFeedbackSubmit(messageId, 'poor');
+                                  setFeedbackSubmitted(true);
+                                }}
+                                title="Poor response"
+                              >
+                                <ThumbsDown size={16} />
+                              </Button>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-2 py-1 shadow-md">
+                        <Star size={10} className="text-green-500 fill-green-500 inline" />
+                      </div>
+                    )}
+                  </div>
+                )}
+             </div>
+           )}
 
           <div
             className={`prose prose-xs sm:prose-sm max-w-none ${
@@ -373,7 +527,8 @@ export const MessageList = memo(function MessageList({
    onRetryMessage,
    voiceId,
    preferences,
-   isImpersonateMode = false
+   isImpersonateMode = false,
+   onFeedbackSubmit
  }: MessageListProps) {
    const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -575,16 +730,17 @@ export const MessageList = memo(function MessageList({
             stabilizedMessages[index - 1]?.sender === message.sender;
 
            return (
-             <MessageBubble
-               key={getMessageKey(message, index)}
-               message={message}
-               isUser={isUser}
-               isConsecutive={isConsecutive}
-               onRetry={onRetryMessage}
-               voiceId={voiceId}
-               preferences={preferences}
-               isImpersonateMode={isImpersonateMode}
-             />
+              <MessageBubble
+                key={getMessageKey(message, index)}
+                message={message}
+                isUser={isUser}
+                isConsecutive={isConsecutive}
+                onRetry={onRetryMessage}
+                voiceId={voiceId}
+                preferences={preferences}
+                isImpersonateMode={isImpersonateMode}
+                onFeedbackSubmit={onFeedbackSubmit}
+              />
            );
         })
       )}

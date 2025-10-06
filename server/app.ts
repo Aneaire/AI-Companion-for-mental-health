@@ -11,13 +11,14 @@ import impersonateObserver from "./routes/impersonateObserver";
 import patientRoute from "./routes/patient";
 import progressRoute from "./routes/progress";
 import quality from "./routes/quality";
+import enhanceBackground from "./routes/enhance-background";
 import threadsRoute from "./routes/threads";
 import user from "./routes/user";
 import adminRoute from "./routes/admin";
 import testRoute from "./routes/test";
 import personaTemplatesRoute from "./routes/persona-templates";
 import personaLibraryRoute from "./routes/persona-library";
-import audioRoute from "./routes/audio";
+
 
 const app = new Hono();
 
@@ -50,13 +51,14 @@ const routes = app
   .route("/api/main-observer", mainObserver) // New main chat observer
   .route("/api/impersonate-observer", impersonateObserver) // New impersonate observer
   .route("/api/quality", quality)
+  .route("/api/enhance-background", enhanceBackground)
   .route("/api/impostor", impostorRoute)
   .route("/api/persona-templates", personaTemplatesRoute)
   .route("/api/persona-library", personaLibraryRoute)
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
   .route("/api/test", testRoute)
-  .route("/api/audio", audioRoute);
+
 
 // Serve static files from frontend build
 app.use('/*', serveStatic({ 

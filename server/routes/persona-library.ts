@@ -195,19 +195,26 @@ personaLibraryRoute.post("/from-template", async (c) => {
 
     const templateData = template[0];
 
-    // Create persona from template
+    // Create persona from template with customizations
     const basePersonality = templateData.basePersonality || {};
-    const personalityString = basePersonality.traits ? basePersonality.traits.join(", ") : "";
+    const basePersonalityString = basePersonality.traits ? basePersonality.traits.join(", ") : "";
+
+    // Apply customizations or fallback to template defaults
+    const customFullName = customizations?.fullName || name || `${templateData.name} Copy`;
+    const customAge = customizations?.age || templateData.baseAgeRange || "30";
+    const customProblemDescription = customizations?.problemDescription || templateData.baseBackground || "Seeking therapy support";
+    const customBackground = customizations?.background || templateData.baseBackground;
+    const customPersonality = customizations?.personality || basePersonalityString;
 
     const [newPersona] = await db
       .insert(persona)
       .values({
         userId: 17, // Use a valid userId
-        fullName: name || `${templateData.name} Copy`,
-        age: templateData.baseAgeRange || "30",
-        problemDescription: templateData.baseBackground || "Seeking therapy support",
-        background: templateData.baseBackground,
-        personality: personalityString,
+        fullName: customFullName,
+        age: customAge,
+        problemDescription: customProblemDescription,
+        background: customBackground,
+        personality: customPersonality,
         category: templateData.category,
         complexityLevel: "basic",
         isTemplate: false,

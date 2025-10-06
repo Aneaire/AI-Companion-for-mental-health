@@ -1,6 +1,6 @@
 /**
  * Audio Cache Utility
- * Manages server-side storage and retrieval of TTS audio files
+ * Manages browser-based caching of TTS audio files
  */
 
 interface AudioCacheEntry {
@@ -16,7 +16,7 @@ class AudioCache {
   private cache = new Map<string, AudioCacheEntry>();
   private readonly CACHE_KEY = 'audio_cache';
   private readonly MAX_CACHE_SIZE = 100; // Maximum number of cached audio files
-  private readonly CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  private readonly CACHE_EXPIRY = 1 * 24 * 60 * 60 * 1000; // 1 day in milliseconds
 
   constructor() {
     this.loadFromLocalStorage();
@@ -118,60 +118,32 @@ class AudioCache {
   }
 
   /**
-   * Store audio in server-side cache
+   * Store audio in browser cache only
    */
   async storeAudio(text: string, voiceId: string, audioBlob: Blob, modelId: string = "eleven_flash_v2_5"): Promise<string> {
-    try {
-      // Convert blob to base64
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    // Create browser blob URL for immediate use
+    const blobUrl = URL.createObjectURL(audioBlob);
 
-      // Save to server
-      const response = await fetch('/api/audio/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: text.trim(),
-          voiceId,
-          modelId,
-          audioBlob: base64Audio,
-        }),
-      });
+    // Cache locally
+    const key = this.generateCacheKey(text, voiceId, modelId);
+    const entry: AudioCacheEntry = {
+      url: blobUrl,
+      timestamp: Date.now(),
+      text: text.trim(),
+      voiceId,
+      modelId,
+      filename: key, // Use cache key as filename for browser storage
+    };
 
-      if (!response.ok) {
-        throw new Error('Failed to save audio to server');
-      }
+    this.cache.set(key, entry);
 
-      const result = await response.json();
-      const serverUrl = result.url;
+    // Clean up old entries if cache is too large
+    this.cleanup();
 
-      // Cache locally
-      const key = this.generateCacheKey(text, voiceId, modelId);
-      const entry: AudioCacheEntry = {
-        url: serverUrl,
-        timestamp: Date.now(),
-        text: text.trim(),
-        voiceId,
-        modelId,
-        filename: result.filename,
-      };
+    // Save to localStorage
+    this.saveToLocalStorage();
 
-      this.cache.set(key, entry);
-
-      // Clean up old entries if cache is too large
-      this.cleanup();
-
-      // Save to localStorage
-      this.saveToLocalStorage();
-
-      return serverUrl;
-    } catch (error) {
-      console.error('Failed to store audio:', error);
-      // Fallback to browser storage if server save fails
-      return URL.createObjectURL(audioBlob);
-    }
+    return blobUrl;
   }
 
   /**
