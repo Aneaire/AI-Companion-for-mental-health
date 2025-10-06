@@ -11,12 +11,14 @@ import {
   Heart,
   Sparkles,
   Star,
+  Wand2,
   Target,
   User,
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 
 // shadcn components
@@ -52,6 +54,7 @@ const impersonateSchema = z.object({
     ),
   background: z.string().optional(),
   personality: z.string().optional(),
+  customizationInstructions: z.string().optional(),
 });
 
 export type ImpersonateFormData = z.infer<typeof impersonateSchema>;
@@ -124,6 +127,29 @@ export function ImpersonateForm({
     queryFn: () => personaTemplatesApi.list({ limit: 50 }),
   });
 
+  // Mutation for enhancing background information
+  const enhanceBackgroundMutation = useMutation({
+    mutationFn: async (data: { problemDescription: string; currentBackground?: string }) => {
+      const response = await fetch('/api/enhance-background', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to enhance background information');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Update the background field with the enhanced information
+      form.setValue('background', data.enhancedBackground);
+    },
+  });
+
   // Pre-populate form when template is selected
   useEffect(() => {
     if (selectedTemplateId && templates?.templates) {
@@ -152,6 +178,7 @@ export function ImpersonateForm({
         problemDescription: "",
         background: "",
         personality: "",
+        customizationInstructions: "",
       });
       setSelectedTraits([]);
     }
@@ -165,6 +192,7 @@ export function ImpersonateForm({
       problemDescription: "",
       background: "",
       personality: "",
+      customizationInstructions: "",
     },
     mode: "onChange",
   });
@@ -530,21 +558,74 @@ export function ImpersonateForm({
                     <FormLabel className="text-sm font-semibold text-gray-900 mb-2 block">
                       Background Information (Optional)
                     </FormLabel>
-                    <FormDescription className="text-gray-600 mb-3 text-xs leading-relaxed">
-                      Share any relevant life experiences, relationships, work
-                      situation, or circumstances that might help us understand
-                      your perspective better.
-                    </FormDescription>
+                     <FormDescription className="text-gray-600 mb-3 text-xs leading-relaxed">
+                       Share any relevant life experiences, relationships, work
+                       situation, or circumstances that might help us understand
+                       your perspective better. Use the AI enhancement feature below
+                       to automatically expand on your situation description with
+                       custom instructions.
+                     </FormDescription>
                     <FormControl>
                       <Textarea
                         placeholder="I work as a software engineer at a tech startup... I've been married for 5 years..."
                         rows={3}
-                        className="border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all duration-200 resize-none rounded-lg bg-gray-50 focus:bg-white p-3"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-600 mt-1" />
-                  </FormItem>
+                         className="border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all duration-200 resize-none rounded-lg bg-gray-50 focus:bg-white p-3"
+                         {...field}
+                       />
+                     </FormControl>
+                     <FormMessage className="text-red-600 mt-1" />
+
+                     {/* Customization Instructions Field */}
+                     <div className="mt-3 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+                       <FormLabel className="text-xs font-medium text-purple-800 mb-2 block">
+                         How would you like the AI to enhance this? (Optional)
+                       </FormLabel>
+                       <Textarea
+                         placeholder="e.g., Focus on work-life balance, emphasize family relationships, include specific coping strategies..."
+                         rows={2}
+                         className="text-xs border-purple-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition-all duration-200 resize-none rounded-md bg-white/80 focus:bg-white"
+                         value={watchedFields.customizationInstructions || ''}
+                         onChange={(e) => form.setValue('customizationInstructions', e.target.value)}
+                       />
+                       <p className="text-xs text-purple-600 mt-1">
+                         Provide specific instructions for how you'd like the AI to expand on your situation.
+                       </p>
+                     </div>
+
+                     <div className="flex justify-end mt-3">
+                       <Button
+                         type="button"
+                         variant="outline"
+                         size="sm"
+                         onClick={() => {
+                           const problemDescription = form.getValues('problemDescription');
+                           const currentBackground = form.getValues('background') || '';
+                           const customizationInstructions = form.getValues('customizationInstructions') || '';
+                           if (problemDescription.trim()) {
+                             enhanceBackgroundMutation.mutate({
+                               problemDescription,
+                               currentBackground: currentBackground.trim() || undefined,
+                               customizationInstructions: customizationInstructions.trim() || undefined,
+                             });
+                           }
+                         }}
+                         disabled={!form.getValues('problemDescription')?.trim() || enhanceBackgroundMutation.isPending}
+                         className="flex items-center gap-2 text-xs bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border-purple-200 hover:border-purple-300 text-purple-700 hover:text-purple-800 transition-all duration-200"
+                       >
+                         {enhanceBackgroundMutation.isPending ? (
+                           <>
+                             <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                             Enhancing...
+                           </>
+                         ) : (
+                           <>
+                             <Wand2 className="h-3 w-3" />
+                             Enhance with AI
+                           </>
+                         )}
+                       </Button>
+                     </div>
+                   </FormItem>
                 )}
               />
 
@@ -629,7 +710,7 @@ export function ImpersonateForm({
             <div className="space-y-6">
               <Card className="border-2 border-gray-200 shadow-lg">
                 <CardContent className="p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-6">
                     <div className="space-y-4">
                       <div>
                         <h4 className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
@@ -679,7 +760,7 @@ export function ImpersonateForm({
                         Additional Context
                       </h4>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="space-y-4">
                         {watchedFields.background && (
                           <div>
                             <h5 className="font-semibold text-gray-800 mb-2 text-sm">
