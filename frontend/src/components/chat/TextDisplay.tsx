@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import type { Message } from "@/types/chat";
 import { useEffect, useState } from "react";
 
@@ -64,7 +63,11 @@ export function TextDisplay({
     }
   };
 
-  const renderHighlightedText = (text: string, messageIndex: number, globalMessageIndex: number) => {
+  const renderHighlightedText = (
+    text: string,
+    messageIndex: number,
+    globalMessageIndex: number
+  ) => {
     if (!text) return null;
 
     const words = text.split(/\s+/);
@@ -80,7 +83,8 @@ export function TextDisplay({
           key={`${messageIndex}-${wordIdx}`}
           className={`${getHighlightClasses(isHighlighted)} transition-all duration-200`}
         >
-          {word}{wordIdx < words.length - 1 ? " " : ""}
+          {word}
+          {wordIdx < words.length - 1 ? " " : ""}
         </span>
       );
     });
@@ -102,21 +106,20 @@ export function TextDisplay({
     );
   };
 
-  const getProgressPercentage = () => {
-    if (messages.length === 0) return 0;
-    return ((currentMessageIndex + 1) / messages.length) * 100;
-  };
-
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white rounded-lg p-6 shadow-inner">
       {/* Album Art Placeholder */}
-      <div className="flex-shrink-0 mb-6">
-        <div className="w-full max-w-sm mx-auto aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg shadow-lg flex items-center justify-center">
+      <div className="flex-shrink-0 mb-3 md:mb-4 mt-10 md:mt-5">
+        <div className="w-full max-w-xs md:max-w-sm mx-auto h-20 md:h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg shadow-lg flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-              <span className="text-2xl text-white">🎵</span>
+            <div className="w-8 h-8 md:w-10 md:h-10 mx-auto mr-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-sm md:text-lg text-white">🎵</span>
             </div>
-            <p className="text-gray-600 text-sm">Therapeutic Conversation</p>
+          </div>
+          <div className="text-left">
+            <p className="text-gray-600 text-sm md:text-md font-medium">
+              Therapeutic Conversation
+            </p>
           </div>
         </div>
       </div>
@@ -126,23 +129,9 @@ export function TextDisplay({
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Therapeutic Dialogue
         </h2>
-        <p className="text-lg text-gray-600 mb-1">Therapist & Patient</p>
         <Badge variant="outline" className="mt-2">
           Healing Conversation
         </Badge>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-600">
-            Message {currentMessageIndex + 1} of {messages.length}
-          </span>
-          <span className="text-sm text-gray-600">
-            {Math.round(getProgressPercentage())}% Complete
-          </span>
-        </div>
-        <Progress value={getProgressPercentage()} className="h-2" />
       </div>
 
       {/* Lyrics Display Area */}
@@ -160,10 +149,10 @@ export function TextDisplay({
                 isCurrentMessage
                   ? "transform scale-105 opacity-100"
                   : isPastMessage
-                  ? "opacity-70"
-                  : isUpcomingMessage
-                  ? "opacity-50"
-                  : "opacity-40"
+                    ? "opacity-70"
+                    : isUpcomingMessage
+                      ? "opacity-50"
+                      : "opacity-40"
               }`}
             >
               {/* Speaker Badge */}

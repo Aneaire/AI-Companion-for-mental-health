@@ -69,11 +69,11 @@ export function useBackgroundMusic(pageContext: "main" | "impersonate" | "podcas
     }
   }, [volume]);
 
-  // Play audio when user interaction is detected OR try immediately for podcast page
+  // Play audio when user interaction is detected OR try immediately (except for podcast page which requires manual play)
   useEffect(() => {
-    if (audioRef.current && shouldAutoPlay && selectedTrack !== "none") {
-      const shouldAttemptPlay = hasUserInteracted || pageContext === "podcast";
-      
+    if (audioRef.current && shouldAutoPlay && selectedTrack !== "none" && pageContext !== "podcast") {
+      const shouldAttemptPlay = hasUserInteracted;
+
       if (shouldAttemptPlay) {
         audioRef.current.play().catch((error) => {
           // If it fails due to no user interaction, we'll try again when user interacts
@@ -92,6 +92,25 @@ export function useBackgroundMusic(pageContext: "main" | "impersonate" | "podcas
     };
   }, [pageContext]);
 
+  // Function to manually start music
+  const startMusic = () => {
+    if (!audioRef.current && selectedTrack !== "none") {
+      const audio = new Audio();
+      audio.src = `/music/${selectedTrack}.mp3`;
+      audio.volume = volume;
+      audio.loop = true;
+      audioRef.current = audio;
+
+      audio.play().catch((error) => {
+        console.error('Failed to start music:', error);
+      });
+    } else if (audioRef.current && audioRef.current.paused) {
+      audioRef.current.play().catch((error) => {
+        console.error('Failed to resume music:', error);
+      });
+    }
+  };
+
   // Function to manually stop music
   const stopMusic = () => {
     if (audioRef.current) {
@@ -108,6 +127,7 @@ export function useBackgroundMusic(pageContext: "main" | "impersonate" | "podcas
   };
 
   return {
+    startMusic,
     stopMusic,
     updateVolume,
     isPlaying: audioRef.current !== null && !audioRef.current.paused,
