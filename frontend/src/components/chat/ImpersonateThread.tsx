@@ -2847,7 +2847,7 @@ export function ImpersonateThread({
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
       {/* Header */}
-      <header className="relative overflow-hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/60">
+      <header className="hidden md:block relative overflow-hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/60">
         <div className="relative z-10 flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="relative">

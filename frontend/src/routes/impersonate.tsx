@@ -182,6 +182,7 @@ function Impersonate() {
           onMenuClick={() => setIsSidebarOpen(true)}
           preferences={conversationPreferences}
           onPreferencesChange={setConversationPreferences}
+          isImpersonatePage={true}
         />
       </div>
       <Sidebar
