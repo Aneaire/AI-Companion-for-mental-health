@@ -18,38 +18,7 @@ const textToSpeech = async (text: string, voiceId?: string, autoPlay: boolean = 
     return cachedAudioUrl;
   }
 
-  // Check if audio exists on server
-  try {
-    // Generate text hash using simple hash function (safe for any characters)
-    const input = text.trim().toLowerCase();
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    const textHash = Math.abs(hash).toString(36).substring(0, 16);
-    const existsResponse = await fetch(`/api/audio/exists/${textHash}/${selectedVoiceId}/${modelId}`);
-    if (existsResponse.ok) {
-      const existsData = await existsResponse.json();
-      if (existsData.exists && existsData.filename) {
-        const serverUrl = `/api/audio/${existsData.filename}`;
-        console.log("Found existing audio on server for:", text.substring(0, 50) + "...");
-
-        // Cache the server URL locally
-        audioCache.cacheServerUrl(text, selectedVoiceId, serverUrl, existsData.filename, modelId);
-
-        if (autoPlay) {
-          // Add to audio queue for sequential playback
-          playAudioSequentially(serverUrl, undefined, undefined, undefined, speed);
-        }
-
-        return serverUrl;
-      }
-    }
-  } catch (error) {
-    console.warn("Failed to check server for existing audio:", error);
-  }
+  // Audio will be cached in browser only - no server check needed
 
   // Generate new audio if not cached
   console.log("Generating new audio for:", text.substring(0, 50) + "...");
