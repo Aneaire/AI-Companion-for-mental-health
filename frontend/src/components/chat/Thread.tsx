@@ -8,6 +8,7 @@ import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
 import { StreamingMessageProcessor, MessageFormattingUtils } from "@/lib/messageFormatter";
+import textToSpeech from "@/services/elevenlabs/textToSpeech";
 import { useChatStore, type ConversationPreferences } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
 import type { Message } from "@/types/chat";
@@ -852,10 +853,26 @@ export function Thread({
           };
           addMessage(errorMessage);
         },
-        (finalText: string) => {
-          // Final text is already processed by the formatter
-          updateLastMessage(finalText);
-        }
+        async (finalText: string) => {
+           // Final text is already processed by the formatter
+           updateLastMessage(finalText);
+
+           // Generate TTS for AI messages if enabled
+           if (finalText.trim() && conversationPreferences.mainEnableTTS && conversationPreferences.mainTTSAutoPlay) {
+             try {
+               await textToSpeech(
+                 finalText.trim(),
+                 conversationPreferences.mainTTSVoiceId,
+                 true, // autoPlay
+                 conversationPreferences.mainTTSModel,
+                 conversationPreferences.mainTTSSpeed ?? 1.0
+               );
+             } catch (error) {
+               console.error("TTS generation failed:", error);
+               // Don't show error toast as it might interrupt the conversation
+             }
+           }
+         }
       );
 
       await processor.processStream(response);
