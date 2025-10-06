@@ -28,7 +28,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { Brain, Loader2, MessageSquare, Radio, Settings } from "lucide-react";
 import { memo, Suspense, useEffect, useRef, useState, type JSX } from "react";
 import { toast } from "sonner";
-import { ConversationDevTools } from "./ConversationDevTools";
+
 import { ImpersonateInput } from "./ImpersonateInput";
 import { PodcastPlayer } from "./PodcastPlayer";
 import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
@@ -3001,11 +3001,7 @@ export function ImpersonateThread({
         context="impersonate"
       />
 
-      {/* Conversation Dev Tools */}
-      <ConversationDevTools
-        threadId={selectedThreadId}
-        personaName={threadData?.sessionName || personaData?.name}
-      />
+
     </div>
   );
 }
