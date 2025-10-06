@@ -27,7 +27,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["@formkit/auto-animate/react"],
+    include: ["@formkit/auto-animate/react", "axios"],
   },
   build: {
     rollupOptions: {
