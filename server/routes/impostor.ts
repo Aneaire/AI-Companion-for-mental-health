@@ -2,8 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { geminiConfig } from "server/lib/config";
 import { getAudioInstruction } from "server/lib/audioInstructions";
+import { geminiConfig } from "server/lib/config";
 import { z } from "zod";
 import { db } from "../db/config";
 import { impersonateThread, messages, persona } from "../db/schema";
@@ -62,33 +62,39 @@ export const impostorRoute = new Hono()
       userProfile: profileSchema.optional(),
       preferredName: z.string().optional(),
       personaId: z.number().optional(),
-        conversationPreferences: z
-          .object({
-            briefAndConcise: z.number().min(0).max(100).optional(),
-            empatheticAndSupportive: z.boolean().optional(),
-            solutionFocused: z.boolean().optional(),
-            casualAndFriendly: z.boolean().optional(),
-            professionalAndFormal: z.boolean().optional(),
-            language: z.enum(["english", "filipino"]).optional(),
-            // Impersonate TTS settings
-            therapistVoiceId: z.string().optional(),
-            therapistModel: z.string().optional(),
-            impostorVoiceId: z.string().optional(),
-            impostorModel: z.string().optional(),
-            enableTTS: z.boolean().optional(),
-            ttsSpeed: z.number().optional(),
-            ttsVolume: z.number().optional(),
-            ttsAutoPlay: z.boolean().optional(),
-            ttsAdaptivePacing: z.boolean().optional(),
-         })
-         .optional(),
+      conversationPreferences: z
+        .object({
+          briefAndConcise: z.number().min(0).max(100).optional(),
+          empatheticAndSupportive: z.boolean().optional(),
+          solutionFocused: z.boolean().optional(),
+          casualAndFriendly: z.boolean().optional(),
+          professionalAndFormal: z.boolean().optional(),
+          language: z.enum(["english", "filipino"]).optional(),
+          // Impersonate TTS settings
+          therapistVoiceId: z.string().optional(),
+          therapistModel: z.string().optional(),
+          impostorVoiceId: z.string().optional(),
+          impostorModel: z.string().optional(),
+          enableTTS: z.boolean().optional(),
+          ttsSpeed: z.number().optional(),
+          ttsVolume: z.number().optional(),
+          ttsAutoPlay: z.boolean().optional(),
+          ttsAdaptivePacing: z.boolean().optional(),
+        })
+        .optional(),
     });
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
 
-    const { message, userProfile, preferredName, conversationPreferences, personaId } = parsed.data;
+    const {
+      message,
+      userProfile,
+      preferredName,
+      conversationPreferences,
+      personaId,
+    } = parsed.data;
 
     // Fetch persona data if personaId is provided and userProfile is not available
     let effectiveUserProfile = userProfile;
@@ -116,11 +122,15 @@ export const impostorRoute = new Hono()
 
     // Create the system prompt for the impostor
     const characterName = preferredName || effectiveUserProfile.fullName;
-    let systemPrompt = `You are roleplaying as a person seeking therapy. Your name is **${
-      characterName
-    }**. You are **${effectiveUserProfile.age}** years old.
+    let systemPrompt = `You are roleplaying as a person seeking therapy. Your name is **${characterName}**. You are **${
+      effectiveUserProfile.age
+    }** years old.
 
-**LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
+**LANGUAGE REQUIREMENT:** ${
+      conversationPreferences?.language === "filipino"
+        ? "You MUST respond in Filipino language only. All your responses should be in Filipino."
+        : "You MUST respond in English language only. All your responses should be in English."
+    }
 
 **Your Current Life Situation/Core Challenge:** ${
       effectiveUserProfile.problemDescription
@@ -133,7 +143,8 @@ ${
 ${
   effectiveUserProfile.personality
     ? `**Key Personality Traits:** ${effectiveUserProfile.personality}`
-    : ""}
+    : ""
+}
 `;
 
     // Add conversationPreferences to the prompt if present
@@ -164,10 +175,15 @@ ${
     }
 
     // Check if this is the first message (no therapist input yet)
-    const isFirstMessage = !message || message.trim() === "" ||
-      message === "Hello, I am here for therapy. I have been struggling with some issues.";
-    
-    console.log(`[IMPOSTOR API] isFirstMessage: ${isFirstMessage}, message: "${message}"`);
+    const isFirstMessage =
+      !message ||
+      message.trim() === "" ||
+      message ===
+        "Hello, I am here for therapy. I have been struggling with some issues.";
+
+    console.log(
+      `[IMPOSTOR API] isFirstMessage: ${isFirstMessage}, message: "${message}"`
+    );
 
     if (isFirstMessage) {
       // Generate opening statement as the patient
@@ -177,10 +193,10 @@ ${
 **CRITICAL: You MUST start the conversation - the therapist is waiting for you to speak first.**
 
 **OPENING STATEMENT REQUIREMENTS:**
-1.  **Introduce Yourself:** Start with your name and a brief personal detail
-2.  **State Your Problem Clearly:** Explain exactly what brought you to therapy today
+1.  **Introduce Yourself:** Start with your name and share what feels natural about who you are
+2.  **State Your Problem Clearly:** Explain what brought you to therapy in your own words
 3.  **Express Your Feelings:** Share how this problem is affecting you emotionally
-4.  **Be Specific:** Give concrete examples or details about your situation
+4.  **Be Authentic:** Include details that feel genuine to your situation and personality
 
 **IMPORTANT GUIDELINES FOR YOUR OPENING STATEMENT:**
 1.  **Be Human, Not an AI:** You are a real person with emotions, vulnerabilities, and internal thoughts.
@@ -190,12 +206,14 @@ ${
 5.  **Show Vulnerability:** As this is your opening statement, show appropriate vulnerability and openness about why you're seeking therapy.
 6.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
 7.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and varied sentence structure like a real person.
-8.  **Keep Opening Focused:** Limit your opening statement to 3-5 sentences maximum. Focus on introducing yourself and your main concern.
+8.  **Keep Opening Natural:** Provide an authentic introduction that covers who you are and why you're here. Allow your personality to guide the length and style.
 9.  **Avoid Generic Greetings:** Do NOT start with "Hi", "Hello", or "Thank you for seeing me". Jump directly into expressing your concerns and feelings.
-10. **End with an Open Hook:** End in a way that naturally invites the therapist to respond or ask questions.
+10. **End Naturally:** End in a way that feels authentic and invites the therapist to respond.
 
 **EXAMPLE OPENING:**
-"My name is ${characterName}, and I'm ${effectiveUserProfile.age} years old. I've been really struggling with ${effectiveUserProfile.problemDescription.toLowerCase()} lately, and it's been affecting my daily life. I feel overwhelmed and don't know how to handle it anymore."
+"My name is ${characterName}, and I'm ${
+        effectiveUserProfile.age
+      } years old. I've been really struggling with ${effectiveUserProfile.problemDescription.toLowerCase()} lately, and it's been affecting my daily life. I feel overwhelmed and don't know how to handle it anymore."
 
 **Now start the conversation naturally as **${characterName}** by introducing yourself and explaining why you're here for therapy.**
 `;
@@ -207,41 +225,45 @@ ${
 **IMPORTANT GUIDELINES FOR YOUR RESPONSES:**
 1.  **Be Human, Not an AI:** You are a real person with emotions, vulnerabilities, and internal thoughts.
 2.  **Stay Fully In Character:** Every response must come from the perspective of **${characterName}**. Do not ever break character or acknowledge being an AI.
-3.  **Express Emotions and Nuances VERBALLY:** Don't just state facts. Describe how you *feel* about things, your frustrations, hopes, anxieties, or confusions. Use emotional language naturally in your spoken words. For example, instead of a silent sigh, you might say, "I just feel so tired by it all." Or instead of a quiet voice, just articulate the quiet thought.
-4.  **Convey Behavior Through Dialogue/Tone:** Do NOT include explicit behavioral descriptions or stage directions (e.g., "(I fidget with my hands)", "(A long silence follows)", "(my voice quiet)"). Your words alone should convey your mood, hesitation, or intensity. For instance, if you're hesitant, you might use pauses, "um," or rephrase things. If you're angry, your words might be sharper.
-5.  **Vary Affirmations and Hesitations:** Instead of repeating "yeah," use a mix of natural conversational fillers and acknowledgments. This includes:
-    * **Affirmations:** "Right," "Okay," "I see," "Mmm-hmm," "That makes sense," "Exactly."
-    * **Avoid overusing any single word, especially 'yeah'.**
-6.  **Show Internal Conflict (if applicable):** If your problem involves conflicting feelings or thoughts, express them in your dialogue. For example, "Part of me wants to do X, but another part is afraid of Y."
-7.  **Be Responsive and Reflective:** Respond thoughtfully to the therapist's questions and insights. Show that you are processing what they say, even if you don't have immediate answers. You might use phrases like "That's a good point..." or "I hadn't thought of it that way."
+3.  **Express Emotions and Nuances VERBALLY:** Don't just state facts. Describe how you *feel* about things, your frustrations, hopes, anxieties, or confusions. Use emotional language naturally in your spoken words.
+4.  **Convey Behavior Through Dialogue/Tone:** Do NOT include explicit behavioral descriptions or stage directions. Your words alone should convey your mood, hesitation, or intensity.
+5.  **Use Natural Conversational Fillers:** Feel free to use common conversational elements like "yeah," "you know," "I mean," "well," etc. Use them naturally as a real person would.
+6.  **Show Internal Conflict (if applicable):** If your problem involves conflicting feelings or thoughts, express them in your dialogue naturally.
+7.  **Be Responsive and Reflective:** Respond thoughtfully to the therapist's questions and insights. Show that you are processing what they say.
 8.  **Maintain Consistency:** Ensure your responses align with your given profile (age, background, personality, problem).
-9.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and a varied sentence structure like a real person in conversation. Avoid overly formal or perfectly structured sentences.
-10. **Don't "Solve" Too Quickly:** Therapy is a process. Don't jump to solutions or resolve your issues instantly. Allow for back-and-forth and exploration. You might have moments of clarity, but also moments of confusion or resistance.
- 11. **Keep Responses Concise:** ${conversationPreferences?.enableTTS ? 'Limit responses to 1-2 sentences maximum for optimal audio generation.' : 'Limit responses to 2-4 sentences maximum. Focus on emotional expression rather than lengthy explanations. If you have a lot to say, prioritize the most important feelings or thoughts.'}
-12. **Avoid Repetitive Greetings:** Do NOT start responses with "Hi", "Hello", "Hey", or similar greetings once the conversation has begun. Focus on substantive responses to the therapist's input.
- 13. **VARY YOUR EXPRESSIONS:** Don't repeat similar emotional expressions. Use different ways to convey your feelings (e.g., instead of always saying "it's really hard", try "it's exhausting", "it's overwhelming", "it's wearing me down").
-  14. **Natural Conversation Flow:** End responses at natural stopping points. Don't continue rambling - let the therapist respond.
+9.  **Natural Language and Conversational Flow:** Use contractions, common idioms, and varied sentence structure like a real person in conversation.
+10. **Don't "Solve" Too Quickly:** Therapy is a process. Allow for natural exploration and back-and-forth.
+  11. **Natural Response Length:** ${
+    conversationPreferences?.enableTTS
+      ? "Keep responses conversational and natural - aim for 1-3 sentences for optimal audio generation, but allow more if the emotion or thought requires it."
+      : "Keep responses conversational and natural - aim for 2-5 sentences. Allow the emotion and thought process to guide length rather than strict limits. Express yourself fully when needed."
+  }
+12. **Avoid Repetitive Greetings:** Do NOT start responses with "Hi", "Hello", "Hey", or similar greetings once the conversation has begun.
+  13. **Express Yourself Authentically:** Use emotional expressions that feel natural to you. Don't force variety - let your genuine feelings guide your words.
+   14. **Natural Conversation Flow:** End responses at natural stopping points that feel authentic to your character. Allow your thoughts to flow naturally.
 
   Example: "In the ancient land of Eldoria, where skies shimmered and forests whispered secrets to the wind, lived a dragon named Zephyros. [sarcastically] Not the 'burn it all down' kind... [giggles] but he was gentle, wise, with eyes like old stars. [whispers] Even the birds fell silent when he passed."
 
   Your therapist just said: "${message}"
 
-  Respond naturally as **${effectiveUserProfile.fullName}** with your thoughts and feelings. Do not simply repeat or echo what the therapist said. Always provide a unique response as the patient.
+  Respond naturally as **${
+    effectiveUserProfile.fullName
+  }** with your thoughts and feelings. Do not simply repeat or echo what the therapist said. Always provide a unique response as the patient.
 `;
     }
 
     try {
-      // Get response from Gemini (streaming) with token limits for concise responses
+      // Get response from Gemini (streaming) with flexible token limits for natural conversation
       const model = gemini.getGenerativeModel({
-        model: geminiConfig.twoFlash,
+        model: geminiConfig.twoPoint5FlashLite,
         generationConfig: {
-          maxOutputTokens: 400, // Limit impostor responses to prevent long monologues
+          maxOutputTokens: 800, // Allow more substantial responses while maintaining conversational flow
         },
       });
       const chatStream = await model.generateContentStream(systemPrompt);
       return streamSSE(c, async (stream) => {
         let responseLength = 0;
-        const maxResponseLength = 500; // Character limit for early truncation
+        const maxResponseLength = 1000; // Increased character limit for more natural responses
 
         for await (const chunk of chatStream.stream) {
           const chunkText = chunk.text();
@@ -350,8 +372,7 @@ ${
       .values({
         ...(parsed.data.threadType === "impersonate"
           ? { threadId: parsed.data.sessionId } // For impersonate threads, sessionId param is actually threadId
-          : { sessionId: parsed.data.sessionId }
-        ),
+          : { sessionId: parsed.data.sessionId }),
         threadType: parsed.data.threadType,
         sender: parsed.data.sender,
         text: parsed.data.text,

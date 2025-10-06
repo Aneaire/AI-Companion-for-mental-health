@@ -1,8 +1,8 @@
 export const geminiConfig = {
   // Flash Models (optimized for speed and efficiency)
-  twoFlash: "gemini-2.0-flash",
-  twoPoint5Flash: "gemini-2.5-flash",
-  twoPoint5FlashLite: "gemini-2.5-flash-lite-preview-06-17", // Even lighter/faster, if available
+  twoFlash: "gemini-2.5-flash-lite",
+  twoPoint5Flash: "gemini-2.5-flash-lite",
+  twoPoint5FlashLite: "gemini-2.5-flash-lite", // Even lighter/faster, if available
 
   // Pro Models (optimized for complex reasoning and larger tasks)
   // These names are speculative for "2.0" and "2.5" as

@@ -609,7 +609,7 @@ const chat = new Hono()
             .map((msg) => `${msg.role.toUpperCase()}: ${msg.parts[0].text}`)
             .join("\n\n");
         const summaryModel = gemini.getGenerativeModel({
-          model: "gemini-1.5-flash",
+          model: geminiConfig.twoPoint5FlashLite,
         });
         const summaryResult = await summaryModel.generateContent(summaryPrompt);
         const summaryText =
@@ -951,7 +951,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
     }
 
     const model = gemini.getGenerativeModel({
-      model: geminiConfig.twoFlash,
+      model: geminiConfig.twoPoint5FlashLite,
       systemInstruction: {
         role: "model",
         parts: [{ text: systemInstructionText }],
