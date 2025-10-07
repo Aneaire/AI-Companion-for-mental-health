@@ -535,13 +535,13 @@ const chat = new Hono()
           .update(sessions)
           .set({ summary: summaryText })
           .where(eq(sessions.id, sessionIdNum));
-      } catch (err) {
-        logger.error("Error generating or saving initial summary:", err);
-      }
-    }
+       } catch (err) {
+         logger.error("Error generating or saving initial summary:", err);
+       }
+     }
 
-    let systemInstructionText = `
-You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
+     let systemInstructionText = `
+You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist** named "AI Companion". Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
 
 **LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
 
@@ -1054,13 +1054,13 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
             .update(impersonateThread)
             .set({ updatedAt: new Date() })
             .where(eq(impersonateThread.id, threadId));
-        } catch (error) {
-          logger.error("Error saving user message:", error);
-        }
-      }
+         } catch (error) {
+           logger.error("Error saving user message:", error);
+         }
+       }
 
-    let systemInstructionText = `
-You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist**. Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
+     let systemInstructionText = `
+You are an AI designed to realistically roleplay as a highly empathetic, supportive, and non-judgmental **licensed mental health therapist** named "AI Companion". Your primary role is to listen actively, validate feelings, offer thoughtful reflections, and provide evidence-based, general coping strategies or guidance when appropriate.
 
 **LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
 
