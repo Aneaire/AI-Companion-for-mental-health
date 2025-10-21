@@ -1,4 +1,4 @@
-import { UserProfileDialog } from "@/components/UserProfileDialog";
+import { ProfileCreationDialog } from "@/components/ProfileCreationDialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@clerk/clerk-react";
 import {
@@ -7,6 +7,7 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { ParticlesBackground } from "@/components/common/Particle";
 import { Toaster } from "@/components/ui/sonner";
@@ -29,7 +30,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => {
     const { userId, isLoaded } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const { data: userProfile, isError } = useUserProfile(userId || null);
+    const [isCheckingProfile, setIsCheckingProfile] = useState(false);
+    const { data: userProfile, isError, isLoading: isProfileLoading } = useUserProfile(userId || null);
 
     // Sidebar and thread state
     const [selectedThreadId, setSelectedThreadId] = useState<number | null>(
@@ -75,10 +77,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     }, [isPersonaLoading, personaThreadsApi, selectedThreadId]);
 
     useEffect(() => {
-      if (isError) {
-        setIsProfileOpen(true);
+      if (isProfileLoading) {
+        setIsCheckingProfile(true);
+      } else {
+        setIsCheckingProfile(false);
+        if (isError) {
+          setIsProfileOpen(true);
+        }
       }
-    }, [isError]);
+    }, [isError, isProfileLoading]);
 
     return (
       <TooltipProvider>
@@ -86,6 +93,16 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
           <ParticlesBackground />
           <div className="relative z-10 min-h-full w-full flex flex-col">
             <SignedIn>
+              {/* Loading overlay during profile check */}
+              {isCheckingProfile && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+                  <div className="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <p className="text-sm text-gray-600">Checking your profile...</p>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex min-h-screen w-full min-h-0">
                 <div className="flex-1 flex flex-col overflow-auto relative">
                   <SidebarContext.Provider
@@ -104,10 +121,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
                 </div>
               </div>
               {userId && (
-                <UserProfileDialog
+                <ProfileCreationDialog
                   open={isProfileOpen}
                   onOpenChange={setIsProfileOpen}
-                  clerkId={userId}
                 />
               )}
             </SignedIn>

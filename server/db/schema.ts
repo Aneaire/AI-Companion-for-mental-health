@@ -10,17 +10,18 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-// Example table - you can modify this according to your needs
+// User table - will be simplified in future migration
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   clerkId: varchar("clerk_id").notNull().unique(),
   email: varchar("email").notNull(),
-  nickname: varchar("nickname").notNull(),
-  firstName: varchar("first_name").notNull(),
-  lastName: varchar("last_name").notNull(),
-  age: integer("age").notNull(),
-  status: varchar("status").default("active"),
-  hobby: text("hobby").default(""),
+  nickname: varchar("nickname"),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  age: integer("age"),
+  status: varchar("status"),
+  hobby: text("hobby"),
+  profileImageUrl: varchar("profile_image_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

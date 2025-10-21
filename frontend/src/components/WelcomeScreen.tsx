@@ -13,13 +13,15 @@ import {
   ArrowRightIcon,
   LockIcon as LockClosedIcon,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { UserProfileDialog } from "./UserProfileDialog";
+import { ProfileCreationDialog } from "./ProfileCreationDialog";
 
 export const WelcomeScreen = () => {
   const [activeTab, setActiveTab] = useState("signin");
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const { openSignIn, openSignUp } = useClerk();
   const { user, isLoaded } = useUser();
 
@@ -27,6 +29,7 @@ export const WelcomeScreen = () => {
     if (isLoaded && user) {
       // Check if user has a profile
       const checkUserProfile = async () => {
+        setIsCheckingProfile(true);
         try {
           const response = await fetch(`/api/user/profile/${user.id}`);
           if (response.status === 404) {
@@ -35,6 +38,8 @@ export const WelcomeScreen = () => {
           }
         } catch (error) {
           console.error("Error checking user profile:", error);
+        } finally {
+          setIsCheckingProfile(false);
         }
       };
 
@@ -52,7 +57,17 @@ export const WelcomeScreen = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-screen relative">
+      {/* Loading overlay during profile check */}
+      {isCheckingProfile && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <p className="text-sm text-gray-600">Checking your profile...</p>
+          </div>
+        </div>
+      )}
+      
       <div className="w-full max-w-md px-4">
         <Card className="w-full shadow-xl border-0">
           <CardHeader className="space-y-1 text-center">
@@ -153,10 +168,9 @@ export const WelcomeScreen = () => {
       </div>
 
       {user && (
-        <UserProfileDialog
+        <ProfileCreationDialog
           open={showProfileDialog}
           onOpenChange={setShowProfileDialog}
-          clerkId={user.id}
         />
       )}
     </div>
