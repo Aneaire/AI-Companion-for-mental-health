@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
-import chat from "./routes/chat";
 import impersonateChat from "./routes/impersonate-chat";
 import generateFormRoute from "./routes/generate-form";
 import impostorRoute from "./routes/impostor";
 import observer from "./routes/observer";
 import mainObserver from "./routes/mainObserver";
 import impersonateObserver from "./routes/impersonateObserver";
+import personaObserver from "./routes/persona-observer";
+import personaCards from "./routes/persona-cards";
 import patientRoute from "./routes/patient";
 import progressRoute from "./routes/progress";
 import quality from "./routes/quality";
@@ -41,7 +42,6 @@ app.use("*", cors({
 
 // API Routes
 const routes = app
-  .route("/api/chat", chat)
   .route("/api/impersonate-chat", impersonateChat)
   .route("/api/user", user)
   .route("/api/threads", threadsRoute)
@@ -50,6 +50,8 @@ const routes = app
   .route("/api/observer", observer) // Keep original for backward compatibility
   .route("/api/main-observer", mainObserver) // New main chat observer
   .route("/api/impersonate-observer", impersonateObserver) // New impersonate observer
+  .route("/api/persona-observer", personaObserver) // New persona selection observer
+  .route("/api/persona-cards", personaCards) // New persona-based chat API
   .route("/api/quality", quality)
   .route("/api/enhance-background", enhanceBackground)
   .route("/api/impostor", impostorRoute)

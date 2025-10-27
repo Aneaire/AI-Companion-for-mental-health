@@ -366,7 +366,7 @@ export const useChatStore = create<ChatState>()(
       setCrisisDetected: (detected: boolean) => set({ crisisDetected: detected }),
       checkCrisisStatus: async (sessionId: number) => {
         try {
-          const response = await fetch(`/api/chat/crisis/${sessionId}`);
+          const response = await fetch(`/api/persona-cards/crisis/${sessionId}`);
           if (response.ok) {
             const data = await response.json();
             set({ crisisDetected: data.crisisDetected });

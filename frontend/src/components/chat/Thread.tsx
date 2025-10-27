@@ -3,7 +3,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import { FormRequiredState } from "@/components/chat/FormRequiredState";
 import { SessionManagementDialog } from "@/components/chat/SessionManagementDialog";
-import client, { mainObserverApi, threadsApi } from "@/lib/client";
+import client, { mainObserverApi, threadsApi, personaCardsApi } from "@/lib/client";
 import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
 import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
@@ -332,12 +332,8 @@ export function Thread({
             setDialogSessionId(sessionCheck.latestSession.id);
             
             // Load messages from the just-completed session for form generation but don't show dialog yet
-            const response = await client.api.chat[":sessionId"].$get({
-              param: { sessionId: String(sessionCheck.latestSession.id) },
-            });
-            
-            if (response.ok) {
-              const rawMessages = await response.json();
+            try {
+              const rawMessages = await personaCardsApi.getMessages(sessionCheck.latestSession.id);
               const fetchedMessages = rawMessages.map((msg: any) => ({
                 role: msg.sender === "ai" ? "model" : "user",
                 text: msg.text,
@@ -365,6 +361,8 @@ export function Thread({
               }
               
               sortedMessages.forEach((msg) => addMessage(msg));
+            } catch (error) {
+              console.error("Error loading messages for form generation:", error);
             }
             
             // Don't auto-open the dialog, just mark that form is required
@@ -444,12 +442,7 @@ export function Thread({
               setSessionId(sessionCheck.latestSession.id);
 
               // Fetch messages for this session
-              const response = await client.api.chat[":sessionId"].$get({
-                param: { sessionId: String(sessionCheck.latestSession.id) },
-              });
-              if (!response.ok)
-                throw new Error("Failed to fetch previous messages");
-              const rawMessages = await response.json();
+              const rawMessages = await personaCardsApi.getMessages(sessionCheck.latestSession.id);
 
               clearMessages();
               setProgressRecommendation("");
@@ -529,12 +522,7 @@ export function Thread({
           } catch (e) {
             setSelectedSessionStatus(undefined);
           }
-          const response = await client.api.chat[":sessionId"].$get({
-            param: { sessionId: String(selectedSessionId) },
-          });
-          if (!response.ok)
-            throw new Error("Failed to fetch previous messages");
-          const rawMessages = await response.json();
+          const rawMessages = await personaCardsApi.getMessages(selectedSessionId);
 
           clearMessages();
           setProgressRecommendation("");
@@ -589,9 +577,7 @@ export function Thread({
   const handleFormSubmit = async (sessionId: number) => {
     setSessionId(sessionId);
     setShowChat(true);
-    const response = await client.api.chat[":sessionId"].$get({
-      param: { sessionId: String(sessionId) },
-    });
+    const response = await personaCardsApi.getMessages(sessionId);
     if (!response.ok) {
       throw new Error("Failed to fetch messages");
     }
@@ -738,75 +724,31 @@ export function Thread({
         }
       }
 
-      const response = await client.api.chat.$post({
-        json: {
-          message: message,
-          context: currentContext.messages.map((msg) => ({
-            role: msg.sender === "ai" ? "model" : "user",
-            text: msg.text,
-            timestamp: msg.timestamp.getTime(),
-            ...(msg.contextId ? { contextId: msg.contextId } : {}),
-          })),
-          ...(currentContext.sessionId
-            ? { sessionId: currentContext.sessionId }
-            : {}),
-          ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-          ...(message.trim() === "" && !currentContext.messages.length
-            ? { initialForm: undefined }
-            : {}),
-          ...(progressRecommendation
-            ? { systemInstruction: progressRecommendation }
-            : {}),
-          ...(userProfile?.id ? { userId: String(userProfile.id) } : {}),
-          // Pass observer output as systemInstruction, observerRationale, observerNextSteps, sentiment
+      const response = await personaCardsApi.sendMessage({
+        message: message,
+        context: currentContext.messages.map((msg) => ({
+          role: msg.sender === "ai" ? "model" : "user",
+          text: msg.text,
+          timestamp: msg.timestamp.getTime(),
+          ...(msg.contextId ? { contextId: msg.contextId } : {}),
+        })),
+        ...(currentContext.sessionId
+          ? { sessionId: currentContext.sessionId }
+          : {}),
+        ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
+        ...(message.trim() === "" && !currentContext.messages.length
+          ? { initialForm: undefined }
+          : {}),
+        ...(userProfile?.id ? { userId: String(userProfile.id) } : {}),
+        // Pass conversation preferences
+        conversationPreferences: conversationPreferences ? {
+          ...conversationPreferences,
+          // Add any additional instructions from observer
           ...(observerStrategy ? { systemInstruction: observerStrategy } : {}),
-          ...(observerStrategy ? { strategy: observerStrategy } : {}),
           ...(observerRationale ? { observerRationale } : {}),
           ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
           ...(observerSentiment ? { sentiment: observerSentiment } : {}),
-          // Pass conversation preferences
-          ...(() => {
-            const instructions: string[] = [];
-            if (conversationPreferences.briefAndConcise && conversationPreferences.briefAndConcise > 0) {
-              const level = conversationPreferences.briefAndConcise;
-              if (level <= 25) {
-                instructions.push("Keep responses somewhat concise");
-              } else if (level <= 50) {
-                instructions.push("Keep responses moderately concise");
-              } else if (level <= 75) {
-                instructions.push("Keep responses quite concise");
-              } else {
-                instructions.push("Keep responses very brief and concise");
-              }
-            }
-            if (conversationPreferences.empatheticAndSupportive) {
-              instructions.push("Be empathetic and emotionally supportive");
-            }
-            if (conversationPreferences.solutionFocused) {
-              instructions.push(
-                "Focus on providing practical solutions and advice"
-              );
-            }
-            if (conversationPreferences.casualAndFriendly) {
-              instructions.push("Use a casual and friendly tone");
-            }
-            if (conversationPreferences.professionalAndFormal) {
-              instructions.push("Maintain a professional and formal approach");
-            }
-            const preferencesText =
-              instructions.length > 0 ? instructions.join(". ") + "." : "";
-            return preferencesText
-              ? {
-                  systemInstruction: observerStrategy
-                    ? `${observerStrategy} ${preferencesText}`
-                    : preferencesText,
-                }
-              : {};
-          })(),
-          ...(conversationPreferences ? { conversationPreferences } : {}),
-          // Pass threadType for main chat
-          threadType: "main",
-        },
+        } : {},
       });
 
       // Optimistically move the thread to the top after sending a message

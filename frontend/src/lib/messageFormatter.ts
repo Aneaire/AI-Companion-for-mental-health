@@ -250,26 +250,43 @@ export class StreamingMessageProcessor {
    */
   private async processLine(line: string): Promise<void> {
     try {
-      // Handle special event types
-      if (line.startsWith("event: crisis")) {
-        // Crisis event - handle immediately
-        const crisisDataMatch = line.match(/^event: crisis\s+data: (.*)$/);
-        if (crisisDataMatch) {
-          const crisisMsg = crisisDataMatch[1];
-          this.onUpdate(crisisMsg, true);
-          return;
-        }
+      // Handle event lines
+      if (line.startsWith("event: ")) {
+        this.currentEvent = line.substring("event: ".length).trim();
+        return;
       }
 
       // Handle data lines
       if (line.startsWith("data: ")) {
         const content = line.substring("data: ".length);
 
+        // Handle persona selection events
+        if (this.currentEvent === "persona_selected") {
+          try {
+            const personaData = JSON.parse(content);
+            console.log("Persona selected:", personaData);
+            // You could emit a custom event or update state here
+            // For now, just log it - the main content will continue streaming
+          } catch (e) {
+            console.error("Failed to parse persona selection:", e);
+          }
+          this.currentEvent = null;
+          return;
+        }
+
+        // Handle crisis events
+        if (this.currentEvent === "crisis") {
+          this.onUpdate(content, true);
+          this.currentEvent = null;
+          return;
+        }
+
         // Skip session_id events and empty content
         if (
           content.trim() === "" ||
           (!isNaN(Number(content.trim())) && content.trim().length < 10)
         ) {
+          this.currentEvent = null;
           return;
         }
 
@@ -283,12 +300,16 @@ export class StreamingMessageProcessor {
         if (result.needsUpdate) {
           this.onUpdate(result.text, result.isComplete);
         }
+        this.currentEvent = null;
       }
     } catch (error) {
       console.warn("Error processing stream line:", error);
       // Continue processing other lines
     }
   }
+
+  // Add currentEvent property to track SSE events
+  private currentEvent: string | null = null;
 
   /**
    * Reset for a new message stream

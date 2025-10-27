@@ -33,14 +33,7 @@ export function ChatDialog({
           overflow-y-auto
         "
       >
-        <DialogHeader className="px-6 pt-6 pb-3 sm:px-8 sm:pt-8 sm:pb-4">
-          <DialogTitle className="text-2xl sm:text-3xl font-bold text-gray-700">
-            Welcome to your AI Companion ✨
-          </DialogTitle>
-          <DialogDescription className="text-base sm:text-lg text-gray-600 mt-2 sm:mt-3 leading-relaxed">
-            Please tell me a little about yourself so I can better support you.
-          </DialogDescription>
-        </DialogHeader>
+
         {/* ChatForm takes up the rest of the available height within the dialog */}
         <div className="flex-1 overflow-y-auto">
           <ChatForm onSubmit={onSubmit} onThreadCreated={onThreadCreated} conversationPreferences={conversationPreferences} />

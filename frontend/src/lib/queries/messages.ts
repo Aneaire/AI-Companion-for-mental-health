@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Message } from "@/types/chat";
-import client from "../client";
+import client, { personaCardsApi } from "../client";
 
 // Hook to fetch messages for a session
 export const useSessionMessages = (sessionId: number | null) => {
@@ -8,9 +8,7 @@ export const useSessionMessages = (sessionId: number | null) => {
     queryKey: ["messages", sessionId],
     queryFn: async () => {
       if (!sessionId) return [];
-      const response = await client.api.chat[":sessionId"].$get({
-        param: { sessionId: String(sessionId) },
-      });
+      const response = await personaCardsApi.getMessages(sessionId);
       if (!response.ok) throw new Error("Failed to fetch messages");
       const messages = await response.json();
       return messages.map((msg: any) => ({
@@ -50,13 +48,13 @@ export const useSendMessage = () => {
       threadType?: string;
       userId: string;
     }) => {
-      const response = await client.api.chat.$post({
-        json: {
-          message,
-          context,
-          sessionId,
-          userId,
-          initialForm,
+      const response = await personaCardsApi.sendMessage({
+        message,
+        context,
+        sessionId,
+        userId,
+        initialForm,
+        conversationPreferences: {
           systemInstruction,
           threadType,
         },
@@ -133,6 +131,9 @@ export const useSendMessage = () => {
         );
 
         try {
+          let currentEvent = "";
+          let isSpecialEvent = false;
+          
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -142,28 +143,47 @@ export const useSendMessage = () => {
             buffer = lines.pop() || "";
 
             for (const line of lines) {
-              if (line.startsWith("data: ")) {
+              if (line.startsWith("event: ")) {
+                currentEvent = line.substring("event: ".length).trim();
+                isSpecialEvent = currentEvent === "persona_selected" || currentEvent === "session_id";
+              } else if (line.startsWith("data: ")) {
                 const content = line.substring("data: ".length);
+                
+                // Skip empty data and heartbeat messages
                 if (content.trim() === "" || /^\d+$/.test(content.trim())) continue;
-                fullResponse += content + "\n";
-
-                // Update the streaming message
-                queryClient.setQueryData(
-                  ["messages", variables.sessionId],
-                  (old: Message[] = []) =>
-                    old.map((msg) =>
-                      msg.tempId === optimisticAiMessage.tempId
-                        ? { ...msg, text: fullResponse }
-                        : msg
-                    )
-                );
+                
+                // Skip content from special events
+                if (isSpecialEvent) continue;
+                
+                // Only add content if this is regular message data (no specific event)
+                if (!currentEvent) {
+                  fullResponse += content + "\n";
+                }
+              } else if (line.trim() === "") {
+                // Reset event on empty line
+                currentEvent = "";
+                isSpecialEvent = false;
               }
+
+              // Update the streaming message
+              queryClient.setQueryData(
+                ["messages", variables.sessionId],
+                (old: Message[] = []) =>
+                  old.map((msg) =>
+                    msg.tempId === optimisticAiMessage.tempId
+                      ? { ...msg, text: fullResponse }
+                      : msg
+                  )
+              );
             }
           }
 
-          // Handle remaining buffer content
-          if (buffer) {
-            fullResponse += buffer;
+          // Handle remaining buffer content (only if not special event)
+          if (buffer && !isSpecialEvent && !currentEvent) {
+            const trimmedBuffer = buffer.trim();
+            if (trimmedBuffer && !/^\d+$/.test(trimmedBuffer)) {
+              fullResponse += trimmedBuffer;
+            }
           }
 
           // Ensure message ends with newline

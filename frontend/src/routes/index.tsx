@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { chatApi, threadsApi } from "@/lib/client";
+import { threadsApi, personaCardsApi } from "@/lib/client";
 import {
   useCreateThread,
   useMoveThreadToTop,
@@ -182,11 +182,8 @@ function Index() {
     let allMessages: any[] = [];
     for (const session of sessions) {
       try {
-        const response = await fetch(`/api/chat/${session.id}`);
-        if (response.ok) {
-          const sessionMessages = await response.json();
-          allMessages = allMessages.concat(sessionMessages);
-        }
+        const sessionMessages = await personaCardsApi.getMessages(session.id);
+        allMessages = allMessages.concat(sessionMessages);
       } catch (e) {
         // ignore error for now
       }
@@ -210,15 +207,12 @@ function Index() {
 
       // Check if session has enough messages for progression
       try {
-        const response = await fetch(`/api/chat/${activeSession.id}`);
-        if (response.ok) {
-          const messages = await response.json();
-          if (messages.length < 7) {
-            toast.error(
-              "Session needs at least 7 messages before progressing to next session"
-            );
-            return;
-          }
+        const messages = await personaCardsApi.getMessages(activeSession.id);
+        if (messages.length < 7) {
+          toast.error(
+            "Session needs at least 7 messages before progressing to next session"
+          );
+          return;
         }
       } catch (error) {
         console.warn(
@@ -608,14 +602,12 @@ function Index() {
                     );
                     if (!thread)
                       throw new Error("Thread not found for userId lookup");
-                    await chatApi.sendMessage({
-                      message: "", // No user message, just trigger the AI
-                      context: [],
+                    await personaCardsApi.sendMessage({
+                      message: "", // No user message, just trigger AI
                       sessionId: session.id,
                       userId: String(thread.userId), // Use userId from thread
                       initialForm: initialForm,
-                      systemInstruction: systemPrompt,
-                      threadType: "main",
+                      conversationPreferences: conversationPreferences,
                     });
                     // --- End therapist auto-engage ---
                   } catch (err: any) {
