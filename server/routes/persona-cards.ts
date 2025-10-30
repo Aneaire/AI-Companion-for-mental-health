@@ -361,98 +361,384 @@ const personaCards = new Hono()
         }
       }
 
-      // Get persona selection from persona observer
+      // AI-driven persona and context analysis
       let selectedPersona = "listener";
       let personaSystemInstruction = "You are an empathetic listener who provides a safe space for users to share their feelings.";
       
       try {
-        // Direct call to persona observer logic
-        const personaObserverModel = gemini.getGenerativeModel({
+        // Ensure personasConfig is loaded
+        if (!personasConfig) {
+          await loadPersonasConfig();
+        }
+
+        const personas = personasConfig?.personas || {};
+        const personaArray = Object.values(personas).filter(Boolean) as Array<{
+          id: string;
+          name: string;
+          systemInstruction: string;
+          description?: string;
+        }>;
+
+        // Build comprehensive context for AI analysis
+        const analysisContext = {
+          userMessage: message,
+          initialForm: initialForm,
+          conversationHistory: conversationHistory.slice(-5), // Last 5 messages for context
+          availablePersonas: personaArray.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description
+          }))
+        };
+
+        // Use AI to intelligently select persona and detect crisis
+        const aiAnalysisPrompt = `
+Analyze this conversation context and make intelligent decisions:
+
+USER MESSAGE: "${message}"
+INITIAL FORM DATA: ${JSON.stringify(initialForm || {})}
+RECENT CONVERSATION: ${JSON.stringify(conversationHistory.slice(-3))}
+
+AVAILABLE PERSONAS:
+${personaArray.map(p => `- ${p.id}: ${p.description || p.name}`).join('\n')}
+
+TASK: Make intelligent decisions about:
+
+1. PERSONA SELECTION: Choose the most appropriate persona based on:
+   - User's explicit needs and emotional state
+   - Conversation context and flow
+   - Severity and urgency of their situation
+   - Type of support they seem to need
+
+2. CRISIS DETECTION: Only trigger crisis mode if there are GENUINE indicators of:
+   - Immediate danger to self or others
+   - Suicidal ideation with intent/plans
+   - Severe mental health emergency
+   - NOT just sadness, stress, or difficult emotions
+
+3. LANGUAGE DETECTION: Automatically detect and match the user's language
+
+RESPOND WITH JSON ONLY:
+{
+  "selectedPersona": "persona_id",
+  "isCrisis": boolean,
+  "reasoning": "brief explanation",
+  "detectedLanguage": "english|filipino|mixed"
+}`;
+
+        const analysisModel = gemini.getGenerativeModel({
           model: geminiConfig.twoPoint5FlashLite,
+          systemInstruction: {
+            role: "model",
+            parts: [{ text: "You are an expert at analyzing conversation context and making intelligent decisions about persona selection, crisis detection, and language detection. Always respond with valid JSON only." }],
+          },
         });
 
-        // Build context for persona selection
-        let contextString = "";
-        if (initialForm) {
-          if (initialForm.preferredName)
-            contextString += `User's preferred name: ${initialForm.preferredName}\n`;
-          if (initialForm.currentEmotions && initialForm.currentEmotions.length > 0) {
-            contextString += `User's current emotions: ${initialForm.currentEmotions.join(
-              ", "
-            )}\n`;
-          }
-          if (initialForm.reasonForVisit)
-            contextString += `User's reason for visit: ${initialForm.reasonForVisit}\n`;
-          if (initialForm.supportType && initialForm.supportType.length > 0) {
-            contextString += `User's desired support type: ${initialForm.supportType.join(
-              ", "
-            )}\n`;
-          }
-          if (initialForm.additionalContext)
-            contextString += `Additional context: ${initialForm.additionalContext}\n`;
-        }
-
-        const recentMessages = conversationHistory.slice(-5);
-        const conversationText = recentMessages
-          .map((msg) => `${msg.role === "user" ? "User" : "AI"}: ${msg.parts[0].text}`)
-          .join("\n");
-
-        const personasSummary = Object.values(personasConfig.personas)
-          .map((persona: any) => `- ${persona.id}: ${persona.name} - ${persona.description}`)
-          .join("\n");
-
-        const personaPrompt = `You are a persona selection AI that analyzes user conversations to choose the most appropriate AI persona for their needs.
-
-Available Personas:
-${personasSummary}
-
-Context about the user:
-${contextString}
-
-Recent conversation:
-${conversationText}
-
-Analyze the user's emotional state, needs, and communication style to select the best persona. Consider:
-1. Their emotional state and immediate needs
-2. The type of support they're seeking
-3. Their communication style and preferences
-4. Any signs of crisis or urgent need
-
-Respond in this exact JSON format:
-{
-  "sentiment": "positive|negative|neutral|urgent|confused|crisis_risk",
-  "detectedNeeds": ["need1", "need2", "need3"],
-  "recommendedPersona": "persona_id",
-  "confidence": 85,
-  "rationale": "Detailed explanation of why this persona is best suited for the user"
-}
-
-Priority rules:
-- If crisis_risk or urgent detected, prioritize crisis support
-- If user needs emotional validation and listening, prioritize listener
-- If user seeks advice and solutions, prioritize guide
-- If user wants distraction and light conversation, prioritize companion
-- Default to listener if unsure`;
-
-        const result = await personaObserverModel.generateContent(personaPrompt);
-        const response = result.response.text();
+        const analysisSession = analysisModel.startChat({
+          generationConfig: {
+            maxOutputTokens: 500,
+            temperature: 0.1, // Low temperature for consistent analysis
+          },
+        });
 
         try {
-          const jsonMatch = response.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            const recommendedPersonaId = parsed.recommendedPersona || "listener";
-            const selectedPersonaData = personasConfig.personas[recommendedPersonaId] || personasConfig.personas.listener;
-            
-            selectedPersona = selectedPersonaData.id;
-            personaSystemInstruction = selectedPersonaData.systemInstruction;
+          const analysisResult = await analysisSession.sendMessage(aiAnalysisPrompt);
+          const analysisText = analysisResult.response.text();
+          
+          // Parse AI analysis
+          const analysis = JSON.parse(analysisText.replace(/```json\n?|\n?```/g, '').trim());
+          
+          // Select persona based on AI analysis
+          const chosenPersona = personaArray.find(p => p.id === analysis.selectedPersona);
+          if (chosenPersona) {
+            selectedPersona = chosenPersona.id;
+            personaSystemInstruction = chosenPersona.systemInstruction;
           }
-        } catch (parseError) {
-          logger.error("Error parsing persona selection response:", parseError);
-          // Continue with default listener persona
+
+          // Log AI decision for debugging
+          logger.info(`AI-driven analysis:`, {
+            selectedPersona: analysis.selectedPersona,
+            isCrisis: analysis.isCrisis,
+            reasoning: analysis.reasoning,
+            detectedLanguage: analysis.detectedLanguage,
+            userMessage: message.substring(0, 100)
+          });
+
+        } catch (analysisError) {
+          logger.error("AI analysis failed, using default listener:", analysisError);
+          // Fallback to default listener persona
+          const listenerPersona = (personas as any).listener || personaArray.find((p) => 
+            p.id.includes('listener') || p.name.toLowerCase().includes('listener')
+          );
+          if (listenerPersona) {
+            selectedPersona = listenerPersona.id;
+            personaSystemInstruction = listenerPersona.systemInstruction;
+          }
         }
+
       } catch (error) {
-        logger.error("Error in persona selection:", error);
+        logger.error("Error in AI-driven persona selection:", error);
+        // Continue with default listener persona
+      }
+
+      try {
+        // Build context for persona selection (rule-based)
+        let hasCrisisKeywords = false;
+        let needsAdvice = false;
+        let wantsLightConversation = false;
+        let needsEmotionalSupport = false;
+        let isEvasive = false;
+        
+        if (initialForm) {
+          if (initialForm.currentEmotions && initialForm.currentEmotions.length > 0) {
+            const emotions = initialForm.currentEmotions.join(" ").toLowerCase();
+            
+            // Check for crisis indicators (English + Filipino)
+            if (emotions.includes('suicidal') || emotions.includes('hopeless') || emotions.includes('desperate') ||
+                emotions.includes('pakamatay') || emotions.includes('matatapos') || emotions.includes('gustong mamatay') ||
+                emotions.includes('wala nang pag-asa') || emotions.includes('ayaw mabuhay')) {
+              hasCrisisKeywords = true;
+            }
+            // Check for emotional support needs (English + Filipino)
+            if (emotions.includes('sad') || emotions.includes('anxious') || emotions.includes('depressed') || 
+                emotions.includes('lonely') || emotions.includes('overwhelmed') ||
+                emotions.includes('malungkot') || emotions.includes('lungkot') || emotions.includes('nababahala') ||
+                emotions.includes('pagod') || emotions.includes('problema') || emotions.includes('hirap')) {
+              needsEmotionalSupport = true;
+            }
+          }
+          if (initialForm.reasonForVisit) {
+            const reason = initialForm.reasonForVisit.toLowerCase();
+            
+            // Check for crisis indicators in reason (English + Filipino)
+            if (reason.includes('suicid') || reason.includes('kill myself') || reason.includes('end my life') || 
+                reason.includes('self-harm') || reason.includes('can\'t go on') ||
+                reason.includes('pakamatay') || reason.includes('matatapos') || reason.includes('gusto kong mamatay') ||
+                reason.includes('wala nang pag-asa') || reason.includes('ayaw ko na mabuhay')) {
+              hasCrisisKeywords = true;
+            }
+            // Check for advice seeking (English + Filipino)
+            if (reason.includes('advice') || reason.includes('help with') || reason.includes('solution') || 
+                reason.includes('guidance') || reason.includes('what should') ||
+                reason.includes('payo') || reason.includes('tulong') || reason.includes('ano gagawin') ||
+                reason.includes('gabay') || reason.includes('pananaw')) {
+              needsAdvice = true;
+            }
+            // Check for light conversation (English + Filipino)
+            if (reason.includes('chat') || reason.includes('talk') || reason.includes('company') || 
+                reason.includes('distraction') || reason.includes('bored') ||
+                reason.includes('kwentuhan') || reason.includes('usap') || reason.includes('kaibigan') ||
+                reason.includes('chikahan') || reason.includes('libang')) {
+              wantsLightConversation = true;
+            }
+            // Check for emotional support
+            if (reason.includes('listen') || reason.includes('vent') || reason.includes('share') || 
+                reason.includes('support') || reason.includes('understand')) {
+              needsEmotionalSupport = true;
+            }
+          }
+          if (initialForm.supportType && initialForm.supportType.length > 0) {
+            const supportTypes = initialForm.supportType.join(" ").toLowerCase();
+            
+            if (supportTypes.includes('advice') || supportTypes.includes('guidance')) {
+              needsAdvice = true;
+            }
+            if (supportTypes.includes('listening') || supportTypes.includes('emotional')) {
+              needsEmotionalSupport = true;
+            }
+            if (supportTypes.includes('conversation') || supportTypes.includes('company')) {
+              wantsLightConversation = true;
+            }
+          }
+          if (initialForm.additionalContext) {
+            const additional = initialForm.additionalContext.toLowerCase();
+            
+            // Check additional context for indicators
+            if (additional.includes('suicid') || additional.includes('kill myself') || additional.includes('end my life')) {
+              hasCrisisKeywords = true;
+            }
+            if (additional.includes('advice') || additional.includes('solution')) {
+              needsAdvice = true;
+            }
+            if (additional.includes('chat') || additional.includes('talk')) {
+              wantsLightConversation = true;
+            }
+          }
+        }
+
+        // Analyze recent messages for additional context
+        const recentMessages = conversationHistory.slice(-3);
+        const evasiveKeywords = [
+          'i don\'t know', 'maybe', 'whatever', 'nothing', 'fine', 'it\'s nothing', 'never mind', 'forget it', 'doesn\'t matter', 'i\'m good', 'no reason', 'just because', 'stuff', 'things',
+          // Filipino evasive keywords
+          'hindi ko alam', 'ewan', 'bahala na', 'wala', 'okay lang', 'wala lang', 'huwag na lang', 'forget na', 'hindi na importante', 'ayos lang', 'sige na', 'bahala ka', 'ano ba', 'ewan ko', 'wala akong masabi', 'tama na', 'saka na', 'mamaya na', 'basta', 'ganyan lang'
+        ];
+        let evasiveCount = 0;
+        let totalTextLength = 0;
+        
+        // First analyze the current message being sent
+        const currentMessageText = message.toLowerCase();
+        totalTextLength += currentMessageText.length;
+        
+        if (currentMessageText.includes('suicid') || currentMessageText.includes('kill myself') || currentMessageText.includes('end my life') || 
+            currentMessageText.includes('self-harm') || currentMessageText.includes('can\'t go on') ||
+            currentMessageText.includes('pakamatay') || currentMessageText.includes('matatapos') || currentMessageText.includes('gusto kong mamatay') ||
+            currentMessageText.includes('wala nang pag-asa') || currentMessageText.includes('ayaw ko na mabuhay')) {
+          hasCrisisKeywords = true;
+        }
+        if (currentMessageText.includes('advice') || currentMessageText.includes('what should') || currentMessageText.includes('help me') ||
+            currentMessageText.includes('payo') || currentMessageText.includes('tulong') || currentMessageText.includes('ano gagawin') ||
+            currentMessageText.includes('gabay') || currentMessageText.includes('pananaw')) {
+          needsAdvice = true;
+        }
+        if (currentMessageText.includes('chat') || currentMessageText.includes('talk') || currentMessageText.includes('company') || 
+            currentMessageText.includes('distraction') || currentMessageText.includes('bored') ||
+            currentMessageText.includes('kwentuhan') || currentMessageText.includes('usap') || currentMessageText.includes('kaibigan') ||
+            currentMessageText.includes('chikahan') || currentMessageText.includes('libang')) {
+          wantsLightConversation = true;
+        }
+        if (currentMessageText.includes('listen') || currentMessageText.includes('vent') || currentMessageText.includes('share') || 
+            currentMessageText.includes('support') || currentMessageText.includes('understand')) {
+          needsEmotionalSupport = true;
+        }
+        
+        // Check for evasive responses in current message
+        const isCurrentMessageEvasive = evasiveKeywords.some(keyword => currentMessageText.includes(keyword)) || currentMessageText.trim().length < 10;
+        if (isCurrentMessageEvasive) {
+          evasiveCount++;
+        }
+        
+        // Then analyze recent messages
+        for (const msg of recentMessages) {
+          const text = msg.parts[0]?.text?.toLowerCase() || '';
+          totalTextLength += text.length;
+          
+          if (text.includes('suicid') || text.includes('kill myself') || text.includes('end my life') || 
+              text.includes('self-harm') || text.includes('can\'t go on')) {
+            hasCrisisKeywords = true;
+            break;
+          }
+          if (text.includes('advice') || text.includes('what should') || text.includes('help me')) {
+            needsAdvice = true;
+          }
+          if (text.includes('chat') || text.includes('talk') || text.includes('company')) {
+            wantsLightConversation = true;
+          }
+          
+          // Check for evasive responses
+          const isEvasive = evasiveKeywords.some(keyword => text.includes(keyword)) || text.trim().length < 10;
+          if (isEvasive) {
+            evasiveCount++;
+          }
+        }
+        
+        // Determine if user is being evasive
+        if (evasiveCount >= 2 && totalTextLength < 100) {
+          isEvasive = true;
+        }
+
+// Rule-based persona selection with proper typing
+        const personas = personasConfig?.personas || {};
+        const personaArray = Object.values(personas).filter(Boolean) as Array<{
+          id: string;
+          name: string;
+          systemInstruction: string;
+          description?: string;
+        }>;
+
+        // Debug logging for persona selection
+        console.log("Persona selection analysis:", {
+          hasCrisisKeywords,
+          needsAdvice,
+          wantsLightConversation,
+          needsEmotionalSupport,
+          isEvasive,
+          currentMessage: message.substring(0, 100),
+          fullMessage: message,
+          messageLength: message.length,
+          evasiveCount,
+          totalTextLength
+        });
+        
+        console.log("Available personas:", Object.keys(personas));
+
+        if (hasCrisisKeywords) {
+          // Priority 1: Crisis support
+          const crisisPersona = personaArray.find((p) => 
+            p.id.includes('crisis') || p.id.includes('emergency') || p.name.toLowerCase().includes('crisis')
+          );
+          if (crisisPersona) {
+            selectedPersona = crisisPersona.id;
+            personaSystemInstruction = crisisPersona.systemInstruction;
+          }
+        } else if (hasCrisisKeywords) {
+          // Priority 1: Crisis support (already handled above, but keeping for clarity)
+          const crisisPersona = personaArray.find((p) => 
+            p.id.includes('crisis') || p.id.includes('emergency') || p.name.toLowerCase().includes('crisis')
+          );
+          if (crisisPersona) {
+            selectedPersona = crisisPersona.id;
+            personaSystemInstruction = crisisPersona.systemInstruction;
+          }
+        } else if (needsAdvice && (currentMessageText.includes('advice') || currentMessageText.includes('what should') || currentMessageText.includes('help me') || currentMessageText.includes('guidance'))) {
+          // Priority 2: Guide for explicit advice seeking
+          const guidePersona = personaArray.find((p) => 
+            p.id.includes('guide') || p.id.includes('advisor') || p.name.toLowerCase().includes('guide')
+          );
+          if (guidePersona) {
+            selectedPersona = guidePersona.id;
+            personaSystemInstruction = guidePersona.systemInstruction;
+          }
+        } else if (wantsLightConversation && (currentMessageText.includes('chat') || currentMessageText.includes('talk') || currentMessageText.includes('conversation') || currentMessageText.includes('bored'))) {
+          // Priority 3: Companion for explicit conversation seeking
+          const companionPersona = personaArray.find((p) => 
+            p.id.includes('companion') || p.id.includes('friend') || p.name.toLowerCase().includes('companion')
+          );
+          if (companionPersona) {
+            selectedPersona = companionPersona.id;
+            personaSystemInstruction = companionPersona.systemInstruction;
+          }
+        } else if (isEvasive) {
+          // Priority 4: Direct engager for evasive users
+          const directEngagerPersona = personaArray.find((p) => 
+            p.id.includes('direct_engager') || p.id.includes('direct-engager') || p.name.toLowerCase().includes('direct')
+          );
+          if (directEngagerPersona) {
+            selectedPersona = directEngagerPersona.id;
+            personaSystemInstruction = directEngagerPersona.systemInstruction;
+          }
+        } else if (needsAdvice) {
+          // Priority 5: Guide for general advice needs from form
+          const guidePersona = personaArray.find((p) => 
+            p.id.includes('guide') || p.id.includes('advisor') || p.name.toLowerCase().includes('guide')
+          );
+          if (guidePersona) {
+            selectedPersona = guidePersona.id;
+            personaSystemInstruction = guidePersona.systemInstruction;
+          }
+        } else if (wantsLightConversation) {
+          // Priority 6: Companion for general conversation needs from form
+          const companionPersona = personaArray.find((p) => 
+            p.id.includes('companion') || p.id.includes('friend') || p.name.toLowerCase().includes('companion')
+          );
+          if (companionPersona) {
+            selectedPersona = companionPersona.id;
+            personaSystemInstruction = companionPersona.systemInstruction;
+          }
+        } else {
+          // Default: Listener for emotional support or general cases
+          const listenerPersona = (personas as any).listener || personaArray.find((p) => 
+            p.id.includes('listener') || p.name.toLowerCase().includes('listener')
+          );
+          if (listenerPersona) {
+            selectedPersona = listenerPersona.id;
+            personaSystemInstruction = listenerPersona.systemInstruction;
+          }
+        }
+        
+        logger.info(`Selected persona: ${selectedPersona} based on rule-based analysis`);
+      } catch (error) {
+        logger.error("Error in rule-based persona selection:", error);
         // Continue with default listener persona
       }
 
@@ -460,7 +746,7 @@ Priority rules:
       let systemInstructionText = `
 ${personaSystemInstruction}
 
-**LANGUAGE REQUIREMENT:** ${conversationPreferences?.language === "filipino" ? "You MUST respond in Filipino language only. All your responses should be in Filipino." : "You MUST respond in English language only. All your responses should be in English."}
+**INTELLIGENT LANGUAGE ADAPTATION:** Automatically detect and match the user's language naturally. Respond in the same language the user uses - whether English, Filipino, or mixed. Do not ask about language preference; simply adapt to their communication style.
 
 **Crucial Ethical and Professional Guidelines:**
 1. **Strictly Adhere to Boundaries:** You are an AI and explicitly **not** a human therapist, medical professional, or crisis counselor. You **must** clearly state this disclaimer at the beginning of the session and if the user expresses a need for professional help or indicates a crisis.
@@ -542,6 +828,8 @@ ${
             systemInstruction: personaSystemInstruction
           })
         });
+
+
 
         let aiResponseText = "";
         try {
