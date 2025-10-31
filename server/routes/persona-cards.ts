@@ -414,14 +414,24 @@ ANALYSIS TASKS:
    - Consider cultural context and language preferences
    - Default to 'listener' if uncertain or for general emotional support
 
-2. SOPHISTICATED CRISIS DETECTION:
+2. ANGER DETECTION & DE-ESCALATION:
+   - Detect anger, frustration, or hostility through keywords, tone, and behavioral signals
+   - Keywords: angry, mad, annoyed, pissed, frustrated, upset, this sucks, this is stupid, you don't listen, you don't understand, this isn't helping, waste of time, useless, forget it, whatever, shut up, stop talking, i said already, answer me, why can't you, so annoying
+   - Behavioral signals: Short replies, rapid messages, caps lock usage, excessive punctuation (!!! or ???), repeated phrases
+   - Emoji indicators: 😡, 🤬, 🤦, 🙄, 😤
+   - Sentiment analysis: High anger/frustration scores (0.6+ anger, 0.5+ frustration, 0.4+ disgust)
+   - Filipino anger cues: "Hay nako", "Susmaryosep", "Luh", "Ayoko na", "Nakakaasar", "Nakakainis", "Nakakagalit"
+   - If anger detected, select "anchor" persona for de-escalation
+   - Do not select anchor for mild frustration - only clear anger/hostility
+
+3. SOPHISTICATED CRISIS DETECTION:
    - Look for GENUINE emergency indicators: specific plans, immediate intent, severe distress
    - Distinguish between normal sadness/stress vs. actual crisis situations
    - Consider both English and Filipino expressions of crisis
    - Require clear indicators of danger or immediate risk
    - DO NOT trigger crisis for general emotional distress, venting, or difficult life situations
 
-3. NATURAL LANGUAGE DETECTION (Philippine Focus):
+4. NATURAL LANGUAGE DETECTION (Philippine Focus):
    - Detect if user primarily uses Filipino, Taglish, English, or mixed languages
    - PRIORITIZE Filipino/Tagalog for Philippine users - respond in Filipino/Tagalog unless user clearly wants English
    - Consider code-switching patterns and cultural expressions
@@ -432,6 +442,7 @@ Output schema:
 {
   "language": "english" | "filipino" | "taglish" | "mixed",
   "persona": "listener" | "guide" | "crisis" | "companion" | "anchor",
+  "isAngry": boolean,
   "isCrisis": boolean,
   "confidence": "low" | "medium" | "high",
   "reasoning": "short summary of how you decided"
@@ -495,7 +506,16 @@ Follow these heuristics:
           const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
           
           // Select persona based on AI analysis
-          const chosenPersona = personaArray.find(p => p.id === analysis.persona);
+          let chosenPersona = personaArray.find(p => p.id === analysis.persona);
+
+          // Override with anchor persona if anger detected
+          if (analysis.isAngry && analysis.confidence !== 'low') {
+            const anchorPersona = personaArray.find(p => p.id === 'anchor');
+            if (anchorPersona) {
+              chosenPersona = anchorPersona;
+            }
+          }
+
           if (chosenPersona) {
             selectedPersona = chosenPersona.id;
             personaSystemInstruction = chosenPersona.systemInstruction;
