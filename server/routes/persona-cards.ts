@@ -421,10 +421,12 @@ ANALYSIS TASKS:
    - Require clear indicators of danger or immediate risk
    - DO NOT trigger crisis for general emotional distress, venting, or difficult life situations
 
-3. NATURAL LANGUAGE DETECTION:
-   - Detect if user primarily uses English, Filipino, Taglish, or mixed languages
+3. NATURAL LANGUAGE DETECTION (Philippine Focus):
+   - Detect if user primarily uses Filipino, Taglish, English, or mixed languages
+   - PRIORITIZE Filipino/Tagalog for Philippine users - respond in Filipino/Tagalog unless user clearly wants English
    - Consider code-switching patterns and cultural expressions
-   - Match the language style naturally without being explicit about it
+   - Match the language style naturally - if user uses Tagalog, respond in Tagalog
+   - Filipino indicators: "po", "opo", "ho", "ba", "pa", "na", "ko", "ka", "ta", "ni", "si", "ang", "ng", "sa", "kay"
 
 Output schema:
 {
@@ -449,10 +451,13 @@ Your core mission:
 
 Follow these heuristics:
 
-1. **Language Intelligence**
-   - Infer the user's main language (english, filipino, taglish, or mixed) by analyzing syntax, sentiment markers, and idioms.
-   - Detect bilingual cues naturally, such as "haist", "naman", or "grabe" for Filipino context.
-   - Never default to "english" unless no other evidence exists.
+1. **Language Intelligence** (Philippine Priority)
+   - PRIORITIZE Filipino/Tagalog detection for Philippine users - default to Filipino/Tagalog responses unless clearly English-only.
+   - Infer the user's main language (filipino, taglish, english, or mixed) by analyzing syntax, sentiment markers, and idioms.
+   - Detect Filipino/Tagalog cues: "haist", "naman", "grabe", "bakit", "ano", "paano", "sana", "kasi", "lang", "na", "ko", "mo", "po", "opo", "salamat", "wag", "huwag", "tayo", "kami", "sila".
+   - Taglish detection: Mixed Filipino-English patterns, code-switching between languages.
+   - Filipino expressions: "Hay nako", "Susmaryosep", "Luh", "Gosh", "Ayoko", "Gusto ko", "Masakit", "Masaya", "Malungkot".
+   - Only respond in English if the user consistently uses English with no Filipino elements.
 
 2. **Persona Inference**
    - Choose the best persona based on emotional weight, conversational trajectory, and tone.
@@ -469,7 +474,8 @@ Follow these heuristics:
 4. **Output Rules**
    - Respond with pure JSON — no Markdown, no extra commentary.
    - Include your reasoning summary for transparency.
-   - Be conservative: only set "isCrisis": true if high confidence and imminent risk.`
+   - Be conservative: only set "isCrisis": true if high confidence and imminent risk.
+   - IMPORTANT: When "language" is "filipino" or "taglish", the selected persona MUST respond in Filipino/Tagalog in the actual conversation.`
             }]
           }
         });
