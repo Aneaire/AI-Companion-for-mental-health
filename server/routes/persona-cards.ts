@@ -398,9 +398,9 @@ You are an intelligent conversation analyst. Analyze the complete context and ma
 USER MESSAGE: "${message}"
 INITIAL FORM DATA: ${JSON.stringify(initialForm || {})}
 RECENT CONVERSATION HISTORY: ${JSON.stringify(conversationHistory.slice(-3).map(msg => ({
-          role: msg.role,
-          text: msg.parts[0]?.text?.substring(0, 200) + (msg.parts[0]?.text?.length > 200 ? "..." : "")
-        })))}
+           role: msg.role,
+           text: msg.parts && msg.parts[0] && msg.parts[0].text ? (msg.parts[0].text.substring(0, 200) + (msg.parts[0].text.length > 200 ? "..." : "")) : ""
+         })))}
 
 AVAILABLE PERSONAS:
 ${personaArray.map(p => `- ${p.id}: ${p.description || p.name}`).join('\n')}
@@ -498,23 +498,38 @@ Follow these heuristics:
           },
         });
 
-        try {
-          const analysisResult = await analysisSession.sendMessage(aiAnalysisPrompt);
-          const analysisText = analysisResult.response.text();
-          
-          // Parse AI analysis
-          const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
-          
-          // Select persona based on AI analysis
-          let chosenPersona = personaArray.find(p => p.id === analysis.persona);
+         try {
+           const analysisResult = await analysisSession.sendMessage(aiAnalysisPrompt);
+           const analysisText = analysisResult.response.text();
 
-          // Override with anchor persona if anger detected
-          if (analysis.isAngry && analysis.confidence !== 'low') {
-            const anchorPersona = personaArray.find(p => p.id === 'anchor');
-            if (anchorPersona) {
-              chosenPersona = anchorPersona;
-            }
-          }
+           // Parse AI analysis
+           const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
+
+           console.log('[DEBUG] AI Analysis Result:', {
+             language: analysis.language,
+             persona: analysis.persona,
+             isAngry: analysis.isAngry,
+             isCrisis: analysis.isCrisis,
+             confidence: analysis.confidence,
+             reasoning: analysis.reasoning
+           });
+
+           // Select persona based on AI analysis
+           let chosenPersona = personaArray.find(p => p.id === analysis.persona);
+
+           // Override with anchor persona if anger detected
+           if (analysis.isAngry && (!analysis.confidence || analysis.confidence !== 'low')) {
+             console.log('[DEBUG] Anger detected with confidence:', analysis.confidence || 'undefined', '- switching to anchor persona');
+             const anchorPersona = personaArray.find(p => p.id === 'anchor');
+             if (anchorPersona) {
+               chosenPersona = anchorPersona;
+               console.log('[DEBUG] Successfully switched to anchor persona');
+             } else {
+               console.log('[DEBUG] Anchor persona not found in personaArray');
+             }
+           } else {
+             console.log('[DEBUG] No anger override triggered. isAngry:', analysis.isAngry, 'confidence:', analysis.confidence || 'undefined');
+           }
 
           if (chosenPersona) {
             selectedPersona = chosenPersona.id;
