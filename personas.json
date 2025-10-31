@@ -143,10 +143,48 @@
         "Individuals wanting casual conversation",
         "Users needing light-hearted support"
       ]
+    },
+    "anchor": {
+      "id": "anchor",
+      "name": "Calm Anchor",
+      "description": "A grounded and composed persona that responds to user anger or frustration with empathy, emotional containment, and calm presence. It acknowledges anger without defensiveness and helps de-escalate tension safely.",
+      "systemInstruction": "You are a calm and steady presence when users are angry or frustrated. Your goal is to de-escalate tension while maintaining empathy and respect. Acknowledge their emotions clearly ('I can see this has been really upsetting for you'), avoid defensiveness, and focus on helping them feel understood. If anger is directed at you or the system, do not take it personally—stay grounded, apologize where appropriate, and invite collaboration. Use concise, calm language. Never argue, dismiss, or mirror hostility.",
+      "triggers": [
+        "angry at you",
+        "mad at this app",
+        "this isn’t helping",
+        "so frustrating",
+        "you don’t listen",
+        "stupid bot",
+        "waste of time",
+        "useless",
+        "don’t care",
+        "annoyed",
+        "pissed off"
+      ],
+      "emotionalIndicators": [
+        "anger",
+        "frustration",
+        "irritation",
+        "disappointment",
+        "resentment"
+      ],
+      "conversationStyle": {
+        "pace": "slow and steady",
+        "tone": "calm and professional empathy",
+        "responseLength": "short to moderate",
+        "questionStyle": "clarifying and grounding",
+        "focus": "de-escalation and emotional containment"
+      },
+      "suitableFor": [
+        "Users expressing anger toward the system or conversation",
+        "People feeling misunderstood or invalidated",
+        "Users venting frustration or disappointment"
+      ]
     }
   },
   "selectionRules": {
-    "priorityOrder": ["crisis", "listener", "guide", "companion"],
+    "priorityOrder": ["crisis", "anchor", "listener", "guide", "companion"],
     "contextWeighting": {
       "triggers": 0.4,
       "emotionalIndicators": 0.3,
@@ -154,5 +192,88 @@
       "userPreferences": 0.1
     },
     "fallbackPersona": "listener"
+  },
+  "angerDetection": {
+    "keywords": [
+      "angry",
+      "mad",
+      "annoyed",
+      "pissed",
+      "frustrated",
+      "upset",
+      "this sucks",
+      "this is stupid",
+      "you don’t listen",
+      "you’re not listening",
+      "you don’t understand",
+      "this isn’t helping",
+      "waste of time",
+      "useless",
+      "forget it",
+      "whatever",
+      "shut up",
+      "stop talking",
+      "i said already",
+      "answer me",
+      "why can’t you",
+      "so annoying"
+    ],
+    "sentimentThreshold": {
+      "anger": 0.6,
+      "frustration": 0.5,
+      "disgust": 0.4
+    },
+    "toxicityThreshold": 0.4,
+    "repetitionDetection": {
+      "enabled": true,
+      "tolerance": 2,
+      "timeWindowSec": 60,
+      "triggerIfRepeatedPhrases": true
+    },
+    "capsLockDetection": {
+      "enabled": true,
+      "sensitivity": 0.5,
+      "minCapsPercent": 0.6,
+      "triggerOnRepeatedCaps": true
+    },
+    "punctuationPatterns": {
+      "excessiveExclamations": true,
+      "excessiveQuestionMarks": true,
+      "mixedPunctuation": true
+    },
+    "emojiIndicators": ["😡", "🤬", "🤦", "🙄", "😤"],
+    "behavioralSignals": {
+      "shortReplies": {
+        "enabled": true,
+        "maxLength": 4,
+        "minConsecutiveCount": 3
+      },
+      "rapidMessages": {
+        "enabled": true,
+        "maxIntervalSec": 3,
+        "minMessages": 3
+      },
+      "engagementDrop": {
+        "enabled": true,
+        "noResponseTimeoutSec": 180
+      }
+    },
+    "personaSwitchingRules": {
+      "from": ["listener", "guide", "companion"],
+      "to": "anchor",
+      "triggerConditions": [
+        "keywordMatch",
+        "sentimentThresholdExceeded",
+        "toxicityThresholdExceeded",
+        "behavioralSignalDetected"
+      ],
+      "cooldownSec": 90,
+      "returnToPersona": "listener",
+      "returnConditions": [
+        "sentiment.anger < 0.3",
+        "user_apology_detected",
+        "tone_stabilized"
+      ]
+    }
   }
 }

@@ -393,45 +393,85 @@ const personaCards = new Hono()
 
         // Use AI to intelligently select persona and detect crisis
         const aiAnalysisPrompt = `
-Analyze this conversation context and make intelligent decisions:
+You are an intelligent conversation analyst. Analyze the complete context and make nuanced decisions:
 
 USER MESSAGE: "${message}"
 INITIAL FORM DATA: ${JSON.stringify(initialForm || {})}
-RECENT CONVERSATION: ${JSON.stringify(conversationHistory.slice(-3))}
+RECENT CONVERSATION HISTORY: ${JSON.stringify(conversationHistory.slice(-3).map(msg => ({
+          role: msg.role,
+          text: msg.parts[0]?.text?.substring(0, 200) + (msg.parts[0]?.text?.length > 200 ? "..." : "")
+        })))}
 
 AVAILABLE PERSONAS:
 ${personaArray.map(p => `- ${p.id}: ${p.description || p.name}`).join('\n')}
 
-TASK: Make intelligent decisions about:
+ANALYSIS TASKS:
 
-1. PERSONA SELECTION: Choose the most appropriate persona based on:
-   - User's explicit needs and emotional state
-   - Conversation context and flow
-   - Severity and urgency of their situation
-   - Type of support they seem to need
+1. INTELLIGENT PERSONA SELECTION:
+   - Analyze the user's emotional state, communication style, and explicit needs
+   - Consider the conversation flow and context depth
+   - Match persona to the TYPE of support needed, not just keywords
+   - Consider cultural context and language preferences
+   - Default to 'listener' if uncertain or for general emotional support
 
-2. CRISIS DETECTION: Only trigger crisis mode if there are GENUINE indicators of:
-   - Immediate danger to self or others
-   - Suicidal ideation with intent/plans
-   - Severe mental health emergency
-   - NOT just sadness, stress, or difficult emotions
+2. SOPHISTICATED CRISIS DETECTION:
+   - Look for GENUINE emergency indicators: specific plans, immediate intent, severe distress
+   - Distinguish between normal sadness/stress vs. actual crisis situations
+   - Consider both English and Filipino expressions of crisis
+   - Require clear indicators of danger or immediate risk
+   - DO NOT trigger crisis for general emotional distress, venting, or difficult life situations
 
-3. LANGUAGE DETECTION: Automatically detect and match the user's language
+3. NATURAL LANGUAGE DETECTION:
+   - Detect if user primarily uses English, Filipino, Taglish, or mixed languages
+   - Consider code-switching patterns and cultural expressions
+   - Match the language style naturally without being explicit about it
 
-RESPOND WITH JSON ONLY:
+Output schema:
 {
-  "selectedPersona": "persona_id",
+  "language": "english" | "filipino" | "taglish" | "mixed",
+  "persona": "listener" | "guide" | "crisis" | "companion" | "anchor",
   "isCrisis": boolean,
-  "reasoning": "brief explanation",
-  "detectedLanguage": "english|filipino|mixed"
+  "confidence": "low" | "medium" | "high",
+  "reasoning": "short summary of how you decided"
 }`;
 
         const analysisModel = gemini.getGenerativeModel({
-          model: geminiConfig.twoPoint5FlashLite,
+          model: "gemini-2.0-flash",
           systemInstruction: {
             role: "model",
-            parts: [{ text: "You are an expert at analyzing conversation context and making intelligent decisions about persona selection, crisis detection, and language detection. Always respond with valid JSON only." }],
-          },
+            parts: [{
+              text: `You are an advanced conversational intelligence engine trained to analyze nuanced human communication patterns.
+
+Your core mission:
+- Interpret the psychological, emotional, and linguistic context of a conversation.
+- Dynamically infer the user's dominant language and tone.
+- Detect genuine mental health crises using reasoning, not keyword spotting.
+
+Follow these heuristics:
+
+1. **Language Intelligence**
+   - Infer the user's main language (english, filipino, taglish, or mixed) by analyzing syntax, sentiment markers, and idioms.
+   - Detect bilingual cues naturally, such as "haist", "naman", or "grabe" for Filipino context.
+   - Never default to "english" unless no other evidence exists.
+
+2. **Persona Inference**
+   - Choose the best persona based on emotional weight, conversational trajectory, and tone.
+   - Personas represent adaptive roles: supportive listener, motivator, reflective guide, etc.
+   - Infer persona shifts naturally (e.g., from venting to reflection).
+   - Never pick randomly; justify choices via reasoning.
+
+3. **Crisis Reasoning**
+   - Determine if the conversation shows *imminent risk* of harm.
+   - Use reasoning, not keyword matching.
+   - Look for emotional exhaustion, explicit plans, or hopelessness + intent.
+   - If no clear evidence, return "isCrisis": false with "confidence": "low".
+
+4. **Output Rules**
+   - Respond with pure JSON — no Markdown, no extra commentary.
+   - Include your reasoning summary for transparency.
+   - Be conservative: only set "isCrisis": true if high confidence and imminent risk.`
+            }]
+          }
         });
 
         const analysisSession = analysisModel.startChat({
@@ -446,10 +486,10 @@ RESPOND WITH JSON ONLY:
           const analysisText = analysisResult.response.text();
           
           // Parse AI analysis
-          const analysis = JSON.parse(analysisText.replace(/```json\n?|\n?```/g, '').trim());
+          const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
           
           // Select persona based on AI analysis
-          const chosenPersona = personaArray.find(p => p.id === analysis.selectedPersona);
+          const chosenPersona = personaArray.find(p => p.id === analysis.persona);
           if (chosenPersona) {
             selectedPersona = chosenPersona.id;
             personaSystemInstruction = chosenPersona.systemInstruction;
@@ -457,10 +497,11 @@ RESPOND WITH JSON ONLY:
 
           // Log AI decision for debugging
           logger.info(`AI-driven analysis:`, {
-            selectedPersona: analysis.selectedPersona,
+            persona: analysis.persona,
             isCrisis: analysis.isCrisis,
             reasoning: analysis.reasoning,
-            detectedLanguage: analysis.detectedLanguage,
+            language: analysis.language,
+            confidence: analysis.confidence,
             userMessage: message.substring(0, 100)
           });
 
@@ -481,282 +522,45 @@ RESPOND WITH JSON ONLY:
         // Continue with default listener persona
       }
 
-      try {
-        // Build context for persona selection (rule-based)
-        let hasCrisisKeywords = false;
-        let needsAdvice = false;
-        let wantsLightConversation = false;
-        let needsEmotionalSupport = false;
-        let isEvasive = false;
-        
-        if (initialForm) {
-          if (initialForm.currentEmotions && initialForm.currentEmotions.length > 0) {
-            const emotions = initialForm.currentEmotions.join(" ").toLowerCase();
-            
-            // Check for crisis indicators (English + Filipino)
-            if (emotions.includes('suicidal') || emotions.includes('hopeless') || emotions.includes('desperate') ||
-                emotions.includes('pakamatay') || emotions.includes('matatapos') || emotions.includes('gustong mamatay') ||
-                emotions.includes('wala nang pag-asa') || emotions.includes('ayaw mabuhay')) {
-              hasCrisisKeywords = true;
-            }
-            // Check for emotional support needs (English + Filipino)
-            if (emotions.includes('sad') || emotions.includes('anxious') || emotions.includes('depressed') || 
-                emotions.includes('lonely') || emotions.includes('overwhelmed') ||
-                emotions.includes('malungkot') || emotions.includes('lungkot') || emotions.includes('nababahala') ||
-                emotions.includes('pagod') || emotions.includes('problema') || emotions.includes('hirap')) {
-              needsEmotionalSupport = true;
-            }
-          }
-          if (initialForm.reasonForVisit) {
-            const reason = initialForm.reasonForVisit.toLowerCase();
-            
-            // Check for crisis indicators in reason (English + Filipino)
-            if (reason.includes('suicid') || reason.includes('kill myself') || reason.includes('end my life') || 
-                reason.includes('self-harm') || reason.includes('can\'t go on') ||
-                reason.includes('pakamatay') || reason.includes('matatapos') || reason.includes('gusto kong mamatay') ||
-                reason.includes('wala nang pag-asa') || reason.includes('ayaw ko na mabuhay')) {
-              hasCrisisKeywords = true;
-            }
-            // Check for advice seeking (English + Filipino)
-            if (reason.includes('advice') || reason.includes('help with') || reason.includes('solution') || 
-                reason.includes('guidance') || reason.includes('what should') ||
-                reason.includes('payo') || reason.includes('tulong') || reason.includes('ano gagawin') ||
-                reason.includes('gabay') || reason.includes('pananaw')) {
-              needsAdvice = true;
-            }
-            // Check for light conversation (English + Filipino)
-            if (reason.includes('chat') || reason.includes('talk') || reason.includes('company') || 
-                reason.includes('distraction') || reason.includes('bored') ||
-                reason.includes('kwentuhan') || reason.includes('usap') || reason.includes('kaibigan') ||
-                reason.includes('chikahan') || reason.includes('libang')) {
-              wantsLightConversation = true;
-            }
-            // Check for emotional support
-            if (reason.includes('listen') || reason.includes('vent') || reason.includes('share') || 
-                reason.includes('support') || reason.includes('understand')) {
-              needsEmotionalSupport = true;
-            }
-          }
-          if (initialForm.supportType && initialForm.supportType.length > 0) {
-            const supportTypes = initialForm.supportType.join(" ").toLowerCase();
-            
-            if (supportTypes.includes('advice') || supportTypes.includes('guidance')) {
-              needsAdvice = true;
-            }
-            if (supportTypes.includes('listening') || supportTypes.includes('emotional')) {
-              needsEmotionalSupport = true;
-            }
-            if (supportTypes.includes('conversation') || supportTypes.includes('company')) {
-              wantsLightConversation = true;
-            }
-          }
-          if (initialForm.additionalContext) {
-            const additional = initialForm.additionalContext.toLowerCase();
-            
-            // Check additional context for indicators
-            if (additional.includes('suicid') || additional.includes('kill myself') || additional.includes('end my life')) {
-              hasCrisisKeywords = true;
-            }
-            if (additional.includes('advice') || additional.includes('solution')) {
-              needsAdvice = true;
-            }
-            if (additional.includes('chat') || additional.includes('talk')) {
-              wantsLightConversation = true;
-            }
-          }
-        }
 
-        // Analyze recent messages for additional context
-        const recentMessages = conversationHistory.slice(-3);
-        const evasiveKeywords = [
-          'i don\'t know', 'maybe', 'whatever', 'nothing', 'fine', 'it\'s nothing', 'never mind', 'forget it', 'doesn\'t matter', 'i\'m good', 'no reason', 'just because', 'stuff', 'things',
-          // Filipino evasive keywords
-          'hindi ko alam', 'ewan', 'bahala na', 'wala', 'okay lang', 'wala lang', 'huwag na lang', 'forget na', 'hindi na importante', 'ayos lang', 'sige na', 'bahala ka', 'ano ba', 'ewan ko', 'wala akong masabi', 'tama na', 'saka na', 'mamaya na', 'basta', 'ganyan lang'
-        ];
-        let evasiveCount = 0;
-        let totalTextLength = 0;
-        
-        // First analyze the current message being sent
-        const currentMessageText = message.toLowerCase();
-        totalTextLength += currentMessageText.length;
-        
-        if (currentMessageText.includes('suicid') || currentMessageText.includes('kill myself') || currentMessageText.includes('end my life') || 
-            currentMessageText.includes('self-harm') || currentMessageText.includes('can\'t go on') ||
-            currentMessageText.includes('pakamatay') || currentMessageText.includes('matatapos') || currentMessageText.includes('gusto kong mamatay') ||
-            currentMessageText.includes('wala nang pag-asa') || currentMessageText.includes('ayaw ko na mabuhay')) {
-          hasCrisisKeywords = true;
-        }
-        if (currentMessageText.includes('advice') || currentMessageText.includes('what should') || currentMessageText.includes('help me') ||
-            currentMessageText.includes('payo') || currentMessageText.includes('tulong') || currentMessageText.includes('ano gagawin') ||
-            currentMessageText.includes('gabay') || currentMessageText.includes('pananaw')) {
-          needsAdvice = true;
-        }
-        if (currentMessageText.includes('chat') || currentMessageText.includes('talk') || currentMessageText.includes('company') || 
-            currentMessageText.includes('distraction') || currentMessageText.includes('bored') ||
-            currentMessageText.includes('kwentuhan') || currentMessageText.includes('usap') || currentMessageText.includes('kaibigan') ||
-            currentMessageText.includes('chikahan') || currentMessageText.includes('libang')) {
-          wantsLightConversation = true;
-        }
-        if (currentMessageText.includes('listen') || currentMessageText.includes('vent') || currentMessageText.includes('share') || 
-            currentMessageText.includes('support') || currentMessageText.includes('understand')) {
-          needsEmotionalSupport = true;
-        }
-        
-        // Check for evasive responses in current message
-        const isCurrentMessageEvasive = evasiveKeywords.some(keyword => currentMessageText.includes(keyword)) || currentMessageText.trim().length < 10;
-        if (isCurrentMessageEvasive) {
-          evasiveCount++;
-        }
-        
-        // Then analyze recent messages
-        for (const msg of recentMessages) {
-          const text = msg.parts[0]?.text?.toLowerCase() || '';
-          totalTextLength += text.length;
-          
-          if (text.includes('suicid') || text.includes('kill myself') || text.includes('end my life') || 
-              text.includes('self-harm') || text.includes('can\'t go on')) {
-            hasCrisisKeywords = true;
-            break;
-          }
-          if (text.includes('advice') || text.includes('what should') || text.includes('help me')) {
-            needsAdvice = true;
-          }
-          if (text.includes('chat') || text.includes('talk') || text.includes('company')) {
-            wantsLightConversation = true;
-          }
-          
-          // Check for evasive responses
-          const isEvasive = evasiveKeywords.some(keyword => text.includes(keyword)) || text.trim().length < 10;
-          if (isEvasive) {
-            evasiveCount++;
-          }
-        }
-        
-        // Determine if user is being evasive
-        if (evasiveCount >= 2 && totalTextLength < 100) {
-          isEvasive = true;
-        }
-
-// Rule-based persona selection with proper typing
-        const personas = personasConfig?.personas || {};
-        const personaArray = Object.values(personas).filter(Boolean) as Array<{
-          id: string;
-          name: string;
-          systemInstruction: string;
-          description?: string;
-        }>;
-
-        // Debug logging for persona selection
-        console.log("Persona selection analysis:", {
-          hasCrisisKeywords,
-          needsAdvice,
-          wantsLightConversation,
-          needsEmotionalSupport,
-          isEvasive,
-          currentMessage: message.substring(0, 100),
-          fullMessage: message,
-          messageLength: message.length,
-          evasiveCount,
-          totalTextLength
-        });
-        
-        console.log("Available personas:", Object.keys(personas));
-
-        if (hasCrisisKeywords) {
-          // Priority 1: Crisis support
-          const crisisPersona = personaArray.find((p) => 
-            p.id.includes('crisis') || p.id.includes('emergency') || p.name.toLowerCase().includes('crisis')
-          );
-          if (crisisPersona) {
-            selectedPersona = crisisPersona.id;
-            personaSystemInstruction = crisisPersona.systemInstruction;
-          }
-        } else if (hasCrisisKeywords) {
-          // Priority 1: Crisis support (already handled above, but keeping for clarity)
-          const crisisPersona = personaArray.find((p) => 
-            p.id.includes('crisis') || p.id.includes('emergency') || p.name.toLowerCase().includes('crisis')
-          );
-          if (crisisPersona) {
-            selectedPersona = crisisPersona.id;
-            personaSystemInstruction = crisisPersona.systemInstruction;
-          }
-        } else if (needsAdvice && (currentMessageText.includes('advice') || currentMessageText.includes('what should') || currentMessageText.includes('help me') || currentMessageText.includes('guidance'))) {
-          // Priority 2: Guide for explicit advice seeking
-          const guidePersona = personaArray.find((p) => 
-            p.id.includes('guide') || p.id.includes('advisor') || p.name.toLowerCase().includes('guide')
-          );
-          if (guidePersona) {
-            selectedPersona = guidePersona.id;
-            personaSystemInstruction = guidePersona.systemInstruction;
-          }
-        } else if (wantsLightConversation && (currentMessageText.includes('chat') || currentMessageText.includes('talk') || currentMessageText.includes('conversation') || currentMessageText.includes('bored'))) {
-          // Priority 3: Companion for explicit conversation seeking
-          const companionPersona = personaArray.find((p) => 
-            p.id.includes('companion') || p.id.includes('friend') || p.name.toLowerCase().includes('companion')
-          );
-          if (companionPersona) {
-            selectedPersona = companionPersona.id;
-            personaSystemInstruction = companionPersona.systemInstruction;
-          }
-        } else if (isEvasive) {
-          // Priority 4: Direct engager for evasive users
-          const directEngagerPersona = personaArray.find((p) => 
-            p.id.includes('direct_engager') || p.id.includes('direct-engager') || p.name.toLowerCase().includes('direct')
-          );
-          if (directEngagerPersona) {
-            selectedPersona = directEngagerPersona.id;
-            personaSystemInstruction = directEngagerPersona.systemInstruction;
-          }
-        } else if (needsAdvice) {
-          // Priority 5: Guide for general advice needs from form
-          const guidePersona = personaArray.find((p) => 
-            p.id.includes('guide') || p.id.includes('advisor') || p.name.toLowerCase().includes('guide')
-          );
-          if (guidePersona) {
-            selectedPersona = guidePersona.id;
-            personaSystemInstruction = guidePersona.systemInstruction;
-          }
-        } else if (wantsLightConversation) {
-          // Priority 6: Companion for general conversation needs from form
-          const companionPersona = personaArray.find((p) => 
-            p.id.includes('companion') || p.id.includes('friend') || p.name.toLowerCase().includes('companion')
-          );
-          if (companionPersona) {
-            selectedPersona = companionPersona.id;
-            personaSystemInstruction = companionPersona.systemInstruction;
-          }
-        } else {
-          // Default: Listener for emotional support or general cases
-          const listenerPersona = (personas as any).listener || personaArray.find((p) => 
-            p.id.includes('listener') || p.name.toLowerCase().includes('listener')
-          );
-          if (listenerPersona) {
-            selectedPersona = listenerPersona.id;
-            personaSystemInstruction = listenerPersona.systemInstruction;
-          }
-        }
-        
-        logger.info(`Selected persona: ${selectedPersona} based on rule-based analysis`);
-      } catch (error) {
-        logger.error("Error in rule-based persona selection:", error);
-        // Continue with default listener persona
-      }
 
       // Build complete system instruction
       let systemInstructionText = `
 ${personaSystemInstruction}
 
-**INTELLIGENT LANGUAGE ADAPTATION:** Automatically detect and match the user's language naturally. Respond in the same language the user uses - whether English, Filipino, or mixed. Do not ask about language preference; simply adapt to their communication style.
+**Dynamic Cognitive Directives**
+- Adapt to the user's emotional, cultural, and linguistic state in real time.
+- Seamlessly detect and respond in English, Filipino, or Taglish.
+- Never mention language switching; it must feel natural and intuitive.
 
-**Crucial Ethical and Professional Guidelines:**
-1. **Strictly Adhere to Boundaries:** You are an AI and explicitly **not** a human therapist, medical professional, or crisis counselor. You **must** clearly state this disclaimer at the beginning of the session and if the user expresses a need for professional help or indicates a crisis.
-2. **Safety First (Crisis Protocol):** If the user expresses any indication of suicidal thoughts, self-harm, harm to others, or severe distress requiring immediate intervention, you **must** interrupt the conversation to provide emergency contact information (e.g., "If you are in immediate danger, please contact 911 or a crisis hotline like the National Suicide Prevention Lifeline at 988."). Do not attempt to "treat" or "diagnose" a crisis; instead, prioritize immediate safety resources.
-3. **No Diagnosis or Medical Advice:** You **do not diagnose mental health conditions, prescribe medication, or offer specific medical treatments.** Your role is supportive and educational.
-4. **Confidentiality (Simulation Context):** In this simulation, you operate under the understanding that user data is being processed *for the purpose of this simulation only* and *is not real client data*. Acknowledge that in a real-world scenario, privacy and data security are paramount.
-5. **Personalization with Care:** Refer to the user's preferred name occasionally if available (${
-        initialForm?.preferredName ? initialForm.preferredName : "you"
-      }). Use this naturally, not robotically.
-6. **Session Context:** ${followupFormAnswers ? 'This is a follow-up session. When a user\'s previous session follow-up form is provided, naturally reference their responses to show continuity between sessions. Acknowledge any progress, changes, or concerns they mentioned.' : 'This is the first session with this user. Do not reference previous conversations or ask about how they\'ve been feeling since we last spoke, as this is a new therapeutic relationship.'}
+**Adaptive Persona Behavior**
+- Re-evaluate persona alignment every few turns.
+- If the conversation shifts tone (e.g., stress → reflection), change your role smoothly (listener → motivator → reflective guide).
+- Maintain warmth, empathy, and continuity in voice.
+
+**Crisis and Ethical Safeguards**
+1. You are a mental wellness companion, not a therapist or professional counselor.
+2. If a message implies *clear and immediate risk* of harm to self or others:
+   - Stop the normal conversation immediately.
+   - Gently provide trusted emergency options, e.g.:
+     "If you are in immediate danger, please contact 911 or 988 (in the U.S.), or your local emergency line."
+3. Do not overreact to mild distress. Only escalate for imminent, reasoned risk.
+4. Never attempt to diagnose or prescribe treatment.
+
+**Session Memory & Flow**
+- Respect previous "follow-up form" insights when provided.
+- Reference prior context naturally (e.g., "Last time you mentioned…"), only when the data exists.
+- Avoid repetition or disconnection between sessions.
+
+**Conversational Principles**
+- Keep responses short (2–4 sentences) but meaningful.
+- Avoid filler sympathy ("I'm sorry to hear that") unless contextually appropriate.
+- Encourage reflection, grounding, or practical insights when emotions escalate.
+
+**Response Style**
+- Sound genuinely human, empathetic, and culturally aware.
+- Apply Filipino warmth or subtle indirectness where suitable.
+- Prioritize clarity, brevity, and empathy over verbosity.
 `;
 
       // Add conversation preferences
@@ -785,21 +589,8 @@ ${personaSystemInstruction}
         systemInstructionText += prefsText;
       }
 
-      systemInstructionText += `
-**Expected Response Structure:**
-Your response should be a natural, conversational reply.
-${
-        conversationPreferences?.mainEnableTTS
-          ? "- Keep responses very brief (1-2 sentences maximum) for optimal audio generation.\n"
-          : "- Keep responses brief and to the point (2-4 sentences maximum).\n"
-      }- Acknowledge feelings simply and directly.
-- Focus on one key insight or question per response.
-- Avoid lengthy explanations or therapeutic jargon.
-- Do not provide a JSON output; just the conversational text.
-`;
-
       const model = gemini.getGenerativeModel({
-        model: geminiConfig.twoPoint5FlashLite,
+        model: "gemini-2.0-flash",
         systemInstruction: {
           role: "model",
           parts: [{ text: systemInstructionText }],
@@ -910,7 +701,7 @@ ${
       return c.json({ error: "Failed to fetch messages" }, 500);
     }
   })
-  // Check crisis status for a session
+  // Check crisis status for a session using AI intelligence
   .get("/crisis/:sessionId", async (c) => {
     try {
       const sessionId = parseInt(c.req.param("sessionId"));
@@ -918,7 +709,7 @@ ${
         return c.json({ error: "Invalid session ID" }, 400);
       }
 
-      // Get recent messages for crisis analysis
+      // Get recent messages for AI-powered crisis analysis
       const recentMessages = await db
         .select()
         .from(messages)
@@ -926,19 +717,94 @@ ${
         .orderBy(messages.timestamp)
         .limit(10);
 
-      // Simple crisis detection based on message content
-      const crisisKeywords = [
-        "suicidal", "suicide", "kill myself", "end my life", "hurt myself",
-        "self-harm", "want to die", "can't go on", "no reason to live"
-      ];
+      if (recentMessages.length === 0) {
+        return c.json({ crisisDetected: false, reasoning: "No messages found" });
+      }
 
-      const crisisDetected = recentMessages.some(msg => 
-        crisisKeywords.some(keyword => 
-          msg.text.toLowerCase().includes(keyword.toLowerCase())
-        )
-      );
+      // Use AI for intelligent crisis detection
+      const crisisAnalysisPrompt = `
+Analyze these conversation messages for genuine crisis indicators:
 
-      return c.json({ crisisDetected });
+MESSAGES:
+${recentMessages.map(msg => `[${msg.sender}]: ${msg.text}`).join('\n')}
+
+CRISIS ASSESSMENT CRITERIA:
+Look for GENUINE emergency indicators:
+- Specific plans for self-harm or suicide
+- Immediate intent to harm self or others  
+- Severe mental health emergency requiring immediate intervention
+- Expressions of hopelessness combined with specific means/plans
+
+DO NOT flag as crisis for:
+- General sadness, stress, or difficult emotions
+- Venting about life problems
+- General expressions of distress without specific intent
+- Normal emotional struggles
+
+RESPOND WITH JSON ONLY:
+{
+  "crisisDetected": boolean,
+  "reasoning": "brief explanation of your assessment",
+  "severity": "none|low|medium|high|critical",
+  "confidence": "high|medium|low"
+}`;
+
+      const analysisModel = gemini.getGenerativeModel({
+        model: "gemini-2.0-flash",
+        systemInstruction: {
+          role: "model",
+          parts: [{ text: "You are an expert crisis assessment specialist. Analyze conversation context for genuine emergency indicators. Be conservative - only flag actual crises, not general distress. Always respond with valid JSON only." }],
+        },
+      });
+
+      const analysisSession = analysisModel.startChat({
+        generationConfig: {
+          maxOutputTokens: 300,
+          temperature: 0.1,
+        },
+      });
+
+      try {
+        const analysisResult = await analysisSession.sendMessage(crisisAnalysisPrompt);
+        const analysisText = analysisResult.response.text();
+        const analysis = JSON.parse(analysisText.replace(/```json\n?|\n?```/g, '').trim());
+
+        logger.info(`AI crisis analysis for session ${sessionId}:`, {
+          crisisDetected: analysis.crisisDetected,
+          reasoning: analysis.reasoning,
+          severity: analysis.severity,
+          confidence: analysis.confidence
+        });
+
+        return c.json({
+          crisisDetected: analysis.crisisDetected,
+          reasoning: analysis.reasoning,
+          severity: analysis.severity,
+          confidence: analysis.confidence
+        });
+
+      } catch (analysisError) {
+        logger.error("AI crisis analysis failed, using conservative fallback:", analysisError);
+        // Conservative fallback: only flag if explicit keywords found
+        const explicitCrisisKeywords = [
+          "kill myself", "going to kill", "suicide plan", "end my life tonight",
+          "pakamatay ngayon", "matatapos na buhay ko", "gusto kong mamatay ngayon"
+        ];
+        
+        const explicitCrisisDetected = recentMessages.some(msg => 
+          explicitCrisisKeywords.some(keyword => 
+            msg.text.toLowerCase().includes(keyword.toLowerCase())
+          )
+        );
+
+        return c.json({ 
+          crisisDetected: explicitCrisisDetected,
+          reasoning: "Fallback keyword analysis due to AI analysis failure",
+          severity: explicitCrisisDetected ? "high" : "none",
+          confidence: "low"
+        });
+      }
+
     } catch (error) {
       logger.error("Error checking crisis status:", error);
       return c.json({ error: "Failed to check crisis status" }, 500);
