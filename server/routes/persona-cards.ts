@@ -495,15 +495,7 @@ Follow these heuristics:
             personaSystemInstruction = chosenPersona.systemInstruction;
           }
 
-          // Log AI decision for debugging
-          logger.info(`AI-driven analysis:`, {
-            persona: analysis.persona,
-            isCrisis: analysis.isCrisis,
-            reasoning: analysis.reasoning,
-            language: analysis.language,
-            confidence: analysis.confidence,
-            userMessage: message.substring(0, 100)
-          });
+
 
         } catch (analysisError) {
           logger.error("AI analysis failed, using default listener:", analysisError);
@@ -769,12 +761,7 @@ RESPOND WITH JSON ONLY:
         const analysisText = analysisResult.response.text();
         const analysis = JSON.parse(analysisText.replace(/```json\n?|\n?```/g, '').trim());
 
-        logger.info(`AI crisis analysis for session ${sessionId}:`, {
-          crisisDetected: analysis.crisisDetected,
-          reasoning: analysis.reasoning,
-          severity: analysis.severity,
-          confidence: analysis.confidence
-        });
+
 
         return c.json({
           crisisDetected: analysis.crisisDetected,
