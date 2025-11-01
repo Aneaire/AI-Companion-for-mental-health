@@ -147,33 +147,7 @@ export const observerApi = {
   },
 };
 
-// Add main observer API client (for main chat/therapy sessions)
-export const mainObserverApi = {
-  async getSuggestion({
-    messages,
-    initialForm,
-    followupForm,
-    conversationPreferences,
-  }: {
-    messages: { text: string; sender: "user" | "ai" }[];
-    initialForm?: import("./client").FormData;
-    followupForm?: Record<string, any>;
-    conversationPreferences?: {
-      mainEnableTTS?: boolean;
-    };
-  }) {
-    const res = await client.api["main-observer"].$post({
-      json: {
-        messages,
-        ...(initialForm ? { initialForm } : {}),
-        ...(followupForm ? { followupForm } : {}),
-        ...(conversationPreferences ? { conversationPreferences } : {})
-      },
-    });
-    if (!res.ok) throw new Error("Failed to get main observer suggestion");
-    return res.json();
-  },
-};
+
 
 // Add impersonate observer API client (for impersonate/roleplay sessions)
 export const impersonateObserverApi = {

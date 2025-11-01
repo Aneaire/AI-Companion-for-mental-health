@@ -3,11 +3,11 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import { FormRequiredState } from "@/components/chat/FormRequiredState";
 import { SessionManagementDialog } from "@/components/chat/SessionManagementDialog";
-import client, { mainObserverApi, threadsApi, personaCardsApi } from "@/lib/client";
+import client, { threadsApi, personaCardsApi } from "@/lib/client";
 import { useMoveThreadToTop } from "@/lib/queries/threads";
 import { useUserProfile } from "@/lib/queries/user";
-import { buildMessagesForObserver, sanitizeInitialForm } from "@/lib/utils";
-import { StreamingMessageProcessor, MessageFormattingUtils } from "@/lib/messageFormatter";
+import { sanitizeInitialForm } from "@/lib/utils";
+import { StreamingMessageProcessor, MessageFormattingUtils, selectPersonaBasedOnRules } from "@/lib/messageFormatter";
 import textToSpeech from "@/services/elevenlabs/textToSpeech";
 import { useChatStore, type ConversationPreferences } from "@/stores/chatStore";
 import { useThreadsStore } from "@/stores/threadsStore";
@@ -182,6 +182,9 @@ export function Thread({
     setLoadingState,
     conversationPreferences: storeConversationPreferences,
     setConversationPreferences,
+    setSelectedPersona,
+    selectedPersona,
+    personaRationale,
   } = useChatStore();
 
   // Use prop if provided, otherwise fall back to store
@@ -193,18 +196,42 @@ export function Thread({
   const didMountRef = useRef(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const prevMessageCountRef = useRef<number>(0);
-  const [agentStrategy, setAgentStrategy] = useState<string>("");
-  const [agentRationale, setAgentRationale] = useState<string>("");
-  const [agentNextSteps, setAgentNextSteps] = useState<string[]>([]);
+  
   const [showDevTools, setShowDevTools] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedSessionStatus, setSelectedSessionStatus] = useState<
     "active" | "finished" | undefined
   >(undefined);
   const [threadTitle, setThreadTitle] = useState<string>("");
+  const [showPersonaInMessages, setShowPersonaInMessages] = useState(false); // Start with false
 
+  // Handle persona display toggle from DevTools
+  useEffect(() => {
+    const handleTogglePersonaDisplay = (event: any) => {
+      const newState = event.detail?.showPersona ?? !showPersonaInMessages;
+      setShowPersonaInMessages(newState);
+      // Notify DevTools of the new state
+      window.dispatchEvent(new CustomEvent('personaDisplayState', { detail: { showPersona: newState } }));
+    };
 
-  
+    window.addEventListener('togglePersonaDisplay', handleTogglePersonaDisplay);
+    
+    // Initialize DevTools with current state
+    window.dispatchEvent(new CustomEvent('personaDisplayState', { detail: { showPersona: showPersonaInMessages } }));
+    
+    return () => {
+      window.removeEventListener('togglePersonaDisplay', handleTogglePersonaDisplay);
+    };
+  }, [showPersonaInMessages]);
+
+  // Auto-show persona badge when a persona is selected
+  useEffect(() => {
+    if (selectedPersona && !showPersonaInMessages) {
+      setShowPersonaInMessages(true);
+    }
+  }, [selectedPersona, showPersonaInMessages]);
+
+   
   // Session management state
   const [sessionManagementOpen, setSessionManagementOpen] = useState(false);
   const [sessionFormCompleted, setSessionFormCompleted] = useState<boolean | null>(null);
@@ -311,6 +338,8 @@ export function Thread({
     }
     return undefined;
   };
+
+
 
   useEffect(() => {
     if (selectedThreadId) {
@@ -647,55 +676,7 @@ export function Thread({
       sessionInitialForm.preferredName = userProfile.nickname;
     }
 
-    // 1. Get observer output (strategy, rationale, next_steps)
-    let observerStrategy = "";
-    let observerRationale = "";
-    let observerNextSteps: string[] = [];
-    let observerSentiment = "";
-    setLoadingState("observer");
-    try {
-      // Build the most up-to-date messages array for the observer
-      const messagesForObserver = buildMessagesForObserver(
-        currentContext.messages,
-        message
-      );
 
-      // Debug log for observer payload
-      console.log("Observer payload", {
-        messages: messagesForObserver,
-        initialForm: sessionInitialForm,
-      });
-
-      const observerRes = await mainObserverApi.getSuggestion({
-        messages: messagesForObserver,
-        ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-        ...(followupFormData ? { followupForm: followupFormData } : {}),
-        conversationPreferences: {
-          mainEnableTTS: conversationPreferences.mainEnableTTS,
-        },
-      });
-      observerStrategy = observerRes.strategy || "";
-      observerRationale = observerRes.rationale || "";
-      observerNextSteps = observerRes.next_steps || [];
-      observerSentiment = observerRes.sentiment || "";
-      setAgentStrategy(observerRes.strategy || "");
-      setAgentRationale(observerRes.rationale || "");
-      setAgentNextSteps(observerRes.next_steps || []);
-      if (
-        observerRes.strategy &&
-        didMountRef.current &&
-        lastSuggestionRef.current !== observerRes.strategy
-      ) {
-        toast.info(observerRes.strategy, { duration: 6000 });
-      }
-      lastSuggestionRef.current = observerRes.strategy;
-      if (!didMountRef.current) didMountRef.current = true;
-    } catch (e) {
-      observerStrategy = "";
-      observerRationale = "";
-      observerNextSteps = [];
-      observerSentiment = "";
-    }
     setLoadingState("generating");
     setIsStreaming(true);
 
@@ -732,23 +713,13 @@ export function Thread({
           timestamp: msg.timestamp.getTime(),
           ...(msg.contextId ? { contextId: msg.contextId } : {}),
         })),
-        ...(currentContext.sessionId
-          ? { sessionId: currentContext.sessionId }
-          : {}),
+        sessionId: currentContext.sessionId || 0,
         ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
         ...(message.trim() === "" && !currentContext.messages.length
           ? { initialForm: undefined }
           : {}),
-        ...(userProfile?.id ? { userId: String(userProfile.id) } : {}),
-        // Pass conversation preferences
-        conversationPreferences: conversationPreferences ? {
-          ...conversationPreferences,
-          // Add any additional instructions from observer
-          ...(observerStrategy ? { systemInstruction: observerStrategy } : {}),
-          ...(observerRationale ? { observerRationale } : {}),
-          ...(observerNextSteps.length > 0 ? { observerNextSteps } : {}),
-          ...(observerSentiment ? { sentiment: observerSentiment } : {}),
-        } : {},
+        userId: String(userProfile?.id || ""),
+        conversationPreferences,
       });
 
       // Optimistically move the thread to the top after sending a message
@@ -814,7 +785,62 @@ export function Thread({
                // Don't show error toast as it might interrupt the conversation
              }
            }
-         }
+         },
+        // Persona selection callback - use server-provided persona with fallback to rule-based
+        (personaData: any) => {
+          console.log("Persona selection event received:", personaData);
+          console.log("Persona data details:", {
+            personaId: personaData?.personaId,
+            hasPersonaId: !!personaData?.personaId,
+            personaIdType: typeof personaData?.personaId
+          });
+          
+          // Use server-provided persona if available, otherwise fallback to rule-based selection
+          if (personaData && personaData.personaId) {
+            console.log("Using server-provided persona:", personaData);
+            // Map server personaId to frontend persona names and generate rationale
+            let personaName = personaData.personaId;
+            let rationale = 'Server selected based on conversation analysis';
+            
+            // Map persona IDs to display names
+            if (personaData.personaId.includes('crisis')) {
+              personaName = 'crisis_support';
+              rationale = 'crisis';
+            } else if (personaData.personaId.includes('anchor')) {
+              personaName = 'calm_anchor';
+              rationale = 'anger';
+            } else if (personaData.personaId.includes('guide')) {
+              personaName = 'wise_guide';
+              rationale = 'advice';
+            } else if (personaData.personaId.includes('companion') || personaData.personaId.includes('friend')) {
+              personaName = 'friendly_companion';
+              rationale = 'companion';
+            } else if (personaData.personaId.includes('direct')) {
+              personaName = 'direct_engager';
+              rationale = 'evasive';
+            } else if (personaData.personaId.includes('listener')) {
+              personaName = 'empathetic_listener';
+              rationale = 'emotional';
+            } else {
+              personaName = 'empathetic_listener';
+              rationale = 'default';
+            }
+            
+            console.log("Mapped persona for frontend:", { personaName, rationale });
+            setSelectedPersona(personaName, rationale);
+          } else {
+            // Fallback to rule-based selection
+            const selectedPersona = selectPersonaBasedOnRules(
+              currentContext.messages,
+              message
+            );
+            console.log("Using rule-based persona selection:", selectedPersona);
+            setSelectedPersona(
+              selectedPersona.persona,
+              selectedPersona.rationale
+            );
+          }
+        }
       );
 
       await processor.processStream(response);
@@ -840,48 +866,9 @@ export function Thread({
   // Removed this useEffect to prevent multiple observer calls
   // The observer is now only called in handleSendMessage when needed
 
-  // Call observer once when thread is loaded to populate DevTools
-  useEffect(() => {
-    if (
-      selectedThreadId &&
-      currentContext.messages.some((msg) => msg.sender === "user") &&
-      !isStreaming &&
-      !loadingHistory &&
-      agentStrategy === "" // Only if we don't already have strategy data
-    ) {
-      (async () => {
-        try {
-          // Get the correct initial form for this session
-          const sessionInitialForm = getInitialForm(selectedThreadId);
 
-          const res = await mainObserverApi.getSuggestion({
-            messages: currentContext.messages
-              .filter((msg) => msg.sender === "user" || msg.sender === "ai")
-              .map((msg) => ({
-                sender: (msg.sender === "user" ? "user" : "ai") as
-                  | "user"
-                  | "ai",
-                text: msg.text,
-              })),
-            ...(sessionInitialForm ? { initialForm: sessionInitialForm } : {}),
-            ...(followupFormData ? { followupForm: followupFormData } : {}),
-          });
-          setAgentStrategy(res.strategy || "");
-          setAgentRationale(res.rationale || "");
-          setAgentNextSteps(res.next_steps || []);
-        } catch (error) {
-          console.error("Error getting observer suggestion:", error);
-        }
-      })();
-    }
-  }, [selectedThreadId, loadingHistory, getInitialForm]); // Only depend on thread change and loading state
 
-  // Clear agent strategy when switching threads
-  useEffect(() => {
-    setAgentStrategy("");
-    setAgentRationale("");
-    setAgentNextSteps([]);
-  }, [selectedThreadId]);
+  
 
   // Get the correct initial form for the current session
   const currentSessionInitialForm = currentContext.sessionId
@@ -902,6 +889,9 @@ export function Thread({
              onDeleteThread={handleDeleteThread}
              onArchiveThread={handleArchiveThread}
              context="main"
+             currentPersona={selectedPersona}
+             personaRationale={personaRationale}
+             showPersonaBadge={showPersonaInMessages}
             />
          </div>
       </div>
@@ -946,14 +936,16 @@ export function Thread({
                 }}
               />
             ) : (
-               <ChatInterface
-                 messages={currentContext.messages}
-                 onSendMessage={onSendMessage || handleSendMessage}
-                 loadingState={loadingState}
-                 inputVisible={selectedSessionStatus !== "finished"}
-                 isImpersonateMode={false}
-                 preferences={conversationPreferences}
-               />
+<ChatInterface
+                  messages={currentContext.messages}
+                  onSendMessage={onSendMessage || handleSendMessage}
+                  loadingState={loadingState}
+                  inputVisible={selectedSessionStatus !== "finished"}
+                  isImpersonateMode={false}
+                  preferences={conversationPreferences}
+                  showPersonaInMessages={showPersonaInMessages}
+                  selectedPersona={selectedPersona}
+                />
             )}
           </div>
         </Suspense>
@@ -969,9 +961,6 @@ export function Thread({
 
       {/* Dev Tools Sidebar with enhanced styling */}
       <DevToolsSidebar
-        agentStrategy={agentStrategy}
-        agentRationale={agentRationale}
-        agentNextSteps={agentNextSteps}
         messageCount={currentContext.messages.length}
         messages={currentContext.messages}
         initialForm={currentSessionInitialForm}

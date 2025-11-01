@@ -4,13 +4,10 @@ import { useChatStore } from "@/stores/chatStore";
 import type { Message } from "@/types/chat";
 import { useAuth } from "@clerk/clerk-react";
 import type { JSX } from "react";
-import { memo, useState } from "react";
+import { memo, useState, useEffect } from "react";
 import MessageQualityAnalyzer from "./MessageQualityAnalyzer";
 
 interface DevToolsSidebarProps {
-  agentStrategy: string;
-  agentRationale: string;
-  agentNextSteps: string[];
   messageCount: number;
   messages: Message[];
   initialForm?: any;
@@ -19,9 +16,6 @@ interface DevToolsSidebarProps {
 }
 
 function DevToolsSidebar({
-  agentStrategy,
-  agentRationale,
-  agentNextSteps,
   messageCount,
   messages,
   initialForm,
@@ -32,8 +26,22 @@ function DevToolsSidebar({
   const { data: userProfile, isLoading: userProfileLoading } = useUserProfile(
     clerkId || null
   );
-  const { loadingState } = useChatStore();
+  const { loadingState, selectedPersona, personaRationale } = useChatStore();
   const [showQualityAnalysis, setShowQualityAnalysis] = useState(false);
+  const [showPersonaBadge, setShowPersonaBadge] = useState(false);
+
+  // Sync with Thread component's persona display state
+  useEffect(() => {
+    const handlePersonaDisplayState = (event: any) => {
+      setShowPersonaBadge(event.detail.showPersona);
+    };
+
+    window.addEventListener('personaDisplayState', handlePersonaDisplayState);
+    
+    return () => {
+      window.removeEventListener('personaDisplayState', handlePersonaDisplayState);
+    };
+  }, []);
   if (!isOpen) return <></>;
 
   return (
@@ -52,15 +60,13 @@ function DevToolsSidebar({
             </button>
           </div>
 
-          {/* Observer Loading Status */}
-          {(loadingState === "observer" || loadingState === "generating") && (
+          {/* AI Loading Status */}
+          {loadingState === "generating" && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center gap-2 text-yellow-900">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
                 <span className="text-sm font-medium">
-                  {loadingState === "observer"
-                    ? "Analyzing conversation..."
-                    : "Generating response..."}
+                  Generating response...
                 </span>
               </div>
             </div>
@@ -82,63 +88,77 @@ function DevToolsSidebar({
             )}
           </div>
 
-          {/* Agent Strategy */}
-          <div className="mb-6">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Strategy</h4>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
-              {loadingState === "observer" || loadingState === "generating" ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                  <span>Analyzing...</span>
-                </div>
-              ) : (
-                agentStrategy || "No strategy available"
-              )}
-            </div>
-          </div>
 
-          {/* Agent Rationale */}
+
+          {/* Persona Selection Rationale */}
           <div className="mb-6">
             <h4 className="text-sm font-medium text-gray-700 mb-2">
-              Rationale
+              Selection Reasoning
             </h4>
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-900">
-              {loadingState === "observer" || loadingState === "generating" ? (
+              {loadingState === "generating" ? (
                 <div className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-600"></div>
                   <span>Analyzing...</span>
                 </div>
+              ) : personaRationale ? (
+                <div className="space-y-2">
+                  <div className="font-medium">Rule-Based Analysis:</div>
+                  <div className="text-xs space-y-1">
+                    {personaRationale.includes('crisis') && (
+                      <div>• Crisis keywords detected - prioritizing support</div>
+                    )}
+                    {personaRationale.includes('advice') && (
+                      <div>• User seeking advice - selecting guide persona</div>
+                    )}
+                    {personaRationale.includes('companion') && (
+                      <div>• User wants conversation - selecting companion</div>
+                    )}
+                    {personaRationale.includes('emotional') && (
+                      <div>• User needs emotional support - selecting listener</div>
+                    )}
+                    {personaRationale.includes('evasive') && (
+                      <div>• User being evasive - selecting direct engager</div>
+                    )}
+                    {(!personaRationale.includes('crisis') && 
+                     !personaRationale.includes('advice') && 
+                     !personaRationale.includes('companion') && 
+                     !personaRationale.includes('emotional') &&
+                     !personaRationale.includes('evasive')) && (
+                      <div>• Default selection - using listener persona</div>
+                    )}
+                  </div>
+                </div>
               ) : (
-                agentRationale || "No rationale available"
+                "No rationale available"
               )}
             </div>
           </div>
 
-          {/* Agent Next Steps */}
+          {/* Persona Display Toggle */}
           <div className="mb-6">
             <h4 className="text-sm font-medium text-gray-700 mb-2">
-              Next Steps
+              Chat Header Badge
             </h4>
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-              {loadingState === "observer" || loadingState === "generating" ? (
-                <div className="flex items-center gap-2 text-sm text-purple-900">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-600"></div>
-                  <span>Analyzing...</span>
-                </div>
-              ) : agentNextSteps && agentNextSteps.length > 0 ? (
-                <ul className="text-sm text-purple-900 space-y-1">
-                  {agentNextSteps.map((step, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-purple-600 mr-2">•</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <span className="text-sm text-purple-900">
-                  No next steps available
-                </span>
-              )}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <Button
+                size="sm"
+                variant={showPersonaBadge ? "default" : "outline"}
+                onClick={() => {
+                  // Toggle persona display in Thread component
+                  const newState = !showPersonaBadge;
+                  window.dispatchEvent(new CustomEvent('togglePersonaDisplay', { detail: { showPersona: newState } }));
+                }}
+                className="w-full"
+              >
+                {showPersonaBadge ? "Hide Persona Badge" : "Show Persona Badge"}
+              </Button>
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`w-2 h-2 rounded-full ${showPersonaBadge ? "bg-green-500" : "bg-gray-300"}`} />
+                <p className="text-xs text-gray-600">
+                  {showPersonaBadge ? "Persona badge visible in header" : "Persona badge hidden"}
+                </p>
+              </div>
             </div>
           </div>
 

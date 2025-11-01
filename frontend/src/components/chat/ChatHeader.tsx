@@ -5,6 +5,7 @@ import { BrainCircuit, Settings, Sparkles } from "lucide-react";
 import type { JSX } from "react";
 import { useState } from "react";
 import { CrisisInterventionButton } from "./CrisisInterventionButton";
+import { PersonaBadge } from "./PersonaBadge";
 import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
 
 interface ChatHeaderProps {
@@ -16,6 +17,9 @@ interface ChatHeaderProps {
   onDeleteThread?: (threadId: number) => void;
   onArchiveThread?: (threadId: number) => void;
   context?: "main" | "impersonate";
+  currentPersona?: string | null;
+  personaRationale?: string | null;
+  showPersonaBadge?: boolean;
 }
 
 export function ChatHeader({
@@ -27,6 +31,9 @@ export function ChatHeader({
   onDeleteThread,
   onArchiveThread,
   context = "main",
+  currentPersona,
+  personaRationale,
+  showPersonaBadge = false,
 }: ChatHeaderProps): JSX.Element {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -62,6 +69,13 @@ export function ChatHeader({
                   <Sparkles size={10} className="mr-1" />
                   Active
                 </Badge>
+                {showPersonaBadge && currentPersona && (
+                  <PersonaBadge 
+                    persona={currentPersona} 
+                    rationale={personaRationale}
+                    isVisible={showPersonaBadge}
+                  />
+                )}
               </div>
               <p className="text-sm text-gray-600">
                 Your intelligent healthcare support assistant
@@ -88,7 +102,7 @@ export function ChatHeader({
       <ThreadSettingsDialog
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        selectedThreadId={selectedThreadId}
+        selectedThreadId={selectedThreadId || null}
         threadTitle={threadTitle}
         preferences={preferences}
         onPreferencesChange={onPreferencesChange}

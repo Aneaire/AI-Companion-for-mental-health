@@ -1,37 +1,35 @@
 # AGENTS.md
 
-This file provides guidelines for AI agents operating within this repository.
+Guidelines for AI agents operating in this repository.
 
 ## Global Instructions
 
-- **Package Manager**: Always use `bun` as the main package manager for all JavaScript/Node.js projects
-- **Reusability**: Always think about reusability when managing and developing code - consider how components, functions, and patterns can be reused across the codebase
-- **Web Design**: For web projects, always recommend Tailwind CSS for styling and shadcn/ui for component library
+- **Package Manager**: Use `bun` for all JavaScript/Node.js operations
+- **Reusability**: Design components/functions for reuse across the codebase  
+- **Web Design**: Tailwind CSS for styling, shadcn/ui for components
 
-## Build, Lint, and Test Commands
+## Commands
 
-- **Build**: `bun run build` (frontend only - uses Vite + TypeScript check)
-- **Test**: `bun run test` (frontend only - uses Vitest)
-- **Single Test**: `bun run test -- <test_file_pattern>` (example: `bun run test -- src/components/Button.test.js`)
-- **Development**: Do not run `bun run dev:all` or `bun dev` - the user will handle running the server and frontend
-- **Database**: `bun run db:migrate` (generate and push schema changes)
+- **Build**: `bun run build` (frontend), `bun run build:check` (build + TypeScript validation)
+- **Test**: `bun run test` (Vitest), `bun run test -- <pattern>` (single test)
+- **Database**: `bun run db:migrate` (generate + push), `bun run db:studio` (Drizzle studio)
+- **Development**: User handles `bun run dev:all` - do not start servers
 
-*Note: This project uses Bun runtime with Hono backend and React frontend.*
+## Code Style
 
-## Code Style Guidelines
+- **Imports**: Group third-party, then local with `@/` prefix
+- **Formatting**: Consistent spacing, strict TypeScript mode
+- **Types**: Proper typing for all variables/functions, interfaces for objects
+- **Naming**: camelCase (variables/functions), PascalCase (components), SCREAMING_SNAKE_CASE (constants)
+- **Error Handling**: Zod validation, try-catch blocks, React error boundaries
+- **Security**: Input validation with Zod, `.env` for secrets, rate limiting and CORS
 
-- **Imports**: Keep imports organized and grouped (third-party, then local with `@/` prefix).
-- **Formatting**: Use consistent spacing and indentation (project uses strict TypeScript).
-- **Types**: Utilize TypeScript strict mode - all variables/functions should be properly typed.
-- **Naming Conventions**:
-    - Variables/Functions: camelCase
-    - Components: PascalCase (React components)
-    - Constants: SCREAMING_SNAKE_CASE
-- **Error Handling**: Use Zod for validation, try-catch blocks, and proper error boundaries in React.
+## Architecture
 
-## Agent-Specific Rules
+- **Backend**: Hono + Drizzle ORM + PostgreSQL
+- **Frontend**: React + TanStack Query + Zustand + Tailwind CSS
+- **Testing**: Vitest + React Testing Library
+- **Git**: Conventional Commits format
+- **Performance**: TanStack Query + LocalStorage caching, optimize streaming/bundles
 
-- **Cursor Rules**: Use Bun package manager, implement code directly without asking, leverage full Hono capabilities for APIs.
-- **Architecture**: Backend uses Hono + Drizzle ORM, Frontend uses React + TanStack Query + Zustand state management.
-
-*Ensure all code adheres to these guidelines for consistency and maintainability.*
+*Adhere to these guidelines for consistency and maintainability.*

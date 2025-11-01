@@ -1,6 +1,5 @@
-import client from "@/lib/client";
+import client, { personaCardsApi } from "@/lib/client";
 import { useUserProfile } from "@/lib/queries/user";
-import { personaCardsApi } from "@/lib/client";
 import { useChatStore } from "@/stores/chatStore";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,6 +32,7 @@ import {
   Heart,
   Loader2,
   Sparkles,
+  TestTube,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -79,13 +79,14 @@ const ChatForm = ({
   onThreadCreated,
   conversationPreferences,
 }: ChatFormProps): JSX.Element => {
-  // Remove step-based navigation since we're simplifying the form
+  // Remove step-based navigation since we're simplifying form
   const [showImageSection, setShowImageSection] = useState(false);
+  const [useSampleData, setUseSampleData] = useState(false);
   const { userId } = useAuth();
   const { user } = useUser();
   const { data: userProfile } = useUserProfile(userId || null);
   const queryClient = useQueryClient();
-  const { setInitialForm, addMessage, updateLastMessage } = useChatStore();
+  const { setInitialForm, addMessage, updateLastMessage, setSelectedPersona } = useChatStore();
 
   // Get default name from Clerk user
   const defaultName = user?.firstName || user?.fullName || "";
@@ -101,6 +102,42 @@ const ChatForm = ({
     },
   });
 
+  // Sample data for form filling
+  const sampleData = {
+    preferredName: "Alex",
+    currentEmotions: ["anxious", "overwhelmed"],
+    reasonForVisit: "I've been feeling really stressed at work lately and having trouble managing my anxiety. I need someone to talk to about the pressure I'm under.",
+    additionalContext: "I work in a high-pressure environment with tight deadlines. Recently I've been having trouble sleeping and feel like I'm constantly on edge. I'm looking for healthy coping strategies.",
+    imageResponse: "This image reminds me of how my mind feels - lots of interconnected thoughts and patterns that I can't seem to quiet down. The symmetry represents the order I'm trying to find in my chaotic thoughts."
+  };
+
+  // Handle sample data toggle
+  const handleSampleToggle = (enabled: boolean) => {
+    setUseSampleData(enabled);
+    if (enabled) {
+      // Fill form with sample data
+      form.setValue("preferredName", sampleData.preferredName);
+      form.setValue("currentEmotions", sampleData.currentEmotions);
+      form.setValue("reasonForVisit", sampleData.reasonForVisit);
+      form.setValue("additionalContext", sampleData.additionalContext);
+      setShowImageSection(true); // Show image section for sample
+      form.setValue("imageResponse", sampleData.imageResponse);
+    } else {
+      // Clear form back to defaults
+      form.reset({
+        preferredName: defaultName,
+        currentEmotions: [],
+        reasonForVisit: "",
+        additionalContext: "",
+        imageResponse: "",
+      });
+      setShowImageSection(false);
+    }
+  };
+
+  // Handle form submission with sample data consideration
+
+
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
       try {
@@ -115,7 +152,7 @@ const ChatForm = ({
             : userProfile?.nickname || "";
 
         // First create the thread
-        const threadResponse = await client.api.threads.$post({
+        const threadResponse = await (client as any).api.threads.$post({
           json: {
             userId: userProfile.id,
             preferredName: preferredNameToSend,
@@ -217,9 +254,15 @@ const ChatForm = ({
                 // Handle persona selection events
                 if (currentEvent === "persona_selected") {
                   try {
-                    selectedPersona = JSON.parse(content);
-                    console.log("Persona selected:", selectedPersona);
-                    // You could update UI here to show which persona was selected
+                    const personaData = JSON.parse(content);
+                    selectedPersona = personaData;
+                    console.log("Persona selected:", personaData);
+                    
+                    // Set persona in chat store for DevTools
+                    setSelectedPersona(
+                      personaData.personaId,
+                      generatePersonaRationale(personaData.personaId)
+                    );
                   } catch (e) {
                     console.error("Failed to parse persona selection:", e);
                   }
@@ -290,10 +333,34 @@ const ChatForm = ({
       toast.error("Something went wrong. Please try again.");
     },
   });
+  
+  // Generate persona rationale based on persona ID
+  const generatePersonaRationale = (personaId: string): string => {
+    switch (personaId) {
+      case 'listener':
+        return 'User needs emotional support and active listening - selecting listener persona for empathetic engagement';
+      case 'guide':
+        return 'User seeking advice and solutions - selecting guide persona for practical guidance';
+      case 'companion':
+        return 'User wants conversation and company - selecting companion persona for friendly interaction';
+      case 'crisis':
+        return 'Crisis keywords detected - prioritizing crisis support persona for immediate help';
+      default:
+        return 'Default persona selection based on user needs and conversation context';
+    }
+  };
 
+  // Handle form submission with sample data consideration
   const handleSubmit = (data: FormData) => {
+    // If using sample data, show a notification
+    if (useSampleData) {
+      toast("Using sample data for demonstration. You can modify any field before submitting.");
+    }
     mutation.mutate(data);
   };
+
+
+
 
 
 
@@ -307,6 +374,30 @@ const ChatForm = ({
           >
             <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl rounded-2xl overflow-hidden">
               <CardContent className="p-6 sm:p-10 space-y-8 sm:space-y-10">
+
+                {/* Sample Data Toggle */}
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                  <div className="flex items-center gap-3">
+                    <TestTube className="w-5 h-5 text-amber-600" />
+                    <div>
+                      <Label className="text-sm font-semibold text-amber-900">Use Sample Data</Label>
+                      <p className="text-xs text-amber-700">Fill form with example data for testing</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSampleToggle(!useSampleData)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+                      useSampleData ? 'bg-amber-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        useSampleData ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
 
                 {/* Preferred Name */}
                 <FormField

@@ -20,6 +20,8 @@ interface ChatInterfaceProps {
   voiceId?: string;
   preferences?: ConversationPreferences;
   onFeedbackSubmit?: (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => void;
+  showPersonaInMessages?: boolean;
+  selectedPersona?: string | null;
 }
 
 export function ChatInterface({
@@ -35,6 +37,8 @@ export function ChatInterface({
   voiceId,
   preferences,
   onFeedbackSubmit,
+  showPersonaInMessages = false,
+  selectedPersona,
 }: ChatInterfaceProps): JSX.Element {
   const getLoadingBadge = () => {
     if (loadingState === "idle") return null;
@@ -93,15 +97,17 @@ export function ChatInterface({
               </p>
             </div>
           ) : (
-             <MessageList
-               messages={messages}
-               isLoading={loadingState}
-               onRetryMessage={onRetryMessage}
-               voiceId={voiceId}
-               preferences={preferences}
-               isImpersonateMode={isImpersonateMode}
-               onFeedbackSubmit={onFeedbackSubmit}
-             />
+<MessageList
+                messages={messages}
+                isLoading={loadingState}
+                onRetryMessage={onRetryMessage}
+                voiceId={voiceId}
+                preferences={preferences}
+                isImpersonateMode={isImpersonateMode}
+                onFeedbackSubmit={onFeedbackSubmit}
+                showPersonaInMessages={showPersonaInMessages}
+                selectedPersona={selectedPersona}
+              />
           )}
         </div>
       </ScrollArea>
