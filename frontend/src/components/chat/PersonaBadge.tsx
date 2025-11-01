@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Brain, AlertTriangle, Users, Anchor } from 'lucide-react';
+import { Heart, MessageCircle, Brain, AlertTriangle, Users, Anchor, Target } from 'lucide-react';
 
 interface PersonaBadgeProps {
   persona: string | null;
@@ -43,6 +43,12 @@ const personaConfig = {
     icon: Anchor,
     color: 'bg-cyan-100 text-cyan-800 border-cyan-200',
     description: 'De-escalating tension and providing calm presence'
+  },
+  direct_confrontational: {
+    name: 'Direct Confrontational',
+    icon: Target,
+    color: 'bg-amber-100 text-amber-800 border-amber-200',
+    description: 'Providing honest feedback and accountability'
   }
 };
 

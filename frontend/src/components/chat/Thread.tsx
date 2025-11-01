@@ -818,6 +818,9 @@ export function Thread({
             } else if (personaData.personaId.includes('direct')) {
               personaName = 'direct_engager';
               rationale = 'evasive';
+            } else if (personaData.personaId.includes('confrontational')) {
+              personaName = 'direct_confrontational';
+              rationale = 'honest_feedback';
             } else if (personaData.personaId.includes('listener')) {
               personaName = 'empathetic_listener';
               rationale = 'emotional';
