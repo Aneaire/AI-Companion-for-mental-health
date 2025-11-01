@@ -107,7 +107,6 @@ export function ConversationDevTools({ threadId, personaName }: ConversationDevT
             {/* Thread Info */}
             <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
               <div>Thread: {threadId}</div>
-              {personaName && <div>Persona: {personaName}</div>}
               <div>Messages: {currentContext.messages.length}</div>
             </div>
 

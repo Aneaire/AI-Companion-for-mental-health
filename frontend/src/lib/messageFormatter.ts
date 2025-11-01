@@ -147,16 +147,19 @@ export class StreamingMessageProcessor {
   private onUpdate: (text: string, isComplete: boolean) => void;
   private onError: (error: Error) => void;
   private onComplete: (finalText: string) => void;
+  private onPersonaSelected?: (personaData: any) => void;
 
   constructor(
     onUpdate: (text: string, isComplete: boolean) => void,
     onError: (error: Error) => void,
-    onComplete: (finalText: string) => void
+    onComplete: (finalText: string) => void,
+    onPersonaSelected?: (personaData: any) => void
   ) {
     this.formatter = new MessageFormatter();
     this.onUpdate = onUpdate;
     this.onError = onError;
     this.onComplete = onComplete;
+    this.onPersonaSelected = onPersonaSelected;
   }
 
   /**
@@ -250,26 +253,47 @@ export class StreamingMessageProcessor {
    */
   private async processLine(line: string): Promise<void> {
     try {
-      // Handle special event types
-      if (line.startsWith("event: crisis")) {
-        // Crisis event - handle immediately
-        const crisisDataMatch = line.match(/^event: crisis\s+data: (.*)$/);
-        if (crisisDataMatch) {
-          const crisisMsg = crisisDataMatch[1];
-          this.onUpdate(crisisMsg, true);
-          return;
-        }
+      // Handle event lines
+      if (line.startsWith("event: ")) {
+        this.currentEvent = line.substring("event: ".length).trim();
+        return;
       }
 
       // Handle data lines
       if (line.startsWith("data: ")) {
         const content = line.substring("data: ".length);
 
+        // Handle persona selection events
+        if (this.currentEvent === "persona_selected") {
+          try {
+            const personaData = JSON.parse(content);
+            console.log("Persona selected:", personaData);
+            // Call the persona callback if provided
+            if (this.onPersonaSelected) {
+              this.onPersonaSelected(personaData);
+            }
+          } catch (e) {
+            console.error("Failed to parse persona selection:", e);
+          }
+          this.currentEvent = null;
+          return;
+        }
+
+
+
+        // Handle crisis events
+        if (this.currentEvent === "crisis") {
+          this.onUpdate(content, true);
+          this.currentEvent = null;
+          return;
+        }
+
         // Skip session_id events and empty content
         if (
           content.trim() === "" ||
           (!isNaN(Number(content.trim())) && content.trim().length < 10)
         ) {
+          this.currentEvent = null;
           return;
         }
 
@@ -283,12 +307,16 @@ export class StreamingMessageProcessor {
         if (result.needsUpdate) {
           this.onUpdate(result.text, result.isComplete);
         }
+        this.currentEvent = null;
       }
     } catch (error) {
       console.warn("Error processing stream line:", error);
       // Continue processing other lines
     }
   }
+
+  // Add currentEvent property to track SSE events
+  private currentEvent: string | null = null;
 
   /**
    * Reset for a new message stream
@@ -304,6 +332,124 @@ export class StreamingMessageProcessor {
     return this.formatter.getState();
   }
 }
+
+/**
+ * Rule-based persona selection logic
+ */
+export const selectPersonaBasedOnRules = (
+  messages: any[],
+  currentMessage: string
+): { persona: string; rationale: string } => {
+  const allText = messages
+    .map(msg => msg.text)
+    .concat(currentMessage)
+    .join(' ')
+    .toLowerCase();
+  
+  // Crisis detection - highest priority (English + Filipino)
+  const crisisKeywords = [
+    'suicide', 'kill myself', 'want to die', 'end my life', 
+    'hurt myself', 'self harm', 'can\'t go on', 'no reason to live',
+    'better off dead', 'want to disappear',
+    // Filipino crisis keywords
+    'pakamatay', 'matatapos na buhay ko', 'gusto kong mamatay', 'kailangan kong mamatay',
+    'sakit sa sarili', 'self harm tagalog', 'wala nang pag-asa', 'ayaw ko na mabuhay',
+    'mas maganda kong patay', 'gusto kong mawala'
+  ];
+  
+  if (crisisKeywords.some(keyword => allText.includes(keyword))) {
+    return {
+      persona: 'crisis_support',
+      rationale: 'crisis'
+    };
+  }
+  
+  // Advice seeking (English + Filipino)
+  const adviceKeywords = [
+    'what should i do', 'advice', 'recommendation', 'help me decide',
+    'what do you think', 'suggestion', 'guidance', 'opinion',
+    // Filipino advice keywords
+    'ano gagawin ko', 'payo', 'sugestion', 'tulong mo ako', 'ano ang dapat kong gawin',
+    'ano sa tingin mo', 'paano mo ako matutulungan', 'kailangan ko ng payo',
+    'ano ang iyong opinyon', 'gabay', 'pananaw'
+  ];
+  
+  if (adviceKeywords.some(keyword => allText.includes(keyword))) {
+    return {
+      persona: 'wise_guide',
+      rationale: 'advice'
+    };
+  }
+  
+  // Companion/conversation seeking (English + Filipino)
+  const companionKeywords = [
+    'chat', 'talk', 'conversation', 'discuss', 'tell me about',
+    'what do you think about', 'let\'s talk', 'just want to chat',
+    // Filipino companion keywords
+    'kwentuhan', 'usap tayo', 'magtsismisan', 'pag-usapan', 'kwento',
+    'ano ang balita', 'magkaibigan', 'kaibigan', 'talk tagalog', 'usap',
+    'chikahan', 'tsismisan', 'maglaro', 'libang'
+  ];
+  
+  if (companionKeywords.some(keyword => allText.includes(keyword))) {
+    return {
+      persona: 'friendly_companion',
+      rationale: 'companion'
+    };
+  }
+  
+  // Emotional support (English + Filipino)
+  const emotionalKeywords = [
+    'sad', 'depressed', 'anxious', 'worried', 'stressed', 'overwhelmed',
+    'feeling down', 'upset', 'hurt', 'confused', 'lonely',
+    // Filipino emotional keywords
+    'malungkot', 'lungkot', 'sad tagalog', 'depressed tagalog',
+    'nababahala', 'aalala', 'stressed tagalog', 'pagod na pagod',
+    'overwhelmed tagalog', 'hindi masaya', 'lungkot', 'sakit ng puso',
+    'nalulungkot', 'problema', 'bigat ng dibdib', 'hirap', 'pag-asa',
+    'naiiyak', 'iiyak', 'broken hearted', 'saktong puso'
+  ];
+  
+  if (emotionalKeywords.some(keyword => allText.includes(keyword))) {
+    return {
+      persona: 'empathetic_listener',
+      rationale: 'emotional'
+    };
+  }
+  
+  // Evasive/nonsensical response handling (English + Filipino)
+  const evasiveKeywords = [
+    'i don\'t know', 'maybe', 'whatever', 'nothing', 'fine',
+    'it\'s nothing', 'never mind', 'forget it', 'doesn\'t matter',
+    'i\'m good', 'no reason', 'just because', 'stuff', 'things',
+    // Filipino evasive keywords
+    'hindi ko alam', 'ewan', 'bahala na', 'wala', 'okay lang',
+    'wala lang', 'huwag na lang', 'forget na', 'hindi na importante',
+    'ayos lang', 'sige na', 'bahala ka', 'ano ba', 'ewan ko',
+    'wala akong masabi', 'tama na', 'saka na', 'mamaya na',
+    'hindi ko alam kung', 'basta', 'ganyan lang'
+  ];
+  
+  // Check if user has been evasive multiple times or responses are very short
+  const recentMessages = messages.slice(-3); // Last 3 messages
+  const evasiveCount = recentMessages.filter(msg => 
+    evasiveKeywords.some(keyword => msg.text.toLowerCase().includes(keyword)) ||
+    msg.text.trim().length < 10 // Very short responses
+  ).length;
+  
+  if (evasiveCount >= 2 && allText.length < 100) {
+    return {
+      persona: 'direct_engager',
+      rationale: 'evasive'
+    };
+  }
+  
+  // Default persona
+  return {
+    persona: 'empathetic_listener',
+    rationale: 'default'
+  };
+};
 
 /**
  * Utility functions for message formatting

@@ -13,12 +13,14 @@ import { playAudioSequentially, isAudioPlaying, getAudioQueueLength } from "@/li
 
 interface MessageListProps {
   messages: Message[];
-  isLoading: boolean | "idle" | "observer" | "generating" | "streaming";
+  isLoading?: "streaming" | "idle" | "observer" | "generating";
   onRetryMessage?: (message: Message) => void;
   voiceId?: string;
   preferences?: ConversationPreferences;
   isImpersonateMode?: boolean;
   onFeedbackSubmit?: (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => void;
+  showPersonaInMessages?: boolean;
+  selectedPersona?: string | null;
 }
 
 // Message formatting is now handled by MessageFormatter class
@@ -33,7 +35,9 @@ const MessageBubble = memo(({
   voiceId,
   preferences,
   isImpersonateMode = false,
-  onFeedbackSubmit
+  onFeedbackSubmit,
+  showPersonaInMessages = false,
+  selectedPersona
 }: {
   message: Message;
   isUser: boolean;
@@ -43,6 +47,8 @@ const MessageBubble = memo(({
   preferences?: ConversationPreferences;
   isImpersonateMode?: boolean;
   onFeedbackSubmit?: (messageId: string, rating: 'good' | 'needs_improvement' | 'poor', feedback?: string) => void;
+  showPersonaInMessages?: boolean;
+  selectedPersona?: string | null;
 }) => {
   const formatTime = (timestamp?: Date | number) => {
     if (!timestamp) return "";
@@ -364,7 +370,7 @@ const MessageBubble = memo(({
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-full transition-colors"
                                 onClick={() => {
-                                  const messageId = message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime()}`;
+                                  const messageId = String(message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime() || Date.now()}`);
                                   onFeedbackSubmit(messageId, 'good');
                                   setFeedbackSubmitted(true);
                                 }}
@@ -377,7 +383,7 @@ const MessageBubble = memo(({
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded-full transition-colors"
                                 onClick={() => {
-                                  const messageId = message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime()}`;
+                                  const messageId = String(message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime() || Date.now()}`);
                                   onFeedbackSubmit(messageId, 'needs_improvement');
                                   setFeedbackSubmitted(true);
                                 }}
@@ -390,7 +396,7 @@ const MessageBubble = memo(({
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
                                 onClick={() => {
-                                  const messageId = message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime()}`;
+                                  const messageId = String(message.tempId || message.id || `${message.sender}-${message.timestamp?.getTime() || Date.now()}`);
                                   onFeedbackSubmit(messageId, 'poor');
                                   setFeedbackSubmitted(true);
                                 }}
@@ -528,7 +534,9 @@ export const MessageList = memo(function MessageList({
    voiceId,
    preferences,
    isImpersonateMode = false,
-   onFeedbackSubmit
+   onFeedbackSubmit,
+   showPersonaInMessages = false,
+   selectedPersona
  }: MessageListProps) {
    const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -740,6 +748,8 @@ export const MessageList = memo(function MessageList({
                 preferences={preferences}
                 isImpersonateMode={isImpersonateMode}
                 onFeedbackSubmit={onFeedbackSubmit}
+                showPersonaInMessages={showPersonaInMessages}
+                selectedPersona={selectedPersona}
               />
            );
         })

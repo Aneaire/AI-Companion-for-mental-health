@@ -79,6 +79,9 @@ export interface ConversationPreferences {
   autoPlayMusicOnMain: boolean;
   autoPlayMusicOnImpersonate: boolean;
   autoPlayMusicOnPodcast: boolean;
+  // ElevenLabs V3 audio tags settings
+  enableAudioTags: boolean;
+  audioTagsStyle: "narrative" | "descriptive" | "minimal" | "detailed";
 }
 
 export interface Session {
@@ -110,9 +113,16 @@ interface ChatState {
   // Crisis detection state
   crisisDetected: boolean;
 
+  // Persona selection state (ephemeral - not persisted)
+  selectedPersona: string | null;
+  personaRationale: string | null;
+
   // User preferences (persisted)
   conversationPreferences: ConversationPreferences;
   impersonateMaxExchanges: number;
+
+  // Thread-specific conversation settings (ephemeral - not persisted)
+  threadConversationPreferences: Map<number, Partial<ConversationPreferences>>;
 
   // Initial forms cache (persisted)
   initialForms: Map<number, FormData>;
@@ -137,7 +147,12 @@ interface ChatState {
   setImpersonateMaxExchanges: (val: number) => void;
   setConversationPreferences: (preferences: ConversationPreferences) => void;
   setCrisisDetected: (detected: boolean) => void;
+  setSelectedPersona: (persona: string | null, rationale?: string | null) => void;
   checkCrisisStatus: (sessionId: number) => Promise<void>;
+  // Thread-specific preferences actions
+  setThreadConversationPreferences: (threadId: number, preferences: Partial<ConversationPreferences>) => void;
+  getThreadConversationPreferences: (threadId: number) => Partial<ConversationPreferences>;
+  clearThreadConversationPreferences: (threadId: number) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -152,6 +167,8 @@ export const useChatStore = create<ChatState>()(
       contexts: new Map(),
       loadingState: "idle",
       crisisDetected: false,
+      selectedPersona: null,
+      personaRationale: null,
         conversationPreferences: {
           briefAndConcise: 50, // Default to middle value
           empatheticAndSupportive: false,
@@ -224,13 +241,17 @@ export const useChatStore = create<ChatState>()(
             podcastTextSize: "medium" as const,
             podcastHighlightStyle: "background" as const,
             podcastAutoScroll: true,
-            // Auto-play music settings for different pages
-            autoPlayMusicOnMain: false,
-            autoPlayMusicOnImpersonate: true,
-            autoPlayMusicOnPodcast: true,
-         },
-      initialForms: new Map<number, FormData>(),
-      impersonateMaxExchanges: 10,
+             // Auto-play music settings for different pages
+             autoPlayMusicOnMain: false,
+             autoPlayMusicOnImpersonate: true,
+             autoPlayMusicOnPodcast: true,
+             // ElevenLabs V3 audio tags settings
+             enableAudioTags: false,
+             audioTagsStyle: "descriptive" as const,
+          },
+       initialForms: new Map<number, FormData>(),
+       threadConversationPreferences: new Map<number, Partial<ConversationPreferences>>(),
+       impersonateMaxExchanges: 10,
       setCurrentContext: (contextId: string) => {
         const { contexts } = get();
         const context = contexts.get(contextId) || {
@@ -364,17 +385,35 @@ export const useChatStore = create<ChatState>()(
       setConversationPreferences: (preferences: ConversationPreferences) =>
         set({ conversationPreferences: preferences }),
       setCrisisDetected: (detected: boolean) => set({ crisisDetected: detected }),
-      checkCrisisStatus: async (sessionId: number) => {
-        try {
-          const response = await fetch(`/api/chat/crisis/${sessionId}`);
-          if (response.ok) {
-            const data = await response.json();
-            set({ crisisDetected: data.crisisDetected });
-          }
-        } catch (error) {
-          console.error("Error checking crisis status:", error);
-        }
-      },
+       setSelectedPersona: (persona: string | null, rationale: string | null = null) =>
+         set({ selectedPersona: persona, personaRationale: rationale }),
+       setThreadConversationPreferences: (threadId: number, preferences: Partial<ConversationPreferences>) => {
+         const { threadConversationPreferences } = get();
+         const updatedPreferences = new Map(threadConversationPreferences);
+         updatedPreferences.set(threadId, preferences);
+         set({ threadConversationPreferences: updatedPreferences });
+       },
+       getThreadConversationPreferences: (threadId: number) => {
+         const { threadConversationPreferences } = get();
+         return threadConversationPreferences.get(threadId) || {};
+       },
+       clearThreadConversationPreferences: (threadId: number) => {
+         const { threadConversationPreferences } = get();
+         const updatedPreferences = new Map(threadConversationPreferences);
+         updatedPreferences.delete(threadId);
+         set({ threadConversationPreferences: updatedPreferences });
+       },
+       checkCrisisStatus: async (sessionId: number) => {
+         try {
+           const response = await fetch(`/api/persona-cards/crisis/${sessionId}`);
+           if (response.ok) {
+             const data = await response.json();
+             set({ crisisDetected: data.crisisDetected });
+           }
+         } catch (error) {
+           console.error("Error checking crisis status:", error);
+         }
+       },
     }),
     {
       name: "chat-storage",
@@ -488,13 +527,18 @@ export const useChatStore = create<ChatState>()(
             podcastTextSize: "medium",
             podcastHighlightStyle: "background",
             podcastAutoScroll: true,
-            // Auto-play music settings for different pages
-            autoPlayMusicOnMain: false,
-            autoPlayMusicOnImpersonate: true,
-            autoPlayMusicOnPodcast: true,
-          },
+             // Auto-play music settings for different pages
+             autoPlayMusicOnMain: false,
+             autoPlayMusicOnImpersonate: true,
+             autoPlayMusicOnPodcast: true,
+             // ElevenLabs V3 audio tags settings
+             enableAudioTags: false,
+             audioTagsStyle: "descriptive",
+           },
           initialForms: new Map(persistedState.initialForms || []),
           crisisDetected: false, // Always start with false, will be checked from server
+          selectedPersona: null, // Always start with null, will be set by server
+          personaRationale: null, // Always start with null, will be set by server
         };
       },
     }
