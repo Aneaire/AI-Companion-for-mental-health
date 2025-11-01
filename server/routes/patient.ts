@@ -191,14 +191,27 @@ const patientRoute = new Hono().post("/", async (c) => {
 
   return streamSSE(c, async (stream) => {
     let aiResponseText = "";
+    let buffer = "";
     try {
-      // The `message` here is the *companion AI's* last message to the *patient AI*.
+      // The `message` here is *companion AI's* last message to *patient AI*.
       // The patient AI will generate a response to this.
       const result = await chatSession.sendMessageStream(messageToSendToAI);
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();
         aiResponseText += chunkText;
-        await stream.writeSSE({ data: chunkText });
+        buffer += chunkText;
+        
+        // Send buffered content when we have enough characters or hit word boundaries
+        // More conservative buffering to prevent word breaking
+        if (buffer.length >= 15 || (buffer.length >= 5 && chunkText && /\s/.test(chunkText))) {
+          await stream.writeSSE({ data: buffer });
+          buffer = "";
+        }
+      }
+      
+      // Send any remaining buffered content
+      if (buffer) {
+        await stream.writeSSE({ data: buffer });
       }
     } catch (error) {
       logger.error("Patient AI stream error:", error);

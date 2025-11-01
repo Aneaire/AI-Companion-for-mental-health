@@ -974,12 +974,25 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
 
       let aiResponseText = "";
+      let buffer = "";
       try {
         const result = await chatSession.sendMessageStream(message);
         for await (const chunk of result.stream) {
           const chunkText = chunk.text();
           aiResponseText += chunkText;
-          await stream.writeSSE({ data: chunkText });
+          buffer += chunkText;
+          
+          // Send buffered content when we have enough characters or hit word boundaries
+          // More conservative buffering to prevent word breaking
+          if (buffer.length >= 15 || (buffer.length >= 5 && /\s/.test(chunkText))) {
+            await stream.writeSSE({ data: buffer });
+            buffer = "";
+          }
+        }
+        
+        // Send any remaining buffered content
+        if (buffer) {
+          await stream.writeSSE({ data: buffer });
         }
         if (currentSessionId && threadType !== "impersonate") {
           // Alternate sender for AI-to-AI loop
@@ -1575,6 +1588,7 @@ Expected output:
         let aiResponseText = "";
         let responseLength = 0;
         const maxResponseLength = 600; // Character limit for early truncation
+        let buffer = "";
 
         try {
           const result = await chatSession.sendMessageStream(message);
@@ -1588,7 +1602,19 @@ Expected output:
             }
 
             aiResponseText += chunkText;
-            await stream.writeSSE({ data: chunkText });
+            buffer += chunkText;
+            
+            // Send buffered content when we have enough characters or hit word boundaries
+            // More conservative buffering to prevent word breaking
+            if (buffer.length >= 15 || (buffer.length >= 5 && /\s/.test(chunkText))) {
+              await stream.writeSSE({ data: buffer });
+              buffer = "";
+            }
+          }
+          
+          // Send any remaining buffered content
+          if (buffer) {
+            await stream.writeSSE({ data: buffer });
           }
 
           // Save AI response

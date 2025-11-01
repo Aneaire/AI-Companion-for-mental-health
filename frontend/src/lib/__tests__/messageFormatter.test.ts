@@ -47,6 +47,101 @@ describe('MessageFormatter', () => {
 
       expect(result.needsUpdate).toBe(false);
     });
+
+    it('should filter out extremely short word fragments during streaming', () => {
+      // Test filtering out 1-3 character fragments that appear incomplete
+      const result = formatter.processChunk({
+        data: 'Hello w',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('Hello');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should filter out 3-character fragments during streaming', () => {
+      const result = formatter.processChunk({
+        data: 'Kamusta aNe',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('Kamusta');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should filter out mixed case fragments like "aNe"', () => {
+      const result = formatter.processChunk({
+        data: 'Okay, aNe',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('Okay,');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should filter out "aNe aire" pattern', () => {
+      const result = formatter.processChunk({
+        data: 'Okay, aNe aire',
+        isComplete: false
+      });
+
+      // Debug: let's see what we actually get
+      console.log('Actual result:', JSON.stringify(result.text));
+      console.log('Words:', 'Okay, aNe aire'.split(/\s+/));
+      // Should filter out both "aNe" and "aire" as they look like fragments
+      expect(result.text).toBe('Okay,');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should preserve short words ending with punctuation', () => {
+      const result = formatter.processChunk({
+        data: 'Hello w!',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('Hello w!');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should preserve legitimate short words in longer text', () => {
+      const result = formatter.processChunk({
+        data: 'I am a',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('I am a');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should handle multiple short fragments correctly', () => {
+      // First chunk
+      formatter.processChunk({ data: 'Pas', isComplete: false });
+      // Second chunk adds more text
+      const result = formatter.processChunk({ data: 'ensya na', isComplete: false });
+
+      expect(result.text).toBe('Pasensya na');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should not filter when there\'s only one word', () => {
+      const result = formatter.processChunk({
+        data: 'a',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('a');
+      expect(result.needsUpdate).toBe(true);
+    });
+
+    it('should handle edge case with two-character legitimate words', () => {
+      const result = formatter.processChunk({
+        data: 'Hello is',
+        isComplete: false
+      });
+
+      expect(result.text).toBe('Hello is');
+      expect(result.needsUpdate).toBe(true);
+    });
   });
 
   describe('finalize', () => {

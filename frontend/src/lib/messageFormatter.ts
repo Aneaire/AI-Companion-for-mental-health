@@ -37,8 +37,63 @@ export class MessageFormatter {
     // Accumulate chunk data
     this.buffer += chunk.data;
 
+    // For streaming, clean up the text to prevent word breaking issues
+    let displayText = this.buffer.trim();
+
+    // Remove any trailing newlines that might cause display issues
+    displayText = displayText.replace(/\n+$/, '');
+
+    // During streaming, ensure we don't end with partial words that could be confusing
+    if (displayText) {
+      const words = displayText.split(/\s+/);
+      if (words.length > 0) {
+        const lastWord = words[words.length - 1];
+        // Common legitimate short words that should be preserved
+        const commonShortWords = new Set(['a', 'an', 'as', 'at', 'be', 'by', 'do', 'go', 'he', 'hi', 'if', 'in', 'is', 'it', 'me', 'my', 'no', 'of', 'oh', 'on', 'or', 'so', 'to', 'up', 'us', 'we', 'yo', 'i', 'am', 'na', 'ka', 'ko', 'mo', 'ba', 'pa', 'ta', 'sa', 'si', 'ni', 'ng']);
+
+        // Target specific problematic patterns during streaming
+        let filteredWords = [...words];
+        
+        // Filter from the end backwards, but be very specific about what constitutes incomplete
+        while (filteredWords.length > 1) {
+          const currentLastWord = filteredWords[filteredWords.length - 1];
+          let shouldFilter = false;
+          
+          // Only filter if it matches specific incomplete patterns
+          if (currentLastWord.length <= 3 && !/[.!?]$/.test(currentLastWord) && !commonShortWords.has(currentLastWord.toLowerCase())) {
+            shouldFilter = true;
+          } else if (/[a-z][A-Z]/.test(currentLastWord) && currentLastWord.length <= 6) {
+            // Mixed case like "aNe", "aIre" - likely incomplete
+            shouldFilter = true;
+          } else if (currentLastWord.length <= 4 && 
+                     currentLastWord !== currentLastWord.toLowerCase() && 
+                     currentLastWord !== currentLastWord.toUpperCase() &&
+                     !/[A-Z]/.test(currentLastWord) && // Not all caps
+                     !/[.!?]$/.test(currentLastWord)) { // No punctuation
+            // Random case like "AiRe" - likely incomplete
+            shouldFilter = true;
+          } else if (currentLastWord.length === 4 && 
+                     !commonShortWords.has(currentLastWord.toLowerCase()) &&
+                     !/[.!?]$/.test(currentLastWord) &&
+                     // Check if it could be a fragment of a longer word
+                     /^[a-z]+$/.test(currentLastWord)) { // All lowercase
+            // 4-letter lowercase words that aren't common might be fragments
+            shouldFilter = true;
+          }
+          
+          if (shouldFilter) {
+            filteredWords.pop(); // Remove the incomplete word
+          } else {
+            break; // Stop when we find a complete word
+          }
+        }
+        
+        displayText = filteredWords.join(' ');
+      }
+    }
+
     // Only format if we have meaningful content to avoid redundant processing
-    const newFormattedText = this.formatText(this.buffer);
+    const newFormattedText = this.formatText(displayText);
     const needsUpdate = newFormattedText !== this.currentText;
 
     if (needsUpdate) {
@@ -267,7 +322,7 @@ export class StreamingMessageProcessor {
         if (this.currentEvent === "persona_selected") {
           try {
             const personaData = JSON.parse(content);
-            console.log("Persona selected:", personaData);
+
             // Call the persona callback if provided
             if (this.onPersonaSelected) {
               this.onPersonaSelected(personaData);

@@ -476,18 +476,28 @@ You must internally analyze each query to understand:
 
       // Stream the AI analysis response using the same pattern as working chat
       return streamSSE(c, async (stream) => {
-        let aiResponseText = "";
-        
-        try {
-          const result = await chatSession.sendMessageStream(message);
-          
-          for await (const chunk of result.stream) {
-            const chunkText = chunk.text();
-            aiResponseText += chunkText;
+          let aiResponseText = "";
+          let buffer = "";
+          try {
+            const result = await chatSession.sendMessageStream(message);
             
-            // Send chunk directly without modification (same as working chat)
-            await stream.writeSSE({ data: chunkText });
-          }
+            for await (const chunk of result.stream) {
+              const chunkText = chunk.text();
+              aiResponseText += chunkText;
+              buffer += chunkText;
+              
+              // Send buffered content when we have enough characters or hit word boundaries
+              // More conservative buffering to prevent word breaking
+              if (buffer.length >= 15 || (buffer.length >= 5 && chunkText && /\s/.test(chunkText))) {
+                await stream.writeSSE({ data: buffer });
+                buffer = "";
+              }
+            }
+            
+            // Send any remaining buffered content
+            if (buffer) {
+              await stream.writeSSE({ data: buffer });
+            }
           
         } catch (error) {
           logger.error("Error during AI streaming:", error);

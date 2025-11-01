@@ -398,10 +398,10 @@ const personaCards = new Hono()
           userMessage: message,
           initialForm: initialForm,
           conversationHistory: conversationHistory.slice(-5), // Last 5 messages for context
-          availablePersonas: personaArray.map(p => ({
-            id: p.id,
-            name: p.name,
-            description: p.description
+          availablePersonas: personaArray.filter(p => p).map((p: any) => ({
+            id: (p && p.id) ? p.id : 0,
+            name: (p && p.name) ? p.name : '',
+            description: (p && p.description) ? p.description : ''
           }))
         };
 
@@ -670,12 +670,25 @@ ${personaSystemInstruction}
 
 
         let aiResponseText = "";
+        let buffer = "";
         try {
           const result = await chatSession.sendMessageStream(message);
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
             aiResponseText += chunkText;
-            await stream.writeSSE({ data: chunkText });
+            buffer += chunkText;
+            
+            // Send buffered content when we have enough characters or hit word boundaries
+            // More conservative buffering to prevent word breaking
+            if (buffer.length >= 15 || (buffer.length >= 5 && chunkText && /\s/.test(chunkText))) {
+              await stream.writeSSE({ data: buffer });
+              buffer = "";
+            }
+          }
+          
+          // Send any remaining buffered content
+          if (buffer) {
+            await stream.writeSSE({ data: buffer });
           }
           
           if (currentSessionId) {

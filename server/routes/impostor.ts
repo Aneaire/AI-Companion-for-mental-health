@@ -264,6 +264,7 @@ ${
       return streamSSE(c, async (stream) => {
         let responseLength = 0;
         const maxResponseLength = 1000; // Increased character limit for more natural responses
+        let buffer = "";
 
         for await (const chunk of chatStream.stream) {
           const chunkText = chunk.text();
@@ -274,7 +275,19 @@ ${
             break;
           }
 
-          await stream.writeSSE({ data: chunkText });
+          buffer += chunkText;
+          
+          // Send buffered content when we have enough characters or hit word boundaries
+          // More conservative buffering to prevent word breaking
+          if (buffer.length >= 15 || (buffer.length >= 5 && chunkText && /\s/.test(chunkText))) {
+            await stream.writeSSE({ data: buffer });
+            buffer = "";
+          }
+        }
+        
+        // Send any remaining buffered content
+        if (buffer) {
+          await stream.writeSSE({ data: buffer });
         }
       });
     } catch (error) {
