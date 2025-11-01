@@ -44,7 +44,9 @@ const loadPersonasConfig = async () => {
 };
 
 // Initialize personas config
-loadPersonasConfig();
+loadPersonasConfig().then(() => {
+  console.log('[INIT] Personas loaded:', Object.keys(personasConfig?.personas || {}));
+});
 
 // Function to save conversation to file
 const savePersonaConversationToFile = async (
@@ -307,13 +309,22 @@ const personaCards = new Hono()
         });
       }
 
-      // Helper function to clean audio tags
-      const cleanAudioTags = (text: string, modelId?: string): string => {
-        if (modelId === "eleven_v3") {
-          return text;
-        }
-        return text.replace(/\[([A-Z]+)\]/g, '').trim();
-      };
+       // Helper function to clean audio tags
+       const cleanAudioTags = (text: string, modelId?: string): string => {
+         if (modelId === "eleven_v3") {
+           return text;
+         }
+         return text.replace(/\[([A-Z]+)\]/g, '').trim();
+       };
+
+       // Helper function to safely extract text from message parts
+       const getMessageText = (msg: any): string => {
+         try {
+           return msg.parts?.[0]?.text || "";
+         } catch {
+           return "";
+         }
+       };
 
       if (context) {
         context.forEach((msg) => {
@@ -379,6 +390,9 @@ const personaCards = new Hono()
           description?: string;
         }>;
 
+        console.log('[DEBUG] Available personas:', personaArray.map(p => ({ id: p.id, name: p.name })));
+        console.log('[DEBUG] Confrontational persona found:', personaArray.some(p => p.id === 'confrontational'));
+
         // Build comprehensive context for AI analysis
         const analysisContext = {
           userMessage: message,
@@ -399,7 +413,7 @@ USER MESSAGE: "${message}"
 INITIAL FORM DATA: ${JSON.stringify(initialForm || {})}
 RECENT CONVERSATION HISTORY: ${JSON.stringify(conversationHistory.slice(-3).map(msg => ({
            role: msg.role,
-           text: msg.parts && msg.parts[0] && msg.parts[0].text ? (msg.parts[0].text.substring(0, 200) + (msg.parts[0].text.length > 200 ? "..." : "")) : ""
+           text: "conversation context available"
          })))}
 
 AVAILABLE PERSONAS:
@@ -441,7 +455,7 @@ ANALYSIS TASKS:
 Output schema:
 {
   "language": "english" | "filipino" | "taglish" | "mixed",
-  "persona": "listener" | "guide" | "crisis" | "companion" | "anchor",
+  "persona": "listener" | "guide" | "crisis" | "companion" | "anchor" | "confrontational",
   "isAngry": boolean,
   "isCrisis": boolean,
   "confidence": "low" | "medium" | "high",
