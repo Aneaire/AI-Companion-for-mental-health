@@ -45,7 +45,7 @@ const loadPersonasConfig = async () => {
 
 // Initialize personas config
 loadPersonasConfig().then(() => {
-  console.log('[INIT] Personas loaded:', Object.keys(personasConfig?.personas || {}));
+
 });
 
 // Function to save conversation to file
@@ -195,12 +195,7 @@ const personaCards = new Hono()
             if (formRows.length > 0) {
               followupFormAnswers = formRows[0].answers;
               followupFormQuestions = formRows[0].questions;
-              console.log(`[DEBUG] Session ${currentSession[0].sessionNumber}: Found previous session form data`);
-              console.log(`[DEBUG] Found ${formRows.length} form rows for session ${previousSession[0].id}`);
-              console.log(`[DEBUG] Questions:`, JSON.stringify(followupFormQuestions, null, 2));
-              console.log(`[DEBUG] Answers:`, JSON.stringify(followupFormAnswers, null, 2));
-              console.log(`[DEBUG] Form row ID:`, formRows[0].id);
-              console.log(`[DEBUG] Form created at:`, formRows[0].createdAt);
+
             }
           }
         }
@@ -325,8 +320,7 @@ const personaCards = new Hono()
           }
           initialContextString += `**Instruction:** Use these Session ${previousSessionNum} follow-up form insights (both questions and answers) to personalize the current Session ${currentSessionNum}. Acknowledge their progress, address any concerns mentioned, and build upon their previous session experience.\n`;
           
-          console.log(`[DEBUG] Generated enhanced context for Session ${currentSessionNum}:`);
-          console.log(initialContextString);
+
         }
         conversationHistory.push({
           role: "user",
@@ -415,8 +409,7 @@ const personaCards = new Hono()
           description?: string;
         }>;
 
-        console.log('[DEBUG] Available personas:', personaArray.map(p => ({ id: p.id, name: p.name })));
-        console.log('[DEBUG] Confrontational persona found:', personaArray.some(p => p.id === 'confrontational'));
+
 
         // Build comprehensive context for AI analysis
         const analysisContext = {
@@ -497,7 +490,7 @@ Output schema:
 }`;
 
         const analysisModel = gemini.getGenerativeModel({
-          model: "gemini-2.0-flash",
+          model: geminiConfig.twoPoint5Flash,
           systemInstruction: {
             role: "model",
             parts: [{
@@ -553,31 +546,18 @@ Follow these heuristics:
            // Parse AI analysis
            const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
 
-           console.log('[DEBUG] AI Analysis Result:', {
-             language: analysis.language,
-             persona: analysis.persona,
-             isAngry: analysis.isAngry,
-             isCrisis: analysis.isCrisis,
-             confidence: analysis.confidence,
-             reasoning: analysis.reasoning
-           });
+
 
            // Select persona based on AI analysis
            let chosenPersona = personaArray.find(p => p.id === analysis.persona);
 
            // Override with anchor persona if anger detected
            if (analysis.isAngry && (!analysis.confidence || analysis.confidence !== 'low')) {
-             console.log('[DEBUG] Anger detected with confidence:', analysis.confidence || 'undefined', '- switching to anchor persona');
-             const anchorPersona = personaArray.find(p => p.id === 'anchor');
-             if (anchorPersona) {
-               chosenPersona = anchorPersona;
-               console.log('[DEBUG] Successfully switched to anchor persona');
-             } else {
-               console.log('[DEBUG] Anchor persona not found in personaArray');
-             }
-           } else {
-             console.log('[DEBUG] No anger override triggered. isAngry:', analysis.isAngry, 'confidence:', analysis.confidence || 'undefined');
-           }
+              const anchorPersona = personaArray.find(p => p.id === 'anchor');
+              if (anchorPersona) {
+                chosenPersona = anchorPersona;
+              }
+            }
 
           if (chosenPersona) {
             selectedPersona = chosenPersona.id;
@@ -671,7 +651,7 @@ ${personaSystemInstruction}
       }
 
       const model = gemini.getGenerativeModel({
-        model: "gemini-2.0-flash",
+        model: geminiConfig.twoPoint5Flash,
         systemInstruction: {
           role: "model",
           parts: [{ text: systemInstructionText }],
@@ -844,7 +824,7 @@ RESPOND WITH JSON ONLY:
 }`;
 
       const analysisModel = gemini.getGenerativeModel({
-        model: "gemini-2.0-flash",
+        model: geminiConfig.twoPoint5Flash,
         systemInstruction: {
           role: "model",
           parts: [{ text: "You are an expert crisis assessment specialist. Analyze conversation context for genuine emergency indicators. Be conservative - only flag actual crises, not general distress. Always respond with valid JSON only." }],

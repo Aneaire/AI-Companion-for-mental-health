@@ -351,11 +351,11 @@ export function Thread({
           // First check session status and potentially create new session
           const sessionCheck = await threadsApi.checkSession(selectedThreadId);
           
-          console.log('[THREAD] Session check result:', sessionCheck);
+
 
           // Check if current session was completed and needs follow-up form
           if (sessionCheck.sessionCompleted && sessionCheck.latestSession) {
-            console.log('[THREAD] Session completed, storing completion info for later use');
+
             setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
             // Keep using the current (finished) session ID for form generation
             setDialogSessionId(sessionCheck.latestSession.id);
@@ -382,7 +382,7 @@ export function Thread({
               clearMessages();
               
               if (sortedMessages.length === 0) {
-                console.warn('[THREAD] Completed session has no messages, cannot generate follow-up form');
+
                 // Mark session form as completed since no form can be generated
                 setSessionFormCompleted(true);
                 setLoadingHistory(false);
@@ -395,7 +395,7 @@ export function Thread({
             }
             
             // Don't auto-open the dialog, just mark that form is required
-            console.log('[THREAD] Session completed, form required but not auto-opening dialog');
+
             setSessionFormCompleted(false);
             setLoadingHistory(false);
             return;
@@ -403,7 +403,7 @@ export function Thread({
 
           // For existing sessions, determine if form is required
           if (sessionCheck.latestSession && sessionCheck.latestSession.sessionNumber > 1 && !justCreatedNewSession) {
-            console.log('[THREAD] Checking if session requires form:', sessionCheck.latestSession.id, 'session number:', sessionCheck.latestSession.sessionNumber);
+
             
             // Check if the PREVIOUS session has a completed form
             // Session N requires a form from Session N-1 to have been completed
@@ -416,9 +416,9 @@ export function Thread({
               const previousSession = sessions.find((s: any) => s.sessionNumber === sessionCheck.latestSession.sessionNumber - 1);
               
               if (previousSession) {
-                console.log('[THREAD] Checking form status for previous session:', previousSession.id);
+
                 const formStatus = await threadsApi.getSessionForm(previousSession.id);
-                console.log('[THREAD] Previous session form status:', formStatus);
+
                 
                 setSessionFormCompleted(formStatus.hasForm);
                 setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
@@ -426,32 +426,32 @@ export function Thread({
                 // If form exists, store the follow-up form data for observer
                 if (formStatus.hasForm && formStatus.form?.answers) {
                   setFollowupFormData(formStatus.form.answers);
-                  console.log('[THREAD] Stored follow-up form data for observer:', formStatus.form.answers);
+
                 } else {
                   setFollowupFormData(null);
                 }
                 
                 // If previous session form is required but not completed, show form required state
                 if (!formStatus.hasForm) {
-                  console.log('[THREAD] Previous session form not completed, showing form required state');
+
                   setLoadingHistory(false);
                   return;
                 } else {
-                  console.log('[THREAD] Previous session form completed, proceeding to load chat');
+
                 }
               } else {
-                console.log('[THREAD] No previous session found, assuming form completed');
+
                 setSessionFormCompleted(true);
                 setCurrentSessionNumber(sessionCheck.latestSession.sessionNumber);
                 setFollowupFormData(null);
               }
             }
           } else if (justCreatedNewSession) {
-            console.log('[THREAD] Just created new session, skipping form requirement check');
+
             setSessionFormCompleted(true);
             setCurrentSessionNumber(sessionCheck.latestSession?.sessionNumber || 1);
           } else {
-            console.log('[THREAD] Session 1 or no session, no form required');
+
             setSessionFormCompleted(true); // Session 1 doesn't need a form
             setCurrentSessionNumber(sessionCheck.latestSession?.sessionNumber || 1);
           }
@@ -986,7 +986,7 @@ export function Thread({
           initialForm={currentSessionInitialForm || {}}
 
           onFormCompleted={async (newSessionId: number) => {
-            console.log('[THREAD] Form completed, updating state for new session:', newSessionId);
+
             
             try {
               // Set flag to prevent form requirement checks from running
@@ -1026,7 +1026,7 @@ export function Thread({
               queryClient.invalidateQueries({ queryKey: ["threadSessions", selectedThreadId] });
               queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
               
-              console.log('[THREAD] Successfully switched to new session with chat interface');
+
               
               // Reset the flag after a short delay to allow for normal operation
               setTimeout(() => setJustCreatedNewSession(false), 1000);

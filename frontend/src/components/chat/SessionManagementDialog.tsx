@@ -91,11 +91,7 @@ export function SessionManagementDialog({
     setError(null);
 
     try {
-      console.log('[SESSION DIALOG] Generating form with data:', {
-        initialForm,
-        messages: messages.slice(0, 3), // Log first 3 messages for debugging
-        messageCount: messages.length
-      });
+
       
       // Validate that we have messages before generating form
       if (!messages || messages.length === 0) {
@@ -132,18 +128,8 @@ export function SessionManagementDialog({
     setIsSubmitting(true);
     
     try {
-      console.log('[SESSION DIALOG] Submitting form for session:', sessionId, 'with values:', values);
-      
-      // 1. Save the form first
-      console.log('[SESSION DIALOG] Saving form with questions:', generatedQuestions);
-      console.log('[SESSION DIALOG] Saving form with answers:', values);
       const formResult = await threadsApi.saveSessionForm(sessionId, values, generatedQuestions);
-      console.log('[SESSION DIALOG] Form submission result:', formResult);
-      
-      // 2. After form is saved, create the next session
-      console.log('[SESSION DIALOG] Creating next session for thread:', threadId);
       const nextSessionResult = await threadsApi.createNextSession(threadId);
-      console.log('[SESSION DIALOG] Next session created:', nextSessionResult);
       
       if (nextSessionResult.success && nextSessionResult.newSession) {
         toast.success(`Session ${sessionNumber} completed! Starting Session ${nextSessionResult.newSession.sessionNumber}.`);

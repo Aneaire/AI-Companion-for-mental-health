@@ -394,12 +394,7 @@ const chat = new Hono()
           if (formRows.length > 0) {
             followupFormAnswers = formRows[0].answers;
             followupFormQuestions = formRows[0].questions;
-            console.log(`[DEBUG] IMPERSONATE-CHAT Session ${currentSession[0].sessionNumber}: Found previous session form data`);
-            console.log(`[DEBUG] IMPERSONATE-CHAT Questions:`, JSON.stringify(followupFormQuestions, null, 2));
-            console.log(`[DEBUG] IMPERSONATE-CHAT Answers:`, JSON.stringify(followupFormAnswers, null, 2));
-          } else {
-            console.log(`[DEBUG] IMPERSONATE-CHAT Session ${currentSession[0].sessionNumber}: No form data found for previous session`);
-          }
+
         }
       }
     }
@@ -524,8 +519,7 @@ const chat = new Hono()
         }
         initialContextString += `**Instruction:** Use these Session ${previousSessionNum} follow-up form insights (both questions and answers) to personalize the current Session ${currentSessionNum}. Acknowledge their progress, address any concerns mentioned, and build upon their previous session experience.\n`;
         
-        console.log(`[DEBUG] IMPERSONATE-CHAT Generated enhanced context for Session ${currentSessionNum}:`);
-        console.log(initialContextString);
+
       }
       conversationHistory.push({
         role: "user",
@@ -1057,6 +1051,7 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
         });
       }
     });
+    }
   })
   .post(
     "/impersonate",

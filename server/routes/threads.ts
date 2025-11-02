@@ -319,9 +319,7 @@ export const threadsRoute = new Hono()
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
     
-    console.log(`[FORM SAVE] Session ${sessionId}: Saving form data`);
-    console.log(`[FORM SAVE] Questions being saved:`, JSON.stringify(parsed.data.questions, null, 2));
-    console.log(`[FORM SAVE] Answers being saved:`, JSON.stringify(parsed.data.answers, null, 2));
+
     // Upsert: if a form already exists for this session, update it; otherwise, insert
     const existing = await db
       .select()
@@ -349,9 +347,7 @@ export const threadsRoute = new Hono()
         .returning();
     }
     
-    console.log(`[FORM SAVE] Database save result:`, JSON.stringify(result, null, 2));
-    console.log(`[FORM SAVE] Questions in DB:`, JSON.stringify(result.questions, null, 2));
-    console.log(`[FORM SAVE] Answers in DB:`, JSON.stringify(result.answers, null, 2));
+
     
     return c.json({ success: true, form: result });
   })
