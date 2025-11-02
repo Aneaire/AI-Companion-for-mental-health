@@ -955,21 +955,25 @@ export function Thread({
       </main>
 
       {/* Enhanced Dev Tools Toggle */}
-      <div className="hidden md:block">
-        <DevToolsToggle
-          showDevTools={showDevTools}
-          onToggle={() => setShowDevTools(!showDevTools)}
-        />
-      </div>
+      {!import.meta.env.PROD && (
+        <div className="hidden md:block">
+          <DevToolsToggle
+            showDevTools={showDevTools}
+            onToggle={() => setShowDevTools(!showDevTools)}
+          />
+        </div>
+      )}
 
       {/* Dev Tools Sidebar with enhanced styling */}
-      <DevToolsSidebar
-        messageCount={currentContext.messages.length}
-        messages={currentContext.messages}
-        initialForm={currentSessionInitialForm}
-        isOpen={showDevTools}
-        onClose={() => setShowDevTools(false)}
-      />
+      {!import.meta.env.PROD && (
+        <DevToolsSidebar
+          messageCount={currentContext.messages.length}
+          messages={currentContext.messages}
+          initialForm={currentSessionInitialForm}
+          isOpen={showDevTools}
+          onClose={() => setShowDevTools(false)}
+        />
+      )}
 
       {/* Session Management Dialog */}
       {sessionManagementOpen && selectedThreadId && dialogSessionId && (
