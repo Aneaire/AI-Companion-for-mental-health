@@ -311,12 +311,17 @@ export const threadsRoute = new Hono()
     }
     const body = await c.req.json();
     const schema = z.object({
+      questions: z.array(z.any()).optional(),
       answers: z.record(z.any()),
     });
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return c.json({ error: "Invalid input", details: parsed.error }, 400);
     }
+    
+    console.log(`[FORM SAVE] Session ${sessionId}: Saving form data`);
+    console.log(`[FORM SAVE] Questions being saved:`, JSON.stringify(parsed.data.questions, null, 2));
+    console.log(`[FORM SAVE] Answers being saved:`, JSON.stringify(parsed.data.answers, null, 2));
     // Upsert: if a form already exists for this session, update it; otherwise, insert
     const existing = await db
       .select()
@@ -326,7 +331,11 @@ export const threadsRoute = new Hono()
     if (existing.length > 0) {
       [result] = await db
         .update(sessionForms)
-        .set({ answers: parsed.data.answers, updatedAt: new Date() })
+        .set({ 
+          questions: parsed.data.questions,
+          answers: parsed.data.answers, 
+          updatedAt: new Date() 
+        })
         .where(eq(sessionForms.sessionId, parseInt(sessionId)))
         .returning();
     } else {
@@ -334,10 +343,16 @@ export const threadsRoute = new Hono()
         .insert(sessionForms)
         .values({
           sessionId: parseInt(sessionId),
+          questions: parsed.data.questions,
           answers: parsed.data.answers,
         })
         .returning();
     }
+    
+    console.log(`[FORM SAVE] Database save result:`, JSON.stringify(result, null, 2));
+    console.log(`[FORM SAVE] Questions in DB:`, JSON.stringify(result.questions, null, 2));
+    console.log(`[FORM SAVE] Answers in DB:`, JSON.stringify(result.answers, null, 2));
+    
     return c.json({ success: true, form: result });
   })
   // Create new session after form submission

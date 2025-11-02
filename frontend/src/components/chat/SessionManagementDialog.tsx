@@ -52,6 +52,7 @@ interface SessionManagementDialogProps {
   messages: Array<{ sender: string; text: string }>;
   initialForm: any;
   onFormCompleted: (newSessionId: number) => void;
+  onQuestionsGenerated?: (questions: any[]) => void;
   threadId: number;
 }
 
@@ -68,6 +69,7 @@ export function SessionManagementDialog({
   messages,
   initialForm,
   onFormCompleted,
+  onQuestionsGenerated,
   threadId,
 }: SessionManagementDialogProps) {
   const [dialogState, setDialogState] = useState<DialogState>("generating");
@@ -114,6 +116,7 @@ export function SessionManagementDialog({
 
       if (result.success && result.questions) {
         setGeneratedQuestions(result.questions);
+        onQuestionsGenerated?.(result.questions);
         setDialogState("form");
       } else {
         throw new Error("Failed to generate valid questions");
@@ -132,7 +135,9 @@ export function SessionManagementDialog({
       console.log('[SESSION DIALOG] Submitting form for session:', sessionId, 'with values:', values);
       
       // 1. Save the form first
-      const formResult = await threadsApi.saveSessionForm(sessionId, values);
+      console.log('[SESSION DIALOG] Saving form with questions:', generatedQuestions);
+      console.log('[SESSION DIALOG] Saving form with answers:', values);
+      const formResult = await threadsApi.saveSessionForm(sessionId, values, generatedQuestions);
       console.log('[SESSION DIALOG] Form submission result:', formResult);
       
       // 2. After form is saved, create the next session

@@ -984,6 +984,7 @@ export function Thread({
             text: msg.text
           }))}
           initialForm={currentSessionInitialForm || {}}
+
           onFormCompleted={async (newSessionId: number) => {
             console.log('[THREAD] Form completed, updating state for new session:', newSessionId);
             

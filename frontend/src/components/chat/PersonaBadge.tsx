@@ -50,8 +50,8 @@ const personaConfig = {
     color: 'bg-amber-100 text-amber-800 border-amber-200',
     description: 'Providing honest feedback and accountability'
   },
-  direct_engager: {
-    name: 'Direct Engager',
+  direct_confrontational_engager: {
+    name: 'Direct Confrontational Engager',
     icon: Shield,
     color: 'bg-slate-100 text-slate-800 border-slate-200',
     description: 'Stopping nonsense behavior for productive conversation'

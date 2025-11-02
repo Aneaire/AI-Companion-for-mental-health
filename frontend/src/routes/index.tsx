@@ -570,7 +570,7 @@ function Index() {
                     if (!session) throw new Error("No session found");
                     // Save form answers using the Hono client
                     try {
-                      await threadsApi.saveSessionForm(session.id, values);
+                      await threadsApi.saveSessionForm(session.id, values, generatedQuestions);
                     } catch (err) {
                       throw err;
                     }

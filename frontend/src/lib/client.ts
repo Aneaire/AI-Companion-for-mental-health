@@ -85,12 +85,12 @@ export const threadsApi = {
     if (!res.ok) throw new Error("Failed to check session status");
     return res.json();
   },
-  async saveSessionForm(sessionId: number, answers: Record<string, any>) {
+  async saveSessionForm(sessionId: number, answers: Record<string, any>, questions?: any[]) {
     const res = await apiFetch(`threads/sessions/${sessionId}/form`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers, questions }),
       }
     );
     if (!res.ok) throw new Error("Failed to save session form");

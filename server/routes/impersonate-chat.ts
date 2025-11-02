@@ -352,8 +352,18 @@ const chat = new Hono()
     } = parsed.data;
     let currentSessionId = sessionId;
 
+    // Helper function to clean audio tags from text when not using Eleven v3
+    const cleanAudioTags = (text: string, modelId?: string): string => {
+      if (modelId === "eleven_v3") {
+        return text; // Keep audio tags for Eleven v3
+      }
+      // Remove audio tags for other models
+      return text.replace(/\[([A-Z]+)\]/g, "").trim();
+    };
+
     // Fetch session follow-up form answers from the PREVIOUS session if they exist
     let followupFormAnswers: Record<string, any> | null = null;
+    let followupFormQuestions: any[] | null = null;
     if (currentSessionId) {
       // First get the current session to find its thread and session number
       const currentSession = await db
@@ -383,6 +393,12 @@ const chat = new Hono()
             .where(eq(sessionForms.sessionId, previousSession[0].id));
           if (formRows.length > 0) {
             followupFormAnswers = formRows[0].answers;
+            followupFormQuestions = formRows[0].questions;
+            console.log(`[DEBUG] IMPERSONATE-CHAT Session ${currentSession[0].sessionNumber}: Found previous session form data`);
+            console.log(`[DEBUG] IMPERSONATE-CHAT Questions:`, JSON.stringify(followupFormQuestions, null, 2));
+            console.log(`[DEBUG] IMPERSONATE-CHAT Answers:`, JSON.stringify(followupFormAnswers, null, 2));
+          } else {
+            console.log(`[DEBUG] IMPERSONATE-CHAT Session ${currentSession[0].sessionNumber}: No form data found for previous session`);
           }
         }
       }
@@ -480,7 +496,21 @@ const chat = new Hono()
           sessionData.length > 0 ? sessionData[0].session.sessionNumber : 1;
         const previousSessionNum = currentSessionNum - 1;
         initialContextString += `\n**Follow-up Form from Previous Session (Session ${previousSessionNum}):**\n`;
-        initialContextString += `These answers were provided by the user after their previous therapy session to help prepare for this current session (Session ${currentSessionNum}):\n`;
+        initialContextString += `These answers were provided by the user after completing Session ${previousSessionNum} and are now being used to inform Session ${currentSessionNum}:\n`;
+        initialContextString += `**Session Context:** This is Session ${currentSessionNum} - form data below is from Session ${previousSessionNum}.\n`;
+        
+        // Add the questions that were asked
+        if (followupFormQuestions && followupFormQuestions.length > 0) {
+          initialContextString += `**Questions Asked in Session ${previousSessionNum} Follow-up Form:**\n`;
+          followupFormQuestions.forEach((question, index) => {
+            const questionText = question.label || question.name || `Question ${index + 1}`;
+            initialContextString += `Q${index + 1}: ${questionText}\n`;
+          });
+          initialContextString += `\n`;
+        }
+        
+        // Add the user's answers
+        initialContextString += `**User's Answers to Session ${previousSessionNum} Follow-up Form:**\n`;
         for (const [key, value] of Object.entries(followupFormAnswers)) {
           // Convert technical field names to human-readable format
           const humanReadableKey = key
@@ -492,22 +522,16 @@ const chat = new Hono()
             typeof value === "string" ? value : JSON.stringify(value);
           initialContextString += `- ${humanReadableKey}: ${formattedValue}\n`;
         }
-        initialContextString += `Please use these insights to personalize this session and acknowledge their progress or concerns mentioned in the follow-up form.\n`;
+        initialContextString += `**Instruction:** Use these Session ${previousSessionNum} follow-up form insights (both questions and answers) to personalize the current Session ${currentSessionNum}. Acknowledge their progress, address any concerns mentioned, and build upon their previous session experience.\n`;
+        
+        console.log(`[DEBUG] IMPERSONATE-CHAT Generated enhanced context for Session ${currentSessionNum}:`);
+        console.log(initialContextString);
       }
       conversationHistory.push({
         role: "user",
         parts: [{ text: initialContextString }],
       });
     }
-
-    // Helper function to clean audio tags from text when not using Eleven v3
-    const cleanAudioTags = (text: string, modelId?: string): string => {
-      if (modelId === "eleven_v3") {
-        return text; // Keep audio tags for Eleven v3
-      }
-      // Remove audio tags for other models
-      return text.replace(/\[([A-Z]+)\]/g, "").trim();
-    };
 
     if (context) {
       context.forEach((msg) => {

@@ -141,6 +141,7 @@ export const sessionForms = pgTable("session_forms", {
   sessionId: integer("session_id")
     .notNull()
     .references(() => sessions.id, { onDelete: "cascade" }),
+  questions: jsonb("questions").$type<any[]>(), // Store the generated questions
   answers: jsonb("answers").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
