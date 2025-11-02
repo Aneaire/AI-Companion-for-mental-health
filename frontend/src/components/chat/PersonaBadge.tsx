@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Brain, AlertTriangle, Users, Anchor, Target } from 'lucide-react';
+import { Heart, MessageCircle, Brain, AlertTriangle, Users, Anchor, Target, Shield } from 'lucide-react';
 
 interface PersonaBadgeProps {
   persona: string | null;
@@ -49,6 +49,12 @@ const personaConfig = {
     icon: Target,
     color: 'bg-amber-100 text-amber-800 border-amber-200',
     description: 'Providing honest feedback and accountability'
+  },
+  firm: {
+    name: 'Firm Clarifier',
+    icon: Shield,
+    color: 'bg-slate-100 text-slate-800 border-slate-200',
+    description: 'Requiring clear communication and honesty'
   }
 };
 
