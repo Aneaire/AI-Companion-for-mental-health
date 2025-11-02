@@ -438,14 +438,23 @@ ANALYSIS TASKS:
    - If anger detected, select "anchor" persona for de-escalation
    - Do not select anchor for mild frustration - only clear anger/hostility
 
-3. SOPHISTICATED CRISIS DETECTION:
-   - Look for GENUINE emergency indicators: specific plans, immediate intent, severe distress
-   - Distinguish between normal sadness/stress vs. actual crisis situations
-   - Consider both English and Filipino expressions of crisis
-   - Require clear indicators of danger or immediate risk
-   - DO NOT trigger crisis for general emotional distress, venting, or difficult life situations
+ 3. GIBBERISH & NONSENSE DETECTION:
+    - Detect random gibberish, nonsense words, or meaningless input that prevents conversation progress
+    - Look for patterns: random characters, word salad, completely irrelevant responses, repeated nonsense
+    - Keywords indicating nonsense: "asdf", "qwerty", random letters, repeated gibberish, incoherent text
+    - Behavioral signals: continuous random input, refusal to communicate meaningfully, repeated nonsense patterns
+    - Filipino nonsense indicators: random Filipino words mixed incorrectly, "kjdflg", "asdfgh", meaningless combinations
+    - If clear nonsense detected and conversation cannot progress, select "direct_engager" persona to stop the behavior
+    - Only select "direct_engager" for persistent nonsense, not occasional typos or language difficulties
 
-4. NATURAL LANGUAGE DETECTION (Philippine Focus):
+ 4. SOPHISTICATED CRISIS DETECTION:
+    - Look for GENUINE emergency indicators: specific plans, immediate intent, severe distress
+    - Distinguish between normal sadness/stress vs. actual crisis situations
+    - Consider both English and Filipino expressions of crisis
+    - Require clear indicators of danger or immediate risk
+    - DO NOT trigger crisis for general emotional distress, venting, or difficult life situations
+
+ 5. NATURAL LANGUAGE DETECTION (Philippine Focus):
    - Detect if user primarily uses Filipino, Taglish, English, or mixed languages
    - PRIORITIZE Filipino/Tagalog for Philippine users - respond in Filipino/Tagalog unless user clearly wants English
    - Consider code-switching patterns and cultural expressions
@@ -455,7 +464,7 @@ ANALYSIS TASKS:
 Output schema:
 {
   "language": "english" | "filipino" | "taglish" | "mixed",
-  "persona": "listener" | "guide" | "crisis" | "companion" | "anchor" | "confrontational",
+  "persona": "listener" | "guide" | "crisis" | "companion" | "anchor" | "confrontational" | "direct_engager",
   "isAngry": boolean,
   "isCrisis": boolean,
   "confidence": "low" | "medium" | "high",

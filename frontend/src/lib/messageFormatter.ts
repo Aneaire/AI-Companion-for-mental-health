@@ -472,6 +472,42 @@ export const selectPersonaBasedOnRules = (
     };
   }
   
+  // Gibberish and nonsense detection
+  const gibberishPatterns = [
+    // Random character patterns
+    /^[a-zA-Z]{10,}$/, // Long random strings
+    /^[asdfghjklqwertyuiopzxcvbnm]{5,}$/, // Keyboard patterns
+    /([a-zA-Z])\1{4,}/, // Repeated characters (aaaa, bbbbb)
+    // Common gibberish patterns
+    'asdf', 'qwerty', 'asdfgh', 'qwertyuiop', 'zxcvbnm', '123456', 'abcdef',
+    // Filipino gibberish indicators
+    'kjdfg', 'asdfgh', 'qwer', 'zxcvb', 'mnbvc', 'poiuy', 'lkjhg'
+  ];
+  
+  // Check for gibberish in current message and recent messages
+  const currentMessageLower = currentMessage.toLowerCase();
+  const isGibberish = gibberishPatterns.some(pattern => 
+    typeof pattern === 'string' ? currentMessageLower.includes(pattern) : pattern.test(currentMessageLower)
+  ) || 
+  // Check for high ratio of random characters vs meaningful words
+  (currentMessage.length > 5 && currentMessage.split(/\s+/).filter(word => word.length > 1).every(word => !/^[aeiou]/i.test(word) && word.length < 3));
+  
+  // Check recent messages for persistent gibberish
+  const recentMessages = messages.slice(-3);
+  const gibberishCount = recentMessages.filter(msg => {
+    const msgLower = msg.text.toLowerCase();
+    return gibberishPatterns.some(pattern => 
+      typeof pattern === 'string' ? msgLower.includes(pattern) : pattern.test(msgLower)
+    );
+  }).length;
+  
+  if (isGibberish || gibberishCount >= 2) {
+    return {
+      persona: 'direct_engager',
+      rationale: 'gibberish'
+    };
+  }
+  
   // Evasive/nonsensical response handling (English + Filipino)
   const evasiveKeywords = [
     'i don\'t know', 'maybe', 'whatever', 'nothing', 'fine',
@@ -486,7 +522,6 @@ export const selectPersonaBasedOnRules = (
   ];
   
   // Check if user has been evasive multiple times or responses are very short
-  const recentMessages = messages.slice(-3); // Last 3 messages
   const evasiveCount = recentMessages.filter(msg => 
     evasiveKeywords.some(keyword => msg.text.toLowerCase().includes(keyword)) ||
     msg.text.trim().length < 10 // Very short responses
@@ -494,7 +529,7 @@ export const selectPersonaBasedOnRules = (
   
   if (evasiveCount >= 2 && allText.length < 100) {
     return {
-      persona: 'direct_engager',
+      persona: 'confrontational',
       rationale: 'evasive'
     };
   }

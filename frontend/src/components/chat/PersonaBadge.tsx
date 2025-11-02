@@ -50,11 +50,11 @@ const personaConfig = {
     color: 'bg-amber-100 text-amber-800 border-amber-200',
     description: 'Providing honest feedback and accountability'
   },
-  firm: {
-    name: 'Firm Clarifier',
+  direct_engager: {
+    name: 'Direct Engager',
     icon: Shield,
     color: 'bg-slate-100 text-slate-800 border-slate-200',
-    description: 'Requiring clear communication and honesty'
+    description: 'Stopping nonsense behavior for productive conversation'
   }
 };
 
