@@ -27,6 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { 
   CheckCircle, 
   Loader2, 
@@ -34,7 +38,13 @@ import {
   Star, 
   Brain, 
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  FileText,
+  Clock,
+  ArrowRight,
+  User,
+  Heart,
+  MessageCircle
 } from "lucide-react";
 
 interface Question {
@@ -151,50 +161,79 @@ export function SessionManagementDialog({
       case "generating":
         return (
           <>
-            <DialogHeader>
-              <div className="flex items-center justify-center mb-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg animate-pulse">
-                    <Brain size={32} className="text-white" />
+            <DialogHeader className="text-center pb-2">
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative mb-4">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-xl animate-pulse">
+                    <Brain size={36} className="text-white" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
-                    <Loader2 size={14} className="text-indigo-600 animate-spin" />
+                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-indigo-100">
+                    <Loader2 size={16} className="text-indigo-600 animate-spin" />
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Creating Your Personalized Form
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 max-w-sm mx-auto">
+                    Our AI is carefully analyzing your conversation to generate meaningful follow-up questions
+                  </DialogDescription>
+                </div>
               </div>
-              <DialogTitle className="text-center text-xl">
-                Creating Your Personalized Form
-              </DialogTitle>
-              <DialogDescription className="text-center text-gray-600 mt-2">
-                Our AI is analyzing your conversation to generate relevant follow-up questions.
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/60 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <Sparkles size={16} className="text-white" />
+            <div className="space-y-6 py-4">
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                      <Sparkles size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-indigo-900 mb-2 text-lg">Smart Analysis in Progress</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-indigo-700">
+                          <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                            <CheckCircle size={10} className="text-white" />
+                          </div>
+                          <span>Conversation context analyzed</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-indigo-700">
+                          <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                            <Loader2 size={10} className="text-white animate-spin" />
+                          </div>
+                          <span>Generating personalized questions</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center">
+                            <Clock size={10} className="text-white" />
+                          </div>
+                          <span>Preparing your form</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-purple-900 mb-1">What we're doing</h4>
-                    <p className="text-sm text-purple-800 leading-relaxed">
-                      Using your previous messages to create questions that will help your therapist 
-                      understand your current state and progress.
-                    </p>
-                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="text-center space-y-4">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+                
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                  <Clock size={14} className="text-indigo-500" />
+                  <span>This usually takes 10-30 seconds</span>
+                </div>
+                
+                <div className="mt-4">
+                  <Progress value={33} className="h-2" />
+                  <p className="text-xs text-gray-500 mt-2">Analyzing conversation patterns...</p>
                 </div>
               </div>
-
-              <div className="flex items-center justify-center space-x-1">
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-
-              <p className="text-center text-sm text-gray-500">
-                This usually takes 10-30 seconds...
-              </p>
             </div>
           </>
         );
@@ -202,68 +241,127 @@ export function SessionManagementDialog({
       case "form":
         return (
           <>
-            <DialogHeader>
-              <DialogTitle className="text-xl">
-                Session {sessionNumber + 1} Follow-up Form
-              </DialogTitle>
-              <DialogDescription className="text-gray-600 mt-2">
-                Please complete these questions based on your previous session to help prepare for your next conversation.
-              </DialogDescription>
+            <DialogHeader className="pb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                  <FileText size={20} className="text-white" />
+                </div>
+                <div>
+                  <DialogTitle className="text-2xl font-bold text-gray-900">
+                    Session {sessionNumber + 1} Follow-up
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 mt-1">
+                    Help us understand your progress and prepare for your next session
+                  </DialogDescription>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg">
+                  <Star size={14} className="fill-indigo-600" />
+                  <span className="font-medium">{generatedQuestions.length} personalized questions</span>
+                </div>
+                
+                <Badge variant="outline" className="text-xs px-2 py-1">
+                  <div className="flex items-center gap-1">
+                    <Heart size={10} className="text-red-500 fill-red-500" />
+                    <span>Session {sessionNumber} Complete</span>
+                  </div>
+                </Badge>
+              </div>
             </DialogHeader>
 
-            <div className="py-4 max-h-96 overflow-y-auto">
+            <div className="py-2 max-h-[28rem] overflow-y-auto">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+                <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
                   {generatedQuestions.map((q, idx) => (
-                    <FormField
-                      key={q.name || idx}
-                      control={form.control}
-                      name={q.name}
-                      rules={{ required: "This field is required" }}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{q.label}</FormLabel>
-                          <FormControl>
-                            {q.type === "text" ? (
-                              <Input {...field} placeholder="Your answer..." />
-                            ) : q.type === "textarea" ? (
-                              <Textarea {...field} placeholder="Please provide details..." rows={3} />
-                            ) : q.type === "select" ? (
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select an option" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {q.options?.map((opt: string) => (
-                                    <SelectItem key={opt} value={opt}>
-                                      {opt}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : null}
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <Card key={q.name || idx} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <FormField
+                          control={form.control}
+                          name={q.name}
+                          rules={{ required: "This field is required" }}
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-start gap-2 mb-3">
+                                <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-xs font-semibold text-indigo-600">{idx + 1}</span>
+                                </div>
+                                <FormLabel className="text-base font-medium text-gray-900 leading-relaxed">
+                                  {q.label}
+                                </FormLabel>
+                              </div>
+                              <FormControl>
+                                {q.type === "text" ? (
+                                  <Input 
+                                    {...field} 
+                                    placeholder="Share your thoughts..." 
+                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                                  />
+                                ) : q.type === "textarea" ? (
+                                  <Textarea 
+                                    {...field} 
+                                    placeholder="Please provide details to help us understand better..." 
+                                    rows={4}
+                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 resize-none"
+                                  />
+                                ) : q.type === "select" ? (
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <SelectTrigger className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                      <SelectValue placeholder="Choose an option that best describes your experience" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {q.options?.map((opt: string) => (
+                                        <SelectItem key={opt} value={opt}>
+                                          {opt}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : null}
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
                   ))}
                   
-                  <div className="flex gap-2 pt-4">
+                  <Separator className="my-6" />
+                  
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <MessageCircle size={16} className="text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-blue-900 mb-1 text-sm">💡 Pro Tip</h4>
+                          <p className="text-sm text-blue-800 leading-relaxed">
+                            Your honest answers help us personalize your next session and track your progress more effectively. Take your time with each question.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <div className="flex gap-3 pt-2">
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                      size="lg"
+                      className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
                     >
                       {isSubmitting ? (
                         <>
-                          <Loader2 size={16} className="mr-2 animate-spin" />
-                          Saving...
+                          <Loader2 size={18} className="mr-2 animate-spin" />
+                          <span className="font-medium">Saving Progress...</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle size={16} className="mr-2" />
-                          Complete Form
+                          <CheckCircle size={18} className="mr-2" />
+                          <span className="font-medium">Complete & Continue</span>
                         </>
                       )}
                     </Button>
@@ -271,8 +369,10 @@ export function SessionManagementDialog({
                     <Button
                       type="button"
                       variant="outline"
+                      size="lg"
                       onClick={() => onOpenChange(false)}
                       disabled={isSubmitting}
+                      className="px-6"
                     >
                       Cancel
                     </Button>
@@ -286,38 +386,55 @@ export function SessionManagementDialog({
       case "error":
         return (
           <>
-            <DialogHeader>
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
-                  <AlertTriangle size={32} className="text-white" />
+            <DialogHeader className="text-center pb-2">
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center shadow-xl mb-4">
+                  <AlertTriangle size={36} className="text-white" />
+                </div>
+                
+                <div className="space-y-2">
+                  <DialogTitle className="text-2xl font-bold text-red-600">
+                    Something went wrong
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 max-w-sm mx-auto">
+                    We couldn't generate your form at this time. Let's try again.
+                  </DialogDescription>
                 </div>
               </div>
-              <DialogTitle className="text-center text-xl text-red-600">
-                Something went wrong
-              </DialogTitle>
-              <DialogDescription className="text-center text-gray-600 mt-2">
-                We couldn't generate your form at this time.
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
+            <div className="space-y-6 py-4">
+              <Card className="border-red-200 bg-red-50 shadow-lg">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle size={18} className="text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-red-900 mb-2">Error Details</h4>
+                      <p className="text-sm text-red-800 leading-relaxed bg-white/50 p-3 rounded-lg border border-red-200">
+                        {error}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 <Button
                   onClick={generateForm}
-                  className="w-full"
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 shadow-lg"
                 >
-                  <MessageSquare size={16} className="mr-2" />
-                  Try Again
+                  <MessageSquare size={18} className="mr-2" />
+                  <span className="font-medium">Try Again</span>
                 </Button>
                 
                 <Button
                   onClick={() => onOpenChange(false)}
                   variant="outline"
-                  className="w-full"
+                  size="lg"
+                  className="w-full border-gray-300 hover:bg-gray-50"
                 >
                   Close
                 </Button>
@@ -333,7 +450,7 @@ export function SessionManagementDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[95vh] overflow-hidden">
         {renderDialogContent()}
       </DialogContent>
     </Dialog>
