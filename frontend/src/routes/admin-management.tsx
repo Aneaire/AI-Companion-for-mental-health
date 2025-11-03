@@ -424,69 +424,73 @@ function AdminManagementContent() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 mb-6">
-            <Button 
-              onClick={savePersonasConfig} 
-              disabled={isSaving}
-              className="flex items-center gap-2"
-            >
-              <Save size={16} />
-              {isSaving ? 'Saving...' : 'Save Configuration'}
-            </Button>
-            <Dialog open={showRevertDialog} onOpenChange={setShowRevertDialog}>
-              <DialogTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  onClick={revertToDefault}
-                  disabled={!defaultConfig}
-                  className="flex items-center gap-2"
-                >
-                  <RotateCcw size={16} />
-                  Revert to Default
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Revert to Default Configuration</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to revert to the default personas configuration? 
-                    This action will overwrite all current changes and cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                onClick={savePersonasConfig} 
+                disabled={isSaving}
+                className="flex items-center gap-2 min-w-[140px]"
+              >
+                <Save size={16} />
+                {isSaving ? 'Saving...' : 'Save Configuration'}
+              </Button>
+              <Dialog open={showRevertDialog} onOpenChange={setShowRevertDialog}>
+                <DialogTrigger asChild>
                   <Button 
                     variant="outline" 
-                    onClick={() => setShowRevertDialog(false)}
+                    onClick={revertToDefault}
+                    disabled={!defaultConfig}
+                    className="flex items-center gap-2 min-w-[140px]"
                   >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={confirmRevertToDefault}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
+                    <RotateCcw size={16} />
                     Revert to Default
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Button 
-              variant="outline" 
-              onClick={exportConfig}
-              className="flex items-center gap-2"
-            >
-              <Download size={16} />
-              Export
-            </Button>
-            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer">
-              <Upload size={16} />
-              Import
-              <input
-                type="file"
-                accept=".json"
-                onChange={importConfig}
-                className="hidden"
-              />
-            </label>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Revert to Default Configuration</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to revert to the default personas configuration? 
+                      This action will overwrite all current changes and cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowRevertDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={confirmRevertToDefault}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Revert to Default
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                onClick={exportConfig}
+                className="flex items-center gap-2 min-w-[100px]"
+              >
+                <Download size={16} />
+                Export
+              </Button>
+              <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer min-w-[100px] justify-center">
+                <Upload size={16} />
+                Import
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importConfig}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
 
           {/* Main Content Tabs */}
@@ -499,16 +503,16 @@ function AdminManagementContent() {
             <TabsContent value="personas" className="mt-6">
               {personasConfig && (
                 <div className="space-y-6">
-                  <div className="grid gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {Object.entries(personasConfig.personas).map(([id, persona]) => (
-                      <Card key={id} className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900">{persona.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{persona.description}</p>
-                            <Badge variant="secondary" className="mt-2">{id}</Badge>
+                      <Card key={id} className="p-6 hover:shadow-lg transition-shadow duration-200">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">{persona.name}</h3>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{persona.description}</p>
+                            <Badge variant="secondary" className="mt-2 inline-block">{id}</Badge>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-shrink-0">
                             <Button
                               size="sm"
                               variant="outline"
@@ -523,10 +527,10 @@ function AdminManagementContent() {
 
                         {/* Editing Mode */}
                         {selectedPersona === id && editingPersona && (
-                          <div className="space-y-4 mt-4 p-4 bg-gray-50 rounded-lg">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-6 mt-6 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                                 <Input
                                   value={editingPersona.name}
                                   onChange={(e) => setEditingPersona({...editingPersona, name: e.target.value})}
@@ -534,7 +538,7 @@ function AdminManagementContent() {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">ID</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">ID</label>
                                 <Input
                                   value={editingPersona.id}
                                   disabled
@@ -544,30 +548,30 @@ function AdminManagementContent() {
                             </div>
                             
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                               <Textarea
                                 value={editingPersona.description}
                                 onChange={(e) => setEditingPersona({...editingPersona, description: e.target.value})}
-                                className="w-full"
+                                className="w-full resize-none"
                                 rows={3}
                               />
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">System Instruction</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">System Instruction</label>
                               <Textarea
                                 value={editingPersona.systemInstruction}
                                 onChange={(e) => setEditingPersona({...editingPersona, systemInstruction: e.target.value})}
-                                className="w-full"
-                                rows={6}
+                                className="w-full resize-none font-mono text-sm"
+                                rows={8}
                               />
                             </div>
 
-                            <div className="flex gap-2">
-                              <Button onClick={savePersonaEdits} size="sm">
+                            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                              <Button onClick={savePersonaEdits} size="sm" className="min-w-[120px]">
                                 Save Changes
                               </Button>
-                              <Button onClick={cancelPersonaEdits} variant="outline" size="sm">
+                              <Button onClick={cancelPersonaEdits} variant="outline" size="sm" className="min-w-[120px]">
                                 Cancel
                               </Button>
                             </div>
@@ -576,12 +580,15 @@ function AdminManagementContent() {
 
                         {/* Read-only View */}
                         {selectedPersona !== id && (
-                          <div className="mt-4 space-y-3">
+                          <div className="mt-6 space-y-6">
                             <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Triggers</h4>
-                              <div className="flex flex-wrap gap-1">
+                              <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                Triggers
+                              </h4>
+                              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                                 {persona.triggers.map((trigger, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
+                                  <Badge key={index} variant="outline" className="text-xs px-2 py-1">
                                     {trigger}
                                   </Badge>
                                 ))}
@@ -589,13 +596,31 @@ function AdminManagementContent() {
                             </div>
                             
                             <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Conversation Style</h4>
-                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                                <div><strong>Pace:</strong> {persona.conversationStyle.pace}</div>
-                                <div><strong>Tone:</strong> {persona.conversationStyle.tone}</div>
-                                <div><strong>Length:</strong> {persona.conversationStyle.responseLength}</div>
-                                <div><strong>Questions:</strong> {persona.conversationStyle.questionStyle}</div>
-                                <div><strong>Focus:</strong> {persona.conversationStyle.focus}</div>
+                              <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                Conversation Style
+                              </h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm bg-gray-50 p-4 rounded-lg">
+                                <div className="space-y-1">
+                                  <div className="font-medium text-gray-700">Pace</div>
+                                  <div className="text-gray-600">{persona.conversationStyle.pace}</div>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-gray-700">Tone</div>
+                                  <div className="text-gray-600">{persona.conversationStyle.tone}</div>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-gray-700">Length</div>
+                                  <div className="text-gray-600">{persona.conversationStyle.responseLength}</div>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-gray-700">Questions</div>
+                                  <div className="text-gray-600">{persona.conversationStyle.questionStyle}</div>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-gray-700">Focus</div>
+                                  <div className="text-gray-600">{persona.conversationStyle.focus}</div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -609,36 +634,54 @@ function AdminManagementContent() {
 
             <TabsContent value="settings" className="mt-6">
               {personasConfig && (
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Selection Rules</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority Order</label>
-                      <div className="flex flex-wrap gap-2">
-                        {personasConfig.selectionRules.priorityOrder.map((personaId, index) => (
-                          <Badge key={index} variant="outline">
-                            {index + 1}. {personaId}
-                          </Badge>
-                        ))}
+                <div className="space-y-6">
+                  <Card className="p-6">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+                      <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                      Selection Rules
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="text-lg font-medium text-gray-800 mb-4">Priority Order</h4>
+                          <div className="flex flex-wrap gap-3">
+                            {personasConfig.selectionRules.priorityOrder.map((personaId, index) => (
+                              <Badge key={index} variant="outline" className="px-3 py-2 text-sm">
+                                <span className="font-semibold text-gray-500">{index + 1}.</span> {personaId}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-lg font-medium text-gray-800 mb-4">Fallback Persona</h4>
+                          <div className="bg-gray-50 p-4 rounded-lg border-2 border-dashed border-gray-300">
+                            <Badge variant="secondary" className="text-base px-4 py-2">
+                              {personasConfig.selectionRules.fallbackPersona}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="text-lg font-medium text-gray-800 mb-4">Context Weighting</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {Object.entries(personasConfig.selectionRules.contextWeighting).map(([key, value]) => (
+                              <div key={key} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div className="text-sm font-medium text-gray-700 capitalize mb-1">
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                                </div>
+                                <div className="text-2xl font-bold text-blue-600">{value}</div>
+                                <div className="text-xs text-gray-500 mt-1">weight factor</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Context Weighting</label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div><strong>Triggers:</strong> {personasConfig.selectionRules.contextWeighting.triggers}</div>
-                        <div><strong>Emotional:</strong> {personasConfig.selectionRules.contextWeighting.emotionalIndicators}</div>
-                        <div><strong>History:</strong> {personasConfig.selectionRules.contextWeighting.conversationHistory}</div>
-                        <div><strong>Preferences:</strong> {personasConfig.selectionRules.contextWeighting.userPreferences}</div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fallback Persona</label>
-                      <Badge variant="secondary">{personasConfig.selectionRules.fallbackPersona}</Badge>
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
               )}
             </TabsContent>
           </Tabs>
