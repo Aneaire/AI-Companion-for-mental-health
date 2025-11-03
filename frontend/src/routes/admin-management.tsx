@@ -11,6 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Link, useLocation } from "@tanstack/react-router";
 import { MessageSquare, BarChart3, Users, Settings, Save, RotateCcw, Download, Upload, AlertTriangle, CheckCircle, Edit, Plus, Trash2 } from "lucide-react";
 
@@ -76,6 +85,7 @@ function AdminManagementContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [activeTab, setActiveTab] = useState('personas');
+  const [showRevertDialog, setShowRevertDialog] = useState(false);
 
   // Load personas configuration
   useEffect(() => {
@@ -159,12 +169,16 @@ function AdminManagementContent() {
 
   const revertToDefault = async () => {
     if (!defaultConfig) return;
+    setShowRevertDialog(true);
+  };
+
+  const confirmRevertToDefault = () => {
+    if (!defaultConfig) return;
     
-    if (confirm("Are you sure you want to revert to the default configuration? This will overwrite all current changes.")) {
-      setPersonasConfig(defaultConfig);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    }
+    setPersonasConfig(defaultConfig);
+    setSaveStatus('success');
+    setShowRevertDialog(false);
+    setTimeout(() => setSaveStatus('idle'), 3000);
   };
 
   const exportConfig = () => {
@@ -419,15 +433,42 @@ function AdminManagementContent() {
               <Save size={16} />
               {isSaving ? 'Saving...' : 'Save Configuration'}
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={revertToDefault}
-              disabled={!defaultConfig}
-              className="flex items-center gap-2"
-            >
-              <RotateCcw size={16} />
-              Revert to Default
-            </Button>
+            <Dialog open={showRevertDialog} onOpenChange={setShowRevertDialog}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  onClick={revertToDefault}
+                  disabled={!defaultConfig}
+                  className="flex items-center gap-2"
+                >
+                  <RotateCcw size={16} />
+                  Revert to Default
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Revert to Default Configuration</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to revert to the default personas configuration? 
+                    This action will overwrite all current changes and cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowRevertDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={confirmRevertToDefault}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Revert to Default
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button 
               variant="outline" 
               onClick={exportConfig}
