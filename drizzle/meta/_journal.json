@@ -169,6 +169,13 @@
       "when": 1758533422571,
       "tag": "0023_far_baron_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1762180906435,
+      "tag": "0024_curly_lady_ursula",
+      "breakpoints": true
     }
   ]
 }

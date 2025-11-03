@@ -16,7 +16,7 @@ interface CrisisInterventionButtonProps {
 }
 
 export function CrisisInterventionButton({ sessionId }: CrisisInterventionButtonProps) {
-  const { crisisDetected, checkCrisisStatus, currentContext } = useChatStore();
+  const { crisisDetected, checkCrisisStatus, currentContext, selectedPersona } = useChatStore();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -25,7 +25,10 @@ export function CrisisInterventionButton({ sessionId }: CrisisInterventionButton
     }
   }, [sessionId, checkCrisisStatus, currentContext.messages.length]);
 
-  if (!crisisDetected) {
+  // Show crisis button if crisis is detected OR if crisis_support persona is selected
+  const shouldShowCrisisButton = crisisDetected || selectedPersona === 'crisis_support';
+
+  if (!shouldShowCrisisButton) {
     return null;
   }
 

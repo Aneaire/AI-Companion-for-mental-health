@@ -185,6 +185,7 @@ export function Thread({
     setSelectedPersona,
     selectedPersona,
     personaRationale,
+    setCrisisDetected,
   } = useChatStore();
 
   // Use prop if provided, otherwise fall back to store
@@ -806,6 +807,8 @@ export function Thread({
             if (personaData.personaId.includes('crisis')) {
               personaName = 'crisis_support';
               rationale = 'crisis';
+              // Set crisis detected when crisis persona is selected
+              setCrisisDetected(true);
             } else if (personaData.personaId.includes('anchor')) {
               personaName = 'calm_anchor';
               rationale = 'anger';
@@ -831,6 +834,11 @@ export function Thread({
             
             console.log("Mapped persona for frontend:", { personaName, rationale });
             setSelectedPersona(personaName, rationale);
+            
+            // Set crisis detected when crisis persona is selected
+            if (personaName === 'crisis_support') {
+              setCrisisDetected(true);
+            }
           } else {
             // Fallback to rule-based selection
             const selectedPersona = selectPersonaBasedOnRules(
@@ -842,6 +850,11 @@ export function Thread({
               selectedPersona.persona,
               selectedPersona.rationale
             );
+            
+            // Set crisis detected when crisis persona is selected
+            if (selectedPersona.persona === 'crisis_support') {
+              setCrisisDetected(true);
+            }
           }
         }
       );

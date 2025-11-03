@@ -202,3 +202,29 @@ export const personaSessions = pgTable("persona_sessions", {
   personaAdaptations: jsonb("persona_adaptations").$type<Record<string, any>>(), // How persona evolved during session
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Analytics tables for persona selection tracking
+export const personaAnalytics = pgTable("persona_analytics", {
+  id: serial("id").primaryKey(),
+  personaId: integer("persona_id")
+    .notNull()
+    .references(() => persona.id, { onDelete: "cascade" }),
+  selectionCount: integer("selection_count").default(1),
+  lastSelectedAt: timestamp("last_selected_at").defaultNow(),
+  periodStart: timestamp("period_start").notNull(), // Start of the tracking period
+  periodEnd: timestamp("period_end").notNull(), // End of the tracking period
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Cache table for frequent persona selections (10-hour cache)
+export const personaSelectionCache = pgTable("persona_selection_cache", {
+  id: serial("id").primaryKey(),
+  personaId: integer("persona_id")
+    .notNull()
+    .references(() => persona.id, { onDelete: "cascade" }),
+  selectionCount: integer("selection_count").default(1),
+  cachePeriodStart: timestamp("cache_period_start").notNull(),
+  cachePeriodEnd: timestamp("cache_period_end").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});

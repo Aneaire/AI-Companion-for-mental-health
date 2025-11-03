@@ -1,7 +1,7 @@
 // persona-cards.ts (Persona-based Chat API)
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { zValidator } from "@hono/zod-validator";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 import fs from "fs";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -13,9 +13,13 @@ import { db } from "../db/config";
 import {
   impersonateThread,
   messages,
+  persona,
+  personaAnalytics,
+  personaSelectionCache,
   sessionForms,
   sessions,
   threads,
+  users,
 } from "../db/schema";
 import { logger } from "../lib/logger";
 
@@ -47,6 +51,123 @@ const loadPersonasConfig = async () => {
 loadPersonasConfig().then(() => {
 
 });
+
+// Simple mapping for string persona IDs to numbers
+const personaIdMapping: Record<string, number> = {
+  'listener': 1,
+  'guide': 2,
+  'crisis': 3,
+  'companion': 4,
+  'anchor': 5,
+  'confrontational': 6,
+  'direct_engager': 7,
+};
+
+// Analytics tracking function with 10-hour caching
+const trackPersonaSelection = async (personaId: string) => {
+  try {
+    const now = new Date();
+    const cachePeriodStart = new Date(now.getTime() - (10 * 60 * 60 * 1000)); // 10 hours ago
+    const cachePeriodEnd = now;
+
+    // Map string persona ID to number
+    const personaIdNum = personaIdMapping[personaId] || 0;
+    
+    // Check if there's an existing cache entry for this persona within the 10-hour period
+    const existingCache = await db
+      .select()
+      .from(personaSelectionCache)
+      .where(
+        eq(personaSelectionCache.personaId, personaIdNum)
+      )
+      .limit(1);
+
+    if (existingCache.length > 0) {
+      const cacheEntry = existingCache[0];
+      const cacheEntryEnd = new Date(cacheEntry.cachePeriodEnd);
+      
+      logger.info(`Cache check for persona ${personaIdNum}: found ${existingCache.length} entries, first ends at ${cacheEntryEnd.toISOString()}, now is ${now.toISOString()}`);
+      
+      // If cache entry is still valid (not expired), increment count
+      // Check if current time is within the cache entry's period
+      if (now >= new Date(cacheEntry.cachePeriodStart) && now <= cacheEntryEnd) {
+        await db
+          .update(personaSelectionCache)
+          .set({
+            selectionCount: (cacheEntry.selectionCount || 0) + 1,
+          })
+          .where(eq(personaSelectionCache.id, cacheEntry.id));
+      } else {
+        // Cache expired, create new entry and flush old data to analytics
+        await flushCacheToAnalytics();
+        await db.insert(personaSelectionCache).values({
+          personaId: personaIdNum,
+          selectionCount: 1,
+          cachePeriodStart,
+          cachePeriodEnd,
+          createdAt: now,
+        });
+      }
+    } else {
+      // No existing cache entry, create new one
+      try {
+        await db.insert(personaSelectionCache).values({
+          personaId: personaIdNum,
+          selectionCount: 1,
+          cachePeriodStart,
+          cachePeriodEnd,
+          createdAt: now,
+        });
+      } catch (fkError) {
+        // Foreign key constraint failed - persona doesn't exist in persona table
+        // For now, we'll skip tracking for non-existent personas
+        logger.warn(`Persona ID ${personaIdNum} does not exist in persona table, skipping tracking`);
+      }
+    }
+  } catch (error) {
+    logger.error("Error tracking persona selection:", error);
+  }
+};
+
+// Function to flush cache data to analytics table
+const flushCacheToAnalytics = async () => {
+  try {
+    const now = new Date();
+    
+    // Get all cache entries
+    const cacheEntries = await db.select().from(personaSelectionCache);
+    
+    for (const entry of cacheEntries) {
+      // Create analytics record for each cache entry
+      await db.insert(personaAnalytics).values({
+        personaId: entry.personaId,
+        selectionCount: entry.selectionCount,
+        lastSelectedAt: entry.createdAt,
+        periodStart: entry.cachePeriodStart,
+        periodEnd: entry.cachePeriodEnd,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    
+    // Clear all cache entries
+    await db.delete(personaSelectionCache);
+    
+    logger.info(`Flushed ${cacheEntries.length} cache entries to analytics`);
+  } catch (error) {
+    logger.error("Error flushing cache to analytics:", error);
+  }
+};
+
+// Periodic cache cleanup (run every 10 hours)
+const scheduleCacheCleanup = () => {
+  setInterval(async () => {
+    await flushCacheToAnalytics();
+  }, 10 * 60 * 60 * 1000); // 10 hours
+};
+
+// Start the periodic cleanup (commented out for testing)
+// scheduleCacheCleanup();
 
 // Function to save conversation to file
 const savePersonaConversationToFile = async (
@@ -562,6 +683,9 @@ Follow these heuristics:
           if (chosenPersona) {
             selectedPersona = chosenPersona.id;
             personaSystemInstruction = chosenPersona.systemInstruction;
+            
+            // Track persona selection for analytics
+            await trackPersonaSelection(selectedPersona);
           }
 
 
@@ -877,6 +1001,237 @@ RESPOND WITH JSON ONLY:
     } catch (error) {
       logger.error("Error checking crisis status:", error);
       return c.json({ error: "Failed to check crisis status" }, 500);
+    }
+  })
+  // Get persona analytics data
+  .get("/analytics", async (c) => {
+    try {
+      // Get analytics from the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const analytics = await db
+        .select({
+          personaId: personaAnalytics.personaId,
+          totalSelections: sql<number>`SUM(${personaAnalytics.selectionCount})`.mapWith(Number),
+          lastSelectedAt: sql<Date>`MAX(${personaAnalytics.lastSelectedAt})`.mapWith(Date),
+        })
+        .from(personaAnalytics)
+        .where(gte(personaAnalytics.periodStart, thirtyDaysAgo))
+        .groupBy(personaAnalytics.personaId)
+        .orderBy(desc(sql`SUM(${personaAnalytics.selectionCount})`));
+
+      // Get current cache data for real-time tracking
+      const cacheData = await db
+        .select({
+          personaId: personaSelectionCache.personaId,
+          currentSelections: personaSelectionCache.selectionCount,
+          cachePeriodStart: personaSelectionCache.cachePeriodStart,
+          cachePeriodEnd: personaSelectionCache.cachePeriodEnd,
+        })
+        .from(personaSelectionCache)
+        .orderBy(personaSelectionCache.selectionCount);
+
+      return c.json({
+        historicalAnalytics: analytics,
+        currentCache: cacheData,
+        period: "30 days",
+      });
+    } catch (error) {
+      logger.error("Error fetching persona analytics:", error);
+      return c.json({ error: "Failed to fetch analytics" }, 500);
+    }
+  })
+  // Manual cache flush endpoint (for admin use)
+  .post("/analytics/flush", async (c) => {
+    try {
+      await flushCacheToAnalytics();
+      return c.json({ message: "Cache flushed to analytics successfully" });
+    } catch (error) {
+      logger.error("Error flushing cache:", error);
+      return c.json({ error: "Failed to flush cache" }, 500);
+    }
+  })
+  // Test analytics tables existence
+  .get("/analytics/test", async (c) => {
+    try {
+      // Test cache table
+      const cacheTest = await db.select().from(personaSelectionCache).limit(1);
+      
+      // Test analytics table  
+      const analyticsTest = await db.select().from(personaAnalytics).limit(1);
+      
+      return c.json({
+        cacheTableExists: true,
+        analyticsTableExists: true,
+        cacheEntries: cacheTest.length,
+        analyticsEntries: analyticsTest.length,
+      });
+    } catch (error) {
+      logger.error("Error testing analytics tables:", error);
+      return c.json({ 
+        error: "Analytics tables may not exist",
+        details: error instanceof Error ? error.message : String(error)
+      }, 500);
+    }
+  })
+  // Create analytics tables manually
+  .post("/analytics/setup", async (c) => {
+    try {
+      // Create persona_selection_cache table
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS persona_selection_cache (
+          id serial PRIMARY KEY NOT NULL,
+          persona_id integer NOT NULL REFERENCES persona(id) ON DELETE CASCADE,
+          selection_count integer DEFAULT 1,
+          cache_period_start timestamp NOT NULL,
+          cache_period_end timestamp NOT NULL,
+          created_at timestamp DEFAULT now()
+        );
+      `);
+      
+      // Create persona_analytics table
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS persona_analytics (
+          id serial PRIMARY KEY NOT NULL,
+          persona_id integer NOT NULL REFERENCES persona(id) ON DELETE CASCADE,
+          selection_count integer DEFAULT 1,
+          last_selected_at timestamp DEFAULT now(),
+          period_start timestamp NOT NULL,
+          period_end timestamp NOT NULL,
+          created_at timestamp DEFAULT now(),
+          updated_at timestamp DEFAULT now()
+        );
+      `);
+      
+      // Create indexes
+      await db.execute(`
+        CREATE INDEX IF NOT EXISTS idx_persona_selection_cache_persona_id ON persona_selection_cache(persona_id);
+        CREATE INDEX IF NOT EXISTS idx_persona_selection_cache_period_start ON persona_selection_cache(cache_period_start);
+        CREATE INDEX IF NOT EXISTS idx_persona_analytics_persona_id ON persona_analytics(persona_id);
+        CREATE INDEX IF NOT EXISTS idx_persona_analytics_period_start ON persona_analytics(period_start);
+      `);
+      
+      return c.json({ message: "Analytics tables created successfully" });
+    } catch (error) {
+      logger.error("Error creating analytics tables:", error);
+      return c.json({ 
+        error: "Failed to create analytics tables",
+        details: error instanceof Error ? error.message : String(error)
+      }, 500);
+    }
+  })
+  // Test persona tracking (for development)
+  .post("/analytics/test-track", async (c) => {
+    try {
+      const { personaId } = await c.req.json();
+      
+      if (!personaId) {
+        return c.json({ error: "personaId is required" }, 400);
+      }
+      
+      // Create test personas if they don't exist
+      const personaIdNum = personaIdMapping[personaId] || 0;
+      if (personaIdNum > 0) {
+        try {
+          await db.execute(`
+            INSERT INTO persona (id, user_id, full_name, age, problem_description, created_at, updated_at)
+            VALUES (${personaIdNum}, 1, '${personaId}', '30', 'Test persona for analytics', NOW(), NOW())
+            ON CONFLICT (id) DO NOTHING
+          `);
+        } catch (error) {
+          // Persona might already exist, that's fine
+        }
+      }
+      
+      // Test tracking function
+      await trackPersonaSelection(personaId.toString());
+      
+      // Check cache after tracking
+      const cacheEntries = await db
+        .select()
+        .from(personaSelectionCache)
+        .where(eq(personaSelectionCache.personaId, personaIdNum));
+      
+      return c.json({ 
+        message: `Persona ${personaId} tracked successfully`,
+        personaIdNum,
+        cacheEntries: cacheEntries.length,
+        cacheData: cacheEntries
+      });
+    } catch (error) {
+      logger.error("Error testing persona tracking:", error);
+      return c.json({ 
+        error: "Failed to track persona",
+        details: error instanceof Error ? error.message : String(error)
+      }, 500);
+    }
+  })
+  // Test cache expiration
+  .post("/analytics/test-expiration", async (c) => {
+    try {
+      // Create an expired cache entry (11 hours ago)
+      const elevenHoursAgo = new Date(Date.now() - (11 * 60 * 60 * 1000));
+      const expiredCacheStart = new Date(elevenHoursAgo.getTime() - (10 * 60 * 60 * 1000)); // 21 hours ago total
+      
+      await db.insert(personaSelectionCache).values({
+        personaId: 4, // companion persona
+        selectionCount: 5,
+        cachePeriodStart: expiredCacheStart,
+        cachePeriodEnd: elevenHoursAgo,
+        createdAt: elevenHoursAgo,
+      });
+      
+      return c.json({ 
+        message: "Expired cache entry created",
+        expiredTime: elevenHoursAgo.toISOString(),
+        cachePeriodStart: expiredCacheStart.toISOString()
+      });
+    } catch (error) {
+      logger.error("Error testing cache expiration:", error);
+      return c.json({ 
+        error: "Failed to test cache expiration",
+        details: error instanceof Error ? error.message : String(error)
+      }, 500);
+    }
+  })
+  // Create test personas
+  .post("/analytics/setup-personas", async (c) => {
+    try {
+      // Create test personas for analytics
+      const testPersonas = [
+        { id: 1, name: 'listener', description: 'Empathetic Listener' },
+        { id: 2, name: 'guide', description: 'Supportive Guide' },
+        { id: 3, name: 'crisis', description: 'Crisis Support' },
+        { id: 4, name: 'companion', description: 'Friendly Companion' },
+        { id: 5, name: 'anchor', description: 'Calm Anchor' },
+        { id: 6, name: 'confrontational', description: 'Direct Confrontational' },
+        { id: 7, name: 'direct_engager', description: 'Direct Engager' },
+      ];
+      
+      // First check if we have any users
+      const existingUsers = await db.select().from(users).limit(1);
+      const userId = existingUsers.length > 0 ? existingUsers[0].id : 1;
+      
+      for (const testPersona of testPersonas) {
+        await db.insert(persona).values({
+          id: testPersona.id,
+          userId: userId,
+          fullName: testPersona.name,
+          age: '30',
+          problemDescription: testPersona.description,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).onConflictDoNothing();
+      }
+      
+      return c.json({ message: "Test personas created successfully" });
+    } catch (error) {
+      logger.error("Error creating test personas:", error);
+      return c.json({ 
+        error: "Failed to create test personas",
+        details: error instanceof Error ? error.message : String(error)
+      }, 500);
     }
   });
 
