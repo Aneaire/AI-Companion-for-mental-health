@@ -16,6 +16,7 @@ import adminRoute from "./routes/admin";
 import testRoute from "./routes/test";
 import personaTemplatesRoute from "./routes/persona-templates";
 import personaLibraryRoute from "./routes/persona-library";
+import personasRoute from "./routes/personas";
 
 
 const app = new Hono();
@@ -53,6 +54,7 @@ const routes = app
   .route("/api/persona-library", personaLibraryRoute)
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
+  .route("/api/admin/personas", personasRoute)
   .route("/api/test", testRoute)
 
 
