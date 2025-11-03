@@ -16,7 +16,7 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
       console.log("Checking admin permissions...");
       console.log("Auth state:", { isLoaded, isSignedIn });
       console.log("User:", user?.id);
-      console.log("User metadata:", user?.privateMetadata);
+      console.log("User metadata:", user?.publicMetadata);
       
       if (isLoaded && isSignedIn && user) {
         const isUserAdmin = user.publicMetadata?.role === "admin";

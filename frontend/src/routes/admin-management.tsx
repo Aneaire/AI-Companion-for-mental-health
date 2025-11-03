@@ -1,91 +1,32 @@
 import { createRoute } from "@tanstack/react-router";
-import { Card } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
 import { Route as rootRoute } from "./__root";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 import { useState, useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "@tanstack/react-router";
-import { MessageSquare, BarChart3, Users } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-interface MetricsData {
-  threadMetrics: {
-    total: number;
-    withSessions: number;
-    percentageWithSessions: number;
-  };
-  sessionMetrics: {
-    total: number;
-    completed: number;
-    completionRate: number;
-  };
-  messageMetrics: {
-    total: number;
-    averagePerSession: number;
-  };
-  formMetrics: {
-    total: number;
-    completionRate: number;
-  };
-}
+import { MessageSquare, BarChart3, Users, Settings } from "lucide-react";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/admin",
-  component: AdminDashboard,
+  path: "/admin-management",
+  component: AdminManagement,
 });
 
-function AdminDashboard() {
+function AdminManagement() {
   return (
     <AdminProtectedRoute>
-      <AdminDashboardContent />
+      <AdminManagementContent />
     </AdminProtectedRoute>
   );
 }
 
-function AdminDashboardContent() {
-  const { getToken } = useAuth();
+function AdminManagementContent() {
   const { user } = useUser();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  
-  const { data: metrics, isLoading } = useQuery<MetricsData>({
-    queryKey: ["adminMetrics"],
-    queryFn: async () => {
-      console.log("Fetching admin metrics...");
-      
-      const token = await getToken();
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-      
-      const response = await fetch("/api/admin/metrics", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        console.error("Failed to fetch metrics:", response.status, response.statusText);
-        throw new Error("Failed to fetch metrics");
-      }
-
-      const data = await response.json();
-      console.log("Got metrics data:", data);
-      return data;
-    },
-  });
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -102,23 +43,6 @@ function AdminDashboardContent() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isSidebarOpen]);
-
-  if (isLoading) {
-    return <div className="p-8">Loading metrics...</div>;
-  }
-
-  if (!metrics) {
-    return <div className="p-8">No metrics available</div>;
-  }
-
-  const sessionData = [
-    {
-      name: "Session Status",
-      Completed: metrics.sessionMetrics.completed,
-      Active:
-        metrics.sessionMetrics.total - metrics.sessionMetrics.completed,
-    },
-  ];
 
   return (
     <div className="flex h-screen w-full">
@@ -191,30 +115,27 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        {/* Admin Tools Section */}
+        {/* Admin Management Section */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <span className="font-semibold text-lg text-gray-800">Admin Tools</span>
+          <span className="font-semibold text-lg text-gray-800">Admin Management</span>
+          <Settings size={18} className="text-gray-500" />
         </div>
 
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-4 text-gray-500 text-sm">
-            <p className="mb-2">Available admin functions:</p>
+            <p className="mb-2">Admin management functions:</p>
             <ul className="space-y-2 text-xs">
               <li className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                System metrics overview
+                User administration
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Thread analysis tools
+                Role management
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                Quality assessment
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                Admin management
+                System settings
               </li>
             </ul>
           </div>
@@ -252,82 +173,30 @@ function AdminDashboardContent() {
             size="sm"
             onClick={() => setIsSidebarOpen(true)}
           >
-            <BarChart3 size={20} />
-            <span className="ml-2">Admin</span>
+            <Users size={20} />
+            <span className="ml-2">Admin Management</span>
           </Button>
-          <h1 className="font-semibold">Dashboard</h1>
+          <h1 className="font-semibold">Management</h1>
         </div>
 
-        {/* Dashboard Content */}
+        {/* Main Content */}
         <div className="flex-1 overflow-auto p-6">
           <div className="hidden md:block mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Management</h1>
           </div>
           
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <MetricCard
-              title="Total Threads"
-              value={metrics.threadMetrics.total}
-              description={`${metrics.threadMetrics.percentageWithSessions.toFixed(
-                1
-              )}% with sessions`}
-            />
-            
-            <MetricCard
-              title="Total Sessions"
-              value={metrics.sessionMetrics.total}
-              description={`${metrics.sessionMetrics.completionRate.toFixed(
-                1
-              )}% completed`}
-            />
-            
-            <MetricCard
-              title="Messages per Session"
-              value={metrics.messageMetrics.averagePerSession.toFixed(1)}
-              description="average"
-            />
-            
-            <MetricCard
-              title="Form Completion"
-              value={`${metrics.formMetrics.completionRate.toFixed(1)}%`}
-              description={`${metrics.formMetrics.total} forms submitted`}
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-1">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Session Status</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={sessionData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="Completed" fill="#22c55e" />
-                  <Bar dataKey="Active" fill="#f59e0b" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
+          {/* Blank content area */}
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <Users size={32} className="text-gray-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Admin Management</h2>
+              <p className="text-gray-500">This page is currently under development.</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function MetricCard({
-  title,
-  value,
-  description,
-}: {
-  title: string;
-  value: string | number;
-  description: string;
-}) {
-  return (
-    <Card className="p-6">
-      <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-      <p className="text-3xl font-bold mt-2">{value}</p>
-      <p className="text-sm text-gray-500 mt-1">{description}</p>
-    </Card>
   );
 }

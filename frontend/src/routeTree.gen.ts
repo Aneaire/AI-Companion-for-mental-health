@@ -17,6 +17,7 @@ import { Route as PersonaLibraryImport } from './routes/persona-library'
 import { Route as ImpersonateImport } from './routes/impersonate'
 import { Route as ElevenlabsTtsTestImport } from './routes/elevenlabs-tts-test'
 import { Route as ElevenlabsTestImport } from './routes/elevenlabs-test'
+import { Route as AdminManagementImport } from './routes/admin-management'
 import { Route as IndexImport } from './routes/index'
 import { Route as AdminIndexImport } from './routes/admin.index'
 
@@ -58,6 +59,12 @@ const ElevenlabsTestRoute = ElevenlabsTestImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const AdminManagementRoute = AdminManagementImport.update({
+  id: '/admin-management',
+  path: '/admin-management',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
@@ -79,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/admin-management': {
+      id: '/admin-management'
+      path: '/admin-management'
+      fullPath: '/admin-management'
+      preLoaderRoute: typeof AdminManagementImport
       parentRoute: typeof rootRoute
     }
     '/elevenlabs-test': {
@@ -137,6 +151,7 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin-management': typeof AdminManagementRoute
   '/elevenlabs-test': typeof ElevenlabsTestRoute
   '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
@@ -148,6 +163,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin-management': typeof AdminManagementRoute
   '/elevenlabs-test': typeof ElevenlabsTestRoute
   '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
@@ -160,6 +176,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/admin-management': typeof AdminManagementRoute
   '/elevenlabs-test': typeof ElevenlabsTestRoute
   '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
@@ -173,6 +190,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin-management'
     | '/elevenlabs-test'
     | '/elevenlabs-tts-test'
     | '/impersonate'
@@ -183,6 +201,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin-management'
     | '/elevenlabs-test'
     | '/elevenlabs-tts-test'
     | '/impersonate'
@@ -193,6 +212,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin-management'
     | '/elevenlabs-test'
     | '/elevenlabs-tts-test'
     | '/impersonate'
@@ -205,6 +225,7 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminManagementRoute: typeof AdminManagementRoute
   ElevenlabsTestRoute: typeof ElevenlabsTestRoute
   ElevenlabsTtsTestRoute: typeof ElevenlabsTtsTestRoute
   ImpersonateRoute: typeof ImpersonateRoute
@@ -216,6 +237,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminManagementRoute: AdminManagementRoute,
   ElevenlabsTestRoute: ElevenlabsTestRoute,
   ElevenlabsTtsTestRoute: ElevenlabsTtsTestRoute,
   ImpersonateRoute: ImpersonateRoute,
@@ -236,6 +258,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/admin-management",
         "/elevenlabs-test",
         "/elevenlabs-tts-test",
         "/impersonate",
@@ -247,6 +270,9 @@ export const routeTree = rootRoute
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/admin-management": {
+      "filePath": "admin-management.tsx"
     },
     "/elevenlabs-test": {
       "filePath": "elevenlabs-test.tsx"

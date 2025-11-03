@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import HeaderUser from "@/integrations/clerk/header-user";
 import { Link, useLocation } from "@tanstack/react-router";
-import { MessageSquare, BarChart3, Send, Bot, User } from "lucide-react";
+import { MessageSquare, BarChart3, Send, Bot, User, Users } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 
 interface AnonymizedThread {
@@ -561,6 +561,18 @@ What specific aspect would you like me to analyze using the complete thread cont
             >
               <BarChart3 size={16} />
               Quality Analysis
+            </Link>
+            <Link
+              to="/admin-management"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/admin-management"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <Users size={16} />
+              Admin Management
             </Link>
           </div>
         </div>
