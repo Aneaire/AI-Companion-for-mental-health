@@ -1,5 +1,10 @@
 import type { MiddlewareHandler } from "hono";
 import { logger } from "../lib/logger";
+import { createClerkClient, verifyToken } from "@clerk/backend";
+
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
 
 export const adminMiddleware: MiddlewareHandler = async (c, next) => {
   try {
@@ -12,37 +17,27 @@ export const adminMiddleware: MiddlewareHandler = async (c, next) => {
 
     const token = authHeader.slice(7); // Remove "Bearer " prefix
     
-    // For development: Check if token exists and has valid format
-    // In production, implement proper Clerk JWT verification
     try {
-      // Simple JWT format check
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        logger.log("Invalid JWT format");
-        return c.json({ error: "Unauthorized - Invalid token" }, 401);
-      }
-      
-      // Decode JWT payload (without verification for development)
-      const payload = JSON.parse(atob(parts[1]));
+      // Verify JWT token with Clerk
+      const payload = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+      });
       
       if (!payload.sub) {
         logger.log("Invalid token payload");
         return c.json({ error: "Unauthorized - Invalid token" }, 401);
       }
 
-      // Extract user info from token payload
-      const userId = payload.sub;
-      // Check for admin role in metadata (Clerk stores it here)
-      const userRole = payload.public_metadata?.role || payload.metadata?.role || payload.role;
+      // Get user metadata from Clerk
+      const user = await clerkClient.users.getUser(payload.sub);
+      const userRole = user.publicMetadata?.role;
       
-      // For development: Allow access if token is valid and has admin role
-      // You can adjust this logic based on your Clerk metadata structure
       if (userRole !== 'admin') {
-        logger.log(`Access denied for user ${userId} with role: ${userRole}`);
+        logger.log(`Access denied for user ${payload.sub} with role: ${userRole}`);
         return c.json({ error: "Unauthorized - Admin access required" }, 403);
       }
 
-      logger.log(`Admin access granted for user ${userId} with role: ${userRole}`);
+      logger.log(`Admin access granted for user ${payload.sub} with role: ${userRole}`);
       
       await next();
     } catch (tokenError) {
