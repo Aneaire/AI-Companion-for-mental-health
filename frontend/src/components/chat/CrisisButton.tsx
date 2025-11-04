@@ -19,12 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/clerk-react";
 
 interface CrisisButtonProps {
   className?: string;
 }
 
 export function CrisisButton({ className }: CrisisButtonProps) {
+  const { getToken } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestReason, setRequestReason] = useState("");
@@ -53,9 +55,13 @@ export function CrisisButton({ className }: CrisisButtonProps) {
     setIsSubmitting(true);
 
     try {
+      const token = await getToken();
+      if (!token) throw new Error("No authentication token available");
+
       const response = await fetch("/api/counselor/request", {
         method: "POST",
         headers: {
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -64,6 +70,7 @@ export function CrisisButton({ className }: CrisisButtonProps) {
           userContext: {
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent,
+            trigger: "crisis_detection",
           }
         }),
       });
