@@ -103,8 +103,6 @@ function AdminDashboardContent() {
   const { data: metrics, isLoading } = useQuery<MetricsData>({
     queryKey: ["adminMetrics"],
     queryFn: async () => {
-      console.log("Fetching admin metrics...");
-      
       const token = await getToken();
       if (!token) {
         throw new Error("No authentication token available");
@@ -122,7 +120,6 @@ function AdminDashboardContent() {
       }
 
       const data = await response.json();
-      console.log("Got metrics data:", data);
       return data;
     },
   });
@@ -130,8 +127,6 @@ function AdminDashboardContent() {
   const { data: analytics, isLoading: analyticsLoading } = useQuery<PersonaAnalytics>({
     queryKey: ["personaAnalytics"],
     queryFn: async () => {
-      console.log("Fetching persona analytics...");
-      
       const token = await getToken();
       if (!token) {
         throw new Error("No authentication token available");
@@ -149,7 +144,6 @@ function AdminDashboardContent() {
       }
 
       const data = await response.json();
-      console.log("Got analytics data:", data);
       return data;
     },
   });

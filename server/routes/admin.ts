@@ -574,8 +574,6 @@ You must internally analyze each query to understand:
   })
   .get("/metrics", async (c) => {
     try {
-      logger.log("Fetching admin metrics...");
-
       // Get threads with sessions metrics
       const threadMetrics = await db
         .select({
@@ -589,8 +587,6 @@ You must internally analyze each query to understand:
         })
         .from(threads);
 
-      logger.log("Thread metrics:", threadMetrics);
-
       // Get session metrics
       const sessionMetrics = await db
         .select({
@@ -600,8 +596,6 @@ You must internally analyze each query to understand:
           ),
         })
         .from(sessions);
-
-      logger.log("Session metrics:", sessionMetrics);
 
       // Get message metrics
       const messageMetrics = await db
@@ -623,8 +617,6 @@ You must internally analyze each query to understand:
         ? messageMetrics[0].totalMessages / uniqueSessionsWithMessages[0].uniqueSessions
         : 0;
 
-      logger.log("Message metrics:", messageMetrics);
-
       // Get form completion metrics
       const formMetrics = await db
         .select({
@@ -635,8 +627,6 @@ You must internally analyze each query to understand:
         })
         .from(sessions)
         .leftJoin(sessionForms, eq(sessions.id, sessionForms.sessionId));
-
-      logger.log("Form metrics:", formMetrics);
 
       return c.json({
         threadMetrics: {
