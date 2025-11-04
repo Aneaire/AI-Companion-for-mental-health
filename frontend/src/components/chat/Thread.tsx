@@ -187,6 +187,7 @@ export function Thread({
     selectedPersona,
     personaRationale,
     setCrisisDetected,
+    crisisDetected,
   } = useChatStore();
 
   // Use prop if provided, otherwise fall back to store
@@ -911,15 +912,17 @@ export function Thread({
               showPersonaBadge={showPersonaInMessages}
              />
          </div>
-         {/* Crisis Button Section */}
-         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-6 py-4">
-           <div className="flex items-center justify-between">
-             <div className="text-sm text-gray-600">
-               Need immediate support? Connect with a trained counselor.
+         {/* Crisis Button Section - Only show when crisis is detected or crisis_support persona is selected */}
+         {(crisisDetected || selectedPersona === 'crisis_support') && (
+           <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-6 py-4">
+             <div className="flex items-center justify-between">
+               <div className="text-sm text-gray-600">
+                 Need immediate support? Connect with a trained counselor.
+               </div>
+               <CrisisButton className="shrink-0" />
              </div>
-             <CrisisButton className="shrink-0" />
            </div>
-         </div>
+         )}
        </div>
 
       {/* Visual indicator for form answers being used */}
