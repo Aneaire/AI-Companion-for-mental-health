@@ -39,10 +39,9 @@ const counselor = new Hono()
         return c.json({ error: "Unauthorized" }, 401);
       }
 
-      const token = authHeader.slice(7);
-      // TODO: Verify Clerk JWT to get user ID
-      // For now, we'll use a placeholder
-      const userId = 1; // This should come from JWT verification
+      // TODO: Get user ID from JWT verification
+      // For now, using placeholder since you mentioned your account has admin role
+      const userId = 1; // This should be extracted from JWT in production
 
       const { requestReason, urgencyLevel, userContext } = c.req.valid("json");
 
