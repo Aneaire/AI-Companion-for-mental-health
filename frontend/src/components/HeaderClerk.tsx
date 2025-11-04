@@ -21,6 +21,11 @@ export default function Header() {
         <div className="px-2 font-bold">
           <Link to="/podcast">Podcast</Link>
         </div>
+
+        <div className="px-2 font-bold">
+          <Link to="/counselor">Counselor</Link>
+        </div>
+
         {isAdmin && (
           <>
             <div className="px-2 font-bold">

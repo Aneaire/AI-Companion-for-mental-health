@@ -206,6 +206,149 @@ const counselor = new Hono()
     }
   })
 
+  .get("/user/requests", async (c) => {
+    try {
+      const authHeader = c.req.header("authorization");
+      const userId = await getUserIdFromToken(authHeader);
+
+      const requests = await db
+        .select({
+          id: counselorRequests.id,
+          status: counselorRequests.status,
+          requestReason: counselorRequests.requestReason,
+          urgencyLevel: counselorRequests.urgencyLevel,
+          requestedAt: counselorRequests.requestedAt,
+          acceptedAt: counselorRequests.acceptedAt,
+          completedAt: counselorRequests.completedAt,
+          adminNotes: counselorRequests.adminNotes,
+        })
+        .from(counselorRequests)
+        .where(eq(counselorRequests.userId, userId))
+        .orderBy(desc(counselorRequests.requestedAt));
+
+      return c.json({ requests });
+
+    } catch (error) {
+      logger.error("Error fetching user requests:", error);
+      return c.json({ error: "Failed to fetch requests" }, 500);
+    }
+  })
+
+  .get("/user/messages/:chatId", async (c) => {
+    try {
+      const authHeader = c.req.header("authorization");
+      const userId = await getUserIdFromToken(authHeader);
+      
+      const chatId = parseInt(c.req.param("chatId"));
+
+      if (isNaN(chatId)) {
+        return c.json({ error: "Invalid chat ID" }, 400);
+      }
+
+      // Verify chat exists and belongs to user
+      const [chat] = await db
+        .select()
+        .from(counselorChats)
+        .where(
+          and(
+            eq(counselorChats.id, chatId),
+            eq(counselorChats.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (!chat) {
+        return c.json({ error: "Chat not found" }, 404);
+      }
+
+      // Get messages for this chat
+      const messages = await db
+        .select({
+          id: counselorMessages.id,
+          chatId: counselorMessages.chatId,
+          senderId: counselorMessages.senderId,
+          senderType: counselorMessages.senderType,
+          message: counselorMessages.message,
+          messageType: counselorMessages.messageType,
+          isRead: counselorMessages.isRead,
+          timestamp: counselorMessages.timestamp,
+        })
+        .from(counselorMessages)
+        .where(eq(counselorMessages.chatId, chatId))
+        .orderBy(counselorMessages.timestamp);
+
+      return c.json({ messages });
+
+    } catch (error) {
+      logger.error("Error fetching user chat messages:", error);
+      return c.json({ error: "Failed to fetch messages" }, 500);
+    }
+  })
+
+  .post("/user/message/:chatId", zValidator("json", sendMessageSchema), async (c) => {
+    try {
+      const authHeader = c.req.header("authorization");
+      const userId = await getUserIdFromToken(authHeader);
+      
+      const chatId = parseInt(c.req.param("chatId"));
+      const { message, messageType } = c.req.valid("json");
+
+      if (isNaN(chatId)) {
+        return c.json({ error: "Invalid chat ID" }, 400);
+      }
+
+      // Verify chat exists and belongs to user
+      const [chat] = await db
+        .select()
+        .from(counselorChats)
+        .where(
+          and(
+            eq(counselorChats.id, chatId),
+            eq(counselorChats.userId, userId),
+            sql`${counselorChats.status} = 'active'`
+          )
+        )
+        .limit(1);
+
+      if (!chat) {
+        return c.json({ error: "Chat not found or not active" }, 404);
+      }
+
+      // Insert message
+      const [newMessage] = await db
+        .insert(counselorMessages)
+        .values({
+          chatId,
+          senderId: userId,
+          senderType: "user",
+          message,
+          messageType,
+          timestamp: new Date(),
+        })
+        .returning();
+
+      // Update message count
+      await db
+        .update(counselorChats)
+        .set({ 
+          messageCount: sql`${counselorChats.messageCount} + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(counselorChats.id, chatId));
+
+      logger.log("User message sent:", { chatId, messageId: newMessage.id });
+
+      return c.json({
+        success: true,
+        message: newMessage,
+      });
+
+    } catch (error) {
+      logger.error("Error sending user message:", error);
+      return c.json({ error: "Failed to send message" }, 500);
+    }
+  })
+
   // Admin-only endpoints
   .use("/admin/*", adminMiddleware)
 
