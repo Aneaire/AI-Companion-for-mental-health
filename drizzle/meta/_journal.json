@@ -176,6 +176,13 @@
       "when": 1762180906435,
       "tag": "0024_curly_lady_ursula",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1762222476106,
+      "tag": "0025_nostalgic_greymalkin",
+      "breakpoints": true
     }
   ]
 }

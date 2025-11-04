@@ -8,7 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "@tanstack/react-router";
-import { MessageSquare, BarChart3, Users, TrendingUp } from "lucide-react";
+import { MessageSquare, BarChart3, Users, TrendingUp, Heart } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -229,6 +229,18 @@ function AdminDashboardContent() {
             >
               <BarChart3 size={16} />
               Quality Analysis
+            </Link>
+            <Link
+              to="/admin/counselor"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/admin/counselor"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <Heart size={16} />
+              Counselor Dashboard
             </Link>
             <Link
               to="/admin-management"

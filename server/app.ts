@@ -13,6 +13,7 @@ import enhanceBackground from "./routes/enhance-background";
 import threadsRoute from "./routes/threads";
 import user from "./routes/user";
 import adminRoute from "./routes/admin";
+import counselorRoute from "./routes/counselor";
 import testRoute from "./routes/test";
 import personaTemplatesRoute from "./routes/persona-templates";
 import personaLibraryRoute from "./routes/persona-library";
@@ -55,6 +56,7 @@ const routes = app
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
   .route("/api/admin/personas", personasRoute)
+  .route("/api/counselor", counselorRoute)
   .route("/api/test", testRoute)
 
 

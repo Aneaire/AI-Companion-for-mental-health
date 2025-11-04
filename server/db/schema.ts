@@ -228,3 +228,89 @@ export const personaSelectionCache = pgTable("persona_selection_cache", {
   cachePeriodEnd: timestamp("cache_period_end").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Counselor Chat System Tables
+
+// Counselor chat requests from users
+export const counselorRequests = pgTable("counselor_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  adminId: integer("admin_id")
+    .references(() => users.id, { onDelete: "set null" }),
+  status: varchar("status", {
+    enum: ["pending", "accepted", "declined", "completed", "cancelled"],
+  }).default("pending"),
+  requestReason: text("request_reason").notNull(),
+  urgencyLevel: varchar("urgency_level", {
+    enum: ["low", "medium", "high", "urgent"],
+  }).default("medium"),
+  userContext: jsonb("user_context").$type<Record<string, any>>(), // Additional context from current session
+  requestedAt: timestamp("requested_at").defaultNow(),
+  acceptedAt: timestamp("accepted_at"),
+  completedAt: timestamp("completed_at"),
+  adminNotes: text("admin_notes"),
+  satisfactionRating: integer("satisfaction_rating"), // 1-5 rating from user
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Counselor chat sessions
+export const counselorChats = pgTable("counselor_chats", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id")
+    .notNull()
+    .references(() => counselorRequests.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  adminId: integer("admin_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", {
+    enum: ["active", "ended", "transferred"],
+  }).default("active"),
+  startedAt: timestamp("started_at").defaultNow(),
+  endedAt: timestamp("ended_at"),
+  messageCount: integer("message_count").default(0),
+  sessionDuration: integer("session_duration"), // in minutes
+  transferReason: text("transfer_reason"),
+  adminSummary: text("admin_summary"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Counselor chat messages
+export const counselorMessages = pgTable("counselor_messages", {
+  id: serial("id").primaryKey(),
+  chatId: integer("chat_id")
+    .notNull()
+    .references(() => counselorChats.id, { onDelete: "cascade" }),
+  senderId: integer("sender_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  senderType: varchar("sender_type", {
+    enum: ["user", "counselor"],
+  }).notNull(),
+  message: text("message").notNull(),
+  messageType: varchar("message_type", {
+    enum: ["text", "system", "file"],
+  }).default("text"),
+  isRead: boolean("is_read").default(false),
+  timestamp: timestamp("timestamp").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Daily request limits tracking
+export const dailyRequestLimits = pgTable("daily_request_limits", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  requestCount: integer("request_count").default(0),
+  date: timestamp("date").notNull(), // Date without time for daily tracking
+  lastRequestAt: timestamp("last_request_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});

@@ -1,5 +1,6 @@
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import { CrisisButton } from "@/components/chat/CrisisButton";
 import DevToolsSidebar from "@/components/chat/DevToolsSidebar";
 import { FormRequiredState } from "@/components/chat/FormRequiredState";
 import { SessionManagementDialog } from "@/components/chat/SessionManagementDialog";
@@ -893,24 +894,33 @@ export function Thread({
 
   return (
     <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
-      {/* Enhanced Header with subtle shadow */}
-      <div className="hidden md:block relative z-10">
-        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">
-           <ChatHeader
-             preferences={conversationPreferences}
-             onPreferencesChange={setConversationPreferences}
-             selectedThreadId={selectedThreadId}
-             selectedSessionId={selectedSessionId}
-             threadTitle={threadTitle}
-             onDeleteThread={handleDeleteThread}
-             onArchiveThread={handleArchiveThread}
-             context="main"
-             currentPersona={selectedPersona}
-             personaRationale={personaRationale}
-             showPersonaBadge={showPersonaInMessages}
-            />
+       {/* Enhanced Header with subtle shadow */}
+       <div className="hidden md:block relative z-10">
+         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">
+            <ChatHeader
+              preferences={conversationPreferences}
+              onPreferencesChange={setConversationPreferences}
+              selectedThreadId={selectedThreadId}
+              selectedSessionId={selectedSessionId}
+              threadTitle={threadTitle}
+              onDeleteThread={handleDeleteThread}
+              onArchiveThread={handleArchiveThread}
+              context="main"
+              currentPersona={selectedPersona}
+              personaRationale={personaRationale}
+              showPersonaBadge={showPersonaInMessages}
+             />
          </div>
-      </div>
+         {/* Crisis Button Section */}
+         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-6 py-4">
+           <div className="flex items-center justify-between">
+             <div className="text-sm text-gray-600">
+               Need immediate support? Connect with a trained counselor.
+             </div>
+             <CrisisButton className="shrink-0" />
+           </div>
+         </div>
+       </div>
 
       {/* Visual indicator for form answers being used */}
       {showFormIndicator && (

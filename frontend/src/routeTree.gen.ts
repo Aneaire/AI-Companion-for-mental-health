@@ -20,6 +20,7 @@ import { Route as ElevenlabsTestImport } from './routes/elevenlabs-test'
 import { Route as AdminManagementImport } from './routes/admin-management'
 import { Route as IndexImport } from './routes/index'
 import { Route as AdminIndexImport } from './routes/admin.index'
+import { Route as AdminCounselorImport } from './routes/admin.counselor'
 
 // Create/Update Routes
 
@@ -74,6 +75,12 @@ const IndexRoute = IndexImport.update({
 const AdminIndexRoute = AdminIndexImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AdminCounselorRoute = AdminCounselorImport.update({
+  id: '/admin/counselor',
+  path: '/admin/counselor',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -137,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QualityAnalysisImport
       parentRoute: typeof rootRoute
     }
+    '/admin/counselor': {
+      id: '/admin/counselor'
+      path: '/admin/counselor'
+      fullPath: '/admin/counselor'
+      preLoaderRoute: typeof AdminCounselorImport
+      parentRoute: typeof rootRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/admin'
@@ -158,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin/counselor': typeof AdminCounselorRoute
   '/admin': typeof AdminIndexRoute
 }
 
@@ -170,6 +185,7 @@ export interface FileRoutesByTo {
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin/counselor': typeof AdminCounselorRoute
   '/admin': typeof AdminIndexRoute
 }
 
@@ -183,6 +199,7 @@ export interface FileRoutesById {
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
+  '/admin/counselor': typeof AdminCounselorRoute
   '/admin/': typeof AdminIndexRoute
 }
 
@@ -197,6 +214,7 @@ export interface FileRouteTypes {
     | '/persona-library'
     | '/podcast'
     | '/quality-analysis'
+    | '/admin/counselor'
     | '/admin'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -208,6 +226,7 @@ export interface FileRouteTypes {
     | '/persona-library'
     | '/podcast'
     | '/quality-analysis'
+    | '/admin/counselor'
     | '/admin'
   id:
     | '__root__'
@@ -219,6 +238,7 @@ export interface FileRouteTypes {
     | '/persona-library'
     | '/podcast'
     | '/quality-analysis'
+    | '/admin/counselor'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -232,6 +252,7 @@ export interface RootRouteChildren {
   PersonaLibraryRoute: typeof PersonaLibraryRoute
   PodcastRoute: typeof PodcastRoute
   QualityAnalysisRoute: typeof QualityAnalysisRoute
+  AdminCounselorRoute: typeof AdminCounselorRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -244,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   PersonaLibraryRoute: PersonaLibraryRoute,
   PodcastRoute: PodcastRoute,
   QualityAnalysisRoute: QualityAnalysisRoute,
+  AdminCounselorRoute: AdminCounselorRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -265,6 +287,7 @@ export const routeTree = rootRoute
         "/persona-library",
         "/podcast",
         "/quality-analysis",
+        "/admin/counselor",
         "/admin/"
       ]
     },
@@ -291,6 +314,9 @@ export const routeTree = rootRoute
     },
     "/quality-analysis": {
       "filePath": "quality-analysis.tsx"
+    },
+    "/admin/counselor": {
+      "filePath": "admin.counselor.tsx"
     },
     "/admin/": {
       "filePath": "admin.index.tsx"
