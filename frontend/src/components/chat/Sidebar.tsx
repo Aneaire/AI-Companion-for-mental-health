@@ -4,7 +4,7 @@ import HeaderUser from "@/integrations/clerk/header-user";
 import type { Session } from "@/stores/chatStore";
 import { useUser } from "@clerk/clerk-react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronDown, ChevronRight, MessageSquare, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageSquare, Plus, HeadphonesIcon } from "lucide-react";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { useInView } from "react-intersection-observer";
 import { memo } from "react";
@@ -182,6 +182,18 @@ export const Sidebar = memo(function Sidebar({
             >
               {" "}
               <MessageSquare size={16} /> Impersonate
+            </Link>
+            <Link
+              to="/counselor"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === "/counselor"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+              onClick={() => onClose()}
+            >
+              {" "}
+              <HeadphonesIcon size={16} /> Counselor
             </Link>
           </div>
         </div>

@@ -1,28 +1,21 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/clerk-react";
 import {
   MessageCircle,
   Send,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
   User,
-  Calendar,
-  Plus,
   Loader2,
 } from "lucide-react";
+import MobileTopbar from "@/components/chat/MobileTopbar";
+import { CounselorSidebar } from "@/components/chat/CounselorSidebar";
+import { CounselorRequestDialog } from "@/components/chat/CounselorRequestDialog";
 
 interface CounselorRequest {
   id: number;
@@ -71,17 +64,26 @@ function CounselorPage() {
   const [chatMessages, setChatMessages] = useState<CounselorMessage[]>([]);
   const [requestLimit, setRequestLimit] = useState<RequestLimit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  
-  // Form state
-  const [requestReason, setRequestReason] = useState("");
-  const [urgencyLevel, setUrgencyLevel] = useState<"low" | "medium" | "high" | "urgent">("medium");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [newMessage, setNewMessage] = useState("");
+  
+  // Counselor dialog state
+  const [counselorRequestDialogOpen, setCounselorRequestDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchRequests();
     fetchRequestLimit();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const fetchRequests = async () => {
@@ -120,56 +122,6 @@ function CounselorPage() {
       setRequestLimit(data);
     } catch (error) {
       console.error("Error fetching request limit:", error);
-    }
-  };
-
-  const submitRequest = async () => {
-    if (!requestReason.trim()) {
-      toast.error("Please provide a reason for your request");
-      return;
-    }
-
-    if (requestReason.trim().length < 10) {
-      toast.error("Request reason must be at least 10 characters");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
-      
-      const response = await fetch("/api/counselor/request", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          requestReason: requestReason.trim(),
-          urgencyLevel,
-          userContext: {
-            requestedAt: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to submit request");
-      }
-
-      toast.success("Counselor request submitted successfully");
-      setRequestReason("");
-      setUrgencyLevel("medium");
-      fetchRequests();
-      fetchRequestLimit();
-    } catch (error) {
-      console.error("Error submitting request:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to submit request");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -224,294 +176,189 @@ function CounselorPage() {
     }
   };
 
-  const getUrgencyColor = (level: string) => {
-    switch (level) {
-      case "urgent": return "destructive";
-      case "high": return "destructive";
-      case "medium": return "default";
-      case "low": return "secondary";
-      default: return "secondary";
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending": return "secondary";
-      case "accepted": return "default";
-      case "active": return "default";
-      case "completed": return "secondary";
-      case "ended": return "secondary";
-      default: return "secondary";
-    }
-  };
-
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const selectChat = (request: CounselorRequest) => {
-    // Create a mock chat object for active requests
-    const chat: CounselorChat = {
-      id: request.id, // Using request ID as chat ID for simplicity
-      requestId: request.id,
-      status: "active",
-      startedAt: request.acceptedAt || request.requestedAt,
-      messageCount: 0,
-    };
-    setActiveChat(chat);
-    loadChatMessages(chat.id);
+  // Handle chat selection from sidebar
+  useEffect(() => {
+    if (activeChat) {
+      loadChatMessages(activeChat.id);
+    }
+  }, [activeChat]);
+
+  const handleRequestSubmitted = () => {
+    fetchRequests();
+    fetchRequestLimit();
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin h-8 w-8" />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Counselor Support</h1>
-          <p className="text-muted-foreground">Connect with professional counselors for support</p>
-        </div>
-        {requestLimit && (
-          <div className="text-right">
-            <Badge variant="outline" className="mb-2">
-              {requestLimit.remaining} of {requestLimit.limit} requests remaining today
-            </Badge>
-            <p className="text-xs text-muted-foreground">
-              Resets at {new Date(requestLimit.resetsAt).toLocaleTimeString()}
-            </p>
+    <div className="flex h-screen w-full">
+      {/* Mobile Topbar for mobile screens */}
+      <div className="md:hidden w-full fixed top-0 left-0 z-50">
+        <MobileTopbar
+          onMenuClick={() => setIsSidebarOpen(true)}
+          preferences={{}}
+          onPreferencesChange={() => {}}
+        />
+      </div>
+      
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+        {/* Navigation Section */}
+        <div className="p-3 border-b border-gray-200">
+          <div className="flex flex-col gap-1">
+            <a
+              href="/"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50`}
+            >
+              <MessageCircle size={16} />
+              Chat
+            </a>
+            <a
+              href="/impersonate"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50`}
+            >
+              <MessageCircle size={16} />
+              Impersonate
+            </a>
+            <a
+              href="/counselor"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-blue-50 text-blue-700 border border-blue-200`}
+            >
+              <User size={16} />
+              Counselor
+            </a>
           </div>
+        </div>
+        
+        {/* Counselor Section */}
+        <div className="border-t border-gray-200 flex-1 flex flex-col min-h-0">
+          <CounselorSidebar
+            onSelectChat={setActiveChat}
+            onOpenRequestDialog={() => setCounselorRequestDialogOpen(true)}
+            selectedChatId={activeChat?.id || null}
+          />
+        </div>
+      </div>
+      
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="animate-spin h-8 w-8" />
+          </div>
+        ) : !activeChat ? (
+          <div className="flex flex-1 flex-col items-center justify-center h-full">
+            <div className="text-center space-y-4 max-w-md">
+              <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-semibold text-gray-700">
+                Counselor Support
+              </h2>
+              <p className="text-gray-600">
+                Connect with professional counselors for personalized support and guidance.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Getting Started:</strong> Use the sidebar to view your requests or click the + button to create a new counselor request.
+                </p>
+              </div>
+              {requestLimit && (
+                <div className="text-sm text-gray-600">
+                  You have <span className="font-semibold text-blue-600">{requestLimit.remaining}</span> of {requestLimit.limit} requests remaining today.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Card className="h-full flex flex-col m-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarFallback>
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <CardTitle className="text-lg">Counselor Chat</CardTitle>
+                    <CardDescription>
+                      Session started: {formatTime(activeChat.startedAt)}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="flex-1 flex flex-col p-0">
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.senderType === "user" ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[70%] rounded-lg p-3 ${
+                          message.senderType === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <p className="text-sm">{message.message}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {formatTime(message.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              
+              <div className="p-4 border-t">
+                <div className="flex gap-2">
+                  <Textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    className="flex-1 min-h-[40px] max-h-[120px]"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim() || isSending}
+                    size="sm"
+                    className="self-end"
+                  >
+                    {isSending ? (
+                      <Loader2 className="animate-spin h-4 w-4" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 
-      <Tabs defaultValue="request" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="request">Request Counselor</TabsTrigger>
-          <TabsTrigger value="status">Request Status</TabsTrigger>
-          <TabsTrigger value="chat">Active Chat</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="request" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Request Counselor Support</CardTitle>
-              <CardDescription>
-                Submit a request to connect with a professional counselor. You have {requestLimit?.remaining || 0} requests remaining today.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="urgency">Urgency Level</Label>
-                <Select value={urgencyLevel} onValueChange={(value: any) => setUrgencyLevel(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select urgency level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low - General support</SelectItem>
-                    <SelectItem value="medium">Medium - Need guidance</SelectItem>
-                    <SelectItem value="high">High - Immediate support needed</SelectItem>
-                    <SelectItem value="urgent">Urgent - Crisis situation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Request</Label>
-                <Textarea
-                  id="reason"
-                  value={requestReason}
-                  onChange={(e) => setRequestReason(e.target.value)}
-                  placeholder="Please describe why you need counselor support..."
-                  className="min-h-[120px]"
-                  maxLength={500}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {requestReason.length}/500 characters
-                </p>
-              </div>
-
-              <Button
-                onClick={submitRequest}
-                disabled={isSubmitting || !requestReason.trim() || (requestLimit?.remaining || 0) === 0}
-                className="w-full"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Submit Request
-                  </>
-                )}
-              </Button>
-
-              {(requestLimit?.remaining || 0) === 0 && (
-                <div className="text-center text-sm text-muted-foreground">
-                  <AlertTriangle className="h-4 w-4 inline mr-2" />
-                  You've reached your daily request limit. Try again tomorrow.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="status" className="space-y-4">
-          {requests.length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center justify-center h-32">
-                <p className="text-muted-foreground">No counselor requests yet</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {requests.map((request) => (
-                <Card key={request.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">Request #{request.id}</CardTitle>
-                        <CardDescription className="flex items-center gap-2">
-                          <Clock className="h-3 w-3" />
-                          {formatTime(request.requestedAt)}
-                          <Badge variant={getUrgencyColor(request.urgencyLevel)}>
-                            {request.urgencyLevel.toUpperCase()}
-                          </Badge>
-                          <Badge variant={getStatusColor(request.status)}>
-                            {request.status.toUpperCase()}
-                          </Badge>
-                        </CardDescription>
-                      </div>
-                      {request.status === "accepted" && (
-                        <Button
-                          size="sm"
-                          onClick={() => selectChat(request)}
-                        >
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Open Chat
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm mb-2">{request.requestReason}</p>
-                    {request.acceptedAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Accepted at: {formatTime(request.acceptedAt)}
-                      </p>
-                    )}
-                    {request.completedAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Completed at: {formatTime(request.completedAt)}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="chat" className="space-y-4">
-          {!activeChat ? (
-            <Card>
-              <CardContent className="flex items-center justify-center h-32">
-                <div className="text-center">
-                  <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No active chat session</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Your counselor request must be accepted to start chatting
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="h-[600px] flex flex-col">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-lg">Counselor</CardTitle>
-                      <CardDescription>
-                        Session started: {formatTime(activeChat.startedAt)}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="flex-1 flex flex-col p-0">
-                <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-4">
-                    {chatMessages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          message.senderType === "user" ? "justify-end" : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[70%] rounded-lg p-3 ${
-                            message.senderType === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          }`}
-                        >
-                          <p className="text-sm">{message.message}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {formatTime(message.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-                
-                <div className="p-4 border-t">
-                  <div className="flex gap-2">
-                    <Textarea
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1 min-h-[40px] max-h-[120px]"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
-                      }}
-                    />
-                    <Button
-                      onClick={sendMessage}
-                      disabled={!newMessage.trim() || isSending}
-                      size="sm"
-                      className="self-end"
-                    >
-                      {isSending ? (
-                        <Loader2 className="animate-spin h-4 w-4" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Counselor Request Dialog */}
+      <CounselorRequestDialog
+        open={counselorRequestDialogOpen}
+        onOpenChange={setCounselorRequestDialogOpen}
+        onRequestSubmitted={handleRequestSubmitted}
+        requestLimit={requestLimit}
+      />
     </div>
   );
 }
+
+export default Route.options.component;

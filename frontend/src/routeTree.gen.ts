@@ -17,6 +17,7 @@ import { Route as PersonaLibraryImport } from './routes/persona-library'
 import { Route as ImpersonateImport } from './routes/impersonate'
 import { Route as ElevenlabsTtsTestImport } from './routes/elevenlabs-tts-test'
 import { Route as ElevenlabsTestImport } from './routes/elevenlabs-test'
+import { Route as CounselorImport } from './routes/counselor'
 import { Route as AdminManagementImport } from './routes/admin-management'
 import { Route as IndexImport } from './routes/index'
 import { Route as AdminIndexImport } from './routes/admin.index'
@@ -60,6 +61,12 @@ const ElevenlabsTestRoute = ElevenlabsTestImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const CounselorRoute = CounselorImport.update({
+  id: '/counselor',
+  path: '/counselor',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const AdminManagementRoute = AdminManagementImport.update({
   id: '/admin-management',
   path: '/admin-management',
@@ -100,6 +107,13 @@ declare module '@tanstack/react-router' {
       path: '/admin-management'
       fullPath: '/admin-management'
       preLoaderRoute: typeof AdminManagementImport
+      parentRoute: typeof rootRoute
+    }
+    '/counselor': {
+      id: '/counselor'
+      path: '/counselor'
+      fullPath: '/counselor'
+      preLoaderRoute: typeof CounselorImport
       parentRoute: typeof rootRoute
     }
     '/elevenlabs-test': {
@@ -166,6 +180,7 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin-management': typeof AdminManagementRoute
+  '/counselor': typeof CounselorRoute
   '/elevenlabs-test': typeof ElevenlabsTestRoute
   '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
@@ -179,6 +194,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-management': typeof AdminManagementRoute
+  '/counselor': typeof CounselorRoute
   '/elevenlabs-test': typeof ElevenlabsTestRoute
   '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
@@ -193,6 +209,7 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/admin-management': typeof AdminManagementRoute
+  '/counselor': typeof CounselorRoute
   '/elevenlabs-test': typeof ElevenlabsTestRoute
   '/elevenlabs-tts-test': typeof ElevenlabsTtsTestRoute
   '/impersonate': typeof ImpersonateRoute
@@ -208,6 +225,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin-management'
+    | '/counselor'
     | '/elevenlabs-test'
     | '/elevenlabs-tts-test'
     | '/impersonate'
@@ -220,6 +238,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin-management'
+    | '/counselor'
     | '/elevenlabs-test'
     | '/elevenlabs-tts-test'
     | '/impersonate'
@@ -232,6 +251,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin-management'
+    | '/counselor'
     | '/elevenlabs-test'
     | '/elevenlabs-tts-test'
     | '/impersonate'
@@ -246,6 +266,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminManagementRoute: typeof AdminManagementRoute
+  CounselorRoute: typeof CounselorRoute
   ElevenlabsTestRoute: typeof ElevenlabsTestRoute
   ElevenlabsTtsTestRoute: typeof ElevenlabsTtsTestRoute
   ImpersonateRoute: typeof ImpersonateRoute
@@ -259,6 +280,7 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminManagementRoute: AdminManagementRoute,
+  CounselorRoute: CounselorRoute,
   ElevenlabsTestRoute: ElevenlabsTestRoute,
   ElevenlabsTtsTestRoute: ElevenlabsTtsTestRoute,
   ImpersonateRoute: ImpersonateRoute,
@@ -281,6 +303,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/admin-management",
+        "/counselor",
         "/elevenlabs-test",
         "/elevenlabs-tts-test",
         "/impersonate",
@@ -296,6 +319,9 @@ export const routeTree = rootRoute
     },
     "/admin-management": {
       "filePath": "admin-management.tsx"
+    },
+    "/counselor": {
+      "filePath": "counselor.tsx"
     },
     "/elevenlabs-test": {
       "filePath": "elevenlabs-test.tsx"

@@ -13,6 +13,38 @@ import {
 import { adminMiddleware } from "../middleware/admin";
 import { streamSSE } from "hono/streaming";
 import { logger } from "../lib/logger";
+import { verifyToken } from "@clerk/backend";
+
+// Helper function to get user ID from Clerk JWT token
+async function getUserIdFromToken(authHeader: string | undefined): Promise<number> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    throw new Error("Unauthorized");
+  }
+
+  const token = authHeader.slice(7); // Remove "Bearer " prefix
+  
+  // Verify JWT token with Clerk
+  const payload = await verifyToken(token, {
+    secretKey: process.env.CLERK_SECRET_KEY,
+  });
+  
+  if (!payload.sub) {
+    throw new Error("Invalid token payload");
+  }
+
+  // Look up user in database using Clerk ID
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.clerkId, payload.sub))
+    .limit(1);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  return user.id;
+}
 
 // Request schemas
 const createRequestSchema = z.object({
@@ -35,13 +67,7 @@ const counselor = new Hono()
   .post("/request", zValidator("json", createRequestSchema), async (c) => {
     try {
       const authHeader = c.req.header("authorization");
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      // TODO: Get user ID from JWT verification
-      // For now, using placeholder since you mentioned your account has admin role
-      const userId = 1; // This should be extracted from JWT in production
+      const userId = await getUserIdFromToken(authHeader);
 
       const { requestReason, urgencyLevel, userContext } = c.req.valid("json");
 
@@ -123,13 +149,7 @@ const counselor = new Hono()
   .get("/limit", async (c) => {
     try {
       const authHeader = c.req.header("authorization");
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      const token = authHeader.slice(7);
-      // TODO: Verify Clerk JWT to get user ID
-      const userId = 1; // Placeholder
+      const userId = await getUserIdFromToken(authHeader);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -163,13 +183,7 @@ const counselor = new Hono()
   .get("/status/:requestId", async (c) => {
     try {
       const authHeader = c.req.header("authorization");
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      const token = authHeader.slice(7);
-      // TODO: Verify Clerk JWT to get user ID
-      const userId = 1; // Placeholder
+      const userId = await getUserIdFromToken(authHeader);
 
       const requestId = parseInt(c.req.param("requestId"));
       if (isNaN(requestId)) {

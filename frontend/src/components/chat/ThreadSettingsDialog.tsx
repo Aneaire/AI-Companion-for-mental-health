@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "@tanstack/react-router";
 import {
   fetchVoices,
   type ElevenLabsVoice,
@@ -32,6 +33,7 @@ import {
   Trash2,
   User,
   Volume2,
+  Phone,
 } from "lucide-react";
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
@@ -512,7 +514,18 @@ export function ThreadSettingsDialog({
 
                 <div className="space-y-4">
                   <h4 className="font-medium">Thread Actions</h4>
-
+                  
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                    asChild
+                  >
+                    <Link to="/counselor">
+                      <Phone size={16} className="mr-2" />
+                      Request Counselor
+                    </Link>
+                  </Button>
+                  
                   {onArchiveThread && (
                     <Button
                       variant="outline"
@@ -523,7 +536,7 @@ export function ThreadSettingsDialog({
                       Archive Thread
                     </Button>
                   )}
-
+                  
                   {onDeleteThread && (
                     <Button
                       variant="outline"

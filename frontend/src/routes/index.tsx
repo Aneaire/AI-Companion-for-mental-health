@@ -3,6 +3,7 @@ import type { FormData } from "@/components/chat/ChatForm";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { Sidebar, type Thread as ThreadType } from "@/components/chat/Sidebar";
 import { Thread } from "@/components/chat/Thread";
+
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Form,
@@ -37,6 +38,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import { useAuth } from "@clerk/clerk-react";
 
 function getThreadTitle(thread: any) {
   if (thread.sessionName) return thread.sessionName;
@@ -53,6 +55,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const { getToken } = useAuth();
   // // Admin check logging
   // const { user } = useUser();
 
@@ -432,23 +435,27 @@ function Index() {
           onPreferencesChange={setConversationPreferences}
         />
       </div>
-      <Sidebar
-        threads={threadsWithSessions}
-        onSelectThread={handleSelectThread}
-        onSelectSession={handleSelectSession}
-        onNewThread={handleNewThread}
-        onNewSession={handleNewSession}
-        onExpireSession={handleExpireSession}
-        selectedThreadId={selectedThreadId ?? null}
-        selectedSessionId={selectedSessionId ?? null}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        limit={limit}
-        setLimit={setLimit}
-        offset={offset}
-        setOffset={setOffset}
-        total={totalThreads}
-      />
+      
+      {/* Main Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+        <Sidebar
+          threads={threadsWithSessions}
+          onSelectThread={handleSelectThread}
+          onSelectSession={handleSelectSession}
+          onNewThread={handleNewThread}
+          onNewSession={handleNewSession}
+          onExpireSession={handleExpireSession}
+          selectedThreadId={selectedThreadId ?? null}
+          selectedSessionId={selectedSessionId ?? null}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          limit={limit}
+          setLimit={setLimit}
+          offset={offset}
+          setOffset={setOffset}
+          total={totalThreads}
+        />
+      </div>
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <MobileTopbar
           onMenuClick={() => setIsSidebarOpen(true)}
@@ -535,6 +542,7 @@ function Index() {
           conversationPreferences={conversationPreferences}
         />
       </div>
+
       {/* Post-session dialog for loading/generation and form */}
       <Dialog
         open={postSessionDialogOpen}
@@ -619,8 +627,8 @@ function Index() {
               />
             </div>
           ) : null}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }
