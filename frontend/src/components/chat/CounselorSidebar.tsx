@@ -39,7 +39,6 @@ export function CounselorSidebar({
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [activeChats, setActiveChats] = useState<CounselorChat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedView, setSelectedView] = useState<"pending" | "current" | null>(null);
 
   useEffect(() => {
     fetchCounselorData();
@@ -139,13 +138,6 @@ export function CounselorSidebar({
     );
   }
 
-  const pendingRequests = requests.filter(req => req.status === "pending");
-  const completedRequests = requests.filter(req => ["completed", "cancelled"].includes(req.status));
-
-  const selectView = (view: "pending" | "current") => {
-    setSelectedView(view === selectedView ? null : view);
-  };
-
   return (
     <div className="space-y-4">
       {/* Header with Add Button */}
@@ -165,156 +157,123 @@ export function CounselorSidebar({
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="px-2">
-        <div className="flex space-x-1 border-b border-gray-200">
-          {/* Current Sessions Tab */}
-          <button
-            onClick={() => selectView("current")}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors duration-200 border-b-2 ${
-              selectedView === "current"
-                ? "text-blue-600 border-blue-600"
-                : "text-gray-500 border-transparent hover:text-gray-700"
-            }`}
-          >
-            <MessageCircle className="h-3 w-3" />
-            <span>Current Sessions</span>
-            {activeChats.length > 0 && (
-              <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                {activeChats.length}
-              </Badge>
-            )}
-          </button>
-
-          {/* Pending Requests Tab */}
-          <button
-            onClick={() => selectView("pending")}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors duration-200 border-b-2 ${
-              selectedView === "pending"
-                ? "text-yellow-600 border-yellow-600"
-                : "text-gray-500 border-transparent hover:text-gray-700"
-            }`}
-          >
-            <div className="w-2 h-2 rounded-full bg-yellow-500" />
-            <span>Pending Requests</span>
-            {pendingRequests.length > 0 && (
-              <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                {pendingRequests.length}
-              </Badge>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Content Area */}
       <ScrollArea className="flex-1 min-h-0">
-        {selectedView === "current" && (
-          <div className="px-2">
-            {activeChats.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <MessageCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No active sessions</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {activeChats.map((chat) => {
-                  const request = requests.find(req => req.id === chat.requestId);
-                  return (
-                    <div
-                      key={chat.id}
-                      className={`cursor-pointer transition-all duration-200 rounded px-2 py-2 ${
-                        selectedChatId === chat.id
-                          ? "bg-blue-50 border border-blue-200"
-                          : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => onSelectChat(chat)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <MessageCircle className="h-2 w-2 text-blue-600" />
-                          </div>
-                          <span className="text-sm font-medium truncate">
-                            Counselor Chat
-                          </span>
-                          <div className={`w-2 h-2 rounded-full ${getStatusDot(chat.status)} flex-shrink-0`} />
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <Badge variant={getStatusColor(chat.status)} className="text-xs px-1 py-0 h-5">
-                            {chat.status}
-                          </Badge>
-                          {request && (
-                            <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs px-1 py-0 h-5">
-                              {request.urgencyLevel}
-                            </Badge>
-                          )}
-                          <span className="text-xs text-gray-400">
-                            {formatTime(chat.startedAt)}
-                          </span>
-                        </div>
-                      </div>
-                      {request && (
-                        <p className="text-xs text-gray-600 line-clamp-2 mt-1 ml-6">
-                          {request.requestReason}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {selectedView === "pending" && (
-          <div className="px-2">
-            {pendingRequests.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                </div>
-                <p className="text-sm text-gray-500">No pending requests</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {pendingRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="p-2 rounded-lg border border-yellow-200 bg-yellow-50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0" />
-                        <span className="text-sm font-medium truncate">Pending Request</span>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Badge variant="secondary" className="text-xs px-1 py-0 h-5">
-                          PENDING
-                        </Badge>
-                        <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs px-1 py-0 h-5">
-                          {request.urgencyLevel}
-                        </Badge>
-                        <span className="text-xs text-gray-400">
-                          {formatTime(request.requestedAt)}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-600 line-clamp-2 mt-1">
-                      {request.requestReason}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Default state when nothing is selected */}
-        {!selectedView && (activeChats.length === 0 && requests.length === 0) && (
+        {activeChats.length === 0 && requests.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <HeadphonesIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm text-gray-500">No counselor sessions</p>
             <p className="text-xs text-gray-400 mt-1">Click + to request support</p>
+          </div>
+        ) : (
+          <div className="space-y-2 px-2">
+            {/* Active Chats */}
+            {activeChats.map((chat) => {
+              const request = requests.find(req => req.id === chat.requestId);
+              return (
+                <button
+                  key={chat.id}
+                  onClick={() => onSelectChat(chat)}
+                  className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                    selectedChatId === chat.id
+                      ? "bg-blue-50 border-blue-200 shadow-sm"
+                      : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <MessageCircle className="h-3 w-3 text-blue-600" />
+                        <span className="font-medium text-sm truncate">Counselor Chat</span>
+                        <div className={`w-2 h-2 rounded-full ${getStatusDot(chat.status)}`} />
+                      </div>
+                      {request && (
+                        <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                          {request.requestReason}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getStatusColor(chat.status)} className="text-xs">
+                          {chat.status}
+                        </Badge>
+                        {request && (
+                          <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs">
+                            {request.urgencyLevel}
+                          </Badge>
+                        )}
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {formatTime(chat.startedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Pending Requests */}
+            {requests
+              .filter(req => req.status === "pending")
+              .map((request) => (
+                <div
+                  key={request.id}
+                  className="p-3 rounded-lg border border-yellow-200 bg-yellow-50"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                        <span className="font-medium text-sm">Pending Request</span>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                        {request.requestReason}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          PENDING
+                        </Badge>
+                        <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs">
+                          {request.urgencyLevel}
+                        </Badge>
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {formatTime(request.requestedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+            {/* Completed/Cancelled Requests */}
+            {requests
+              .filter(req => ["completed", "cancelled"].includes(req.status))
+              .map((request) => (
+                <div
+                  key={request.id}
+                  className="p-3 rounded-lg border border-gray-200 bg-gray-50 opacity-70"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-gray-400" />
+                        <span className="font-medium text-sm text-gray-600">
+                          {request.status === "completed" ? "Completed" : "Cancelled"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-2">
+                        {request.requestReason}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {request.status.toUpperCase()}
+                        </Badge>
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {formatTime(request.completedAt || request.requestedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         )}
       </ScrollArea>
