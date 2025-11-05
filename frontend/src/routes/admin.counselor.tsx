@@ -86,8 +86,8 @@ function CounselorDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState<number | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [activeView, setActiveView] = useState<"pending" | "current" | null>(null);
-  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"pending" | "current" | null>("current");
+  const [isAccordionOpen, setIsAccordionOpen] = useState(true);
 
   useEffect(() => {
     fetchRequests();
