@@ -1,9 +1,8 @@
 import React from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Eye, User } from "lucide-react";
+import { MessageSquare, User } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { useAuth } from "@clerk/clerk-react";
@@ -120,36 +119,34 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
             </div>
           ) : (
             threads.map((thread) => (
-              <Card
+              <div
                 key={thread.id}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                className={`cursor-pointer transition-all duration-200 rounded px-2 py-1.5 ${
                   selectedThreadId === thread.id 
-                    ? "ring-1 ring-blue-500 bg-blue-50" 
+                    ? "bg-blue-50 border border-blue-200" 
                     : "hover:bg-gray-50"
                 }`}
                 onClick={() => onThreadSelect(thread.id)}
               >
-                <div className="p-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="h-2.5 w-2.5 text-blue-600" />
-                      </div>
-                      <span className="text-xs font-medium truncate">
-                        {thread.displayName}
-                      </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="h-2 w-2 text-blue-600" />
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
-                        {thread.sessionCount}
-                      </Badge>
-                      <span className="text-xs text-gray-400 ml-1">
-                        {formatTime(thread.createdAt)}
-                      </span>
-                    </div>
+                    <span className="text-xs font-medium truncate">
+                      {thread.displayName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                      {thread.sessionCount}
+                    </Badge>
+                    <span className="text-xs text-gray-400">
+                      {formatTime(thread.createdAt)}
+                    </span>
                   </div>
                 </div>
-              </Card>
+              </div>
             ))
           )}
           
@@ -174,13 +171,11 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
       </ScrollArea>
 
       {/* Summary Stats */}
-      <div className="p-2 bg-gray-50 rounded-lg">
-        <div className="text-xs text-gray-600 flex justify-between">
-          <span>Total Threads:</span>
-          <span className="font-medium">
-            {(data?.pages[0] as ThreadsResponse)?.pagination.totalThreads || 0}
-          </span>
-        </div>
+      <div className="px-2 py-1.5 bg-gray-50 rounded text-xs text-gray-600 flex justify-between">
+        <span>Total Threads:</span>
+        <span className="font-medium">
+          {(data?.pages[0] as ThreadsResponse)?.pagination.totalThreads || 0}
+        </span>
       </div>
     </div>
   );
