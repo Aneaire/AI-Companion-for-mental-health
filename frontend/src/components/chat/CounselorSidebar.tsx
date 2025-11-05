@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@clerk/clerk-react";
-import { HeadphonesIcon, MessageCircle, Plus, Circle, ChevronDown, ChevronRight } from "lucide-react";
+import { HeadphonesIcon, MessageCircle, Plus, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,7 +39,6 @@ export function CounselorSidebar({
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [activeChats, setActiveChats] = useState<CounselorChat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [selectedView, setSelectedView] = useState<"pending" | "current" | null>(null);
 
   useEffect(() => {
@@ -143,13 +142,6 @@ export function CounselorSidebar({
   const pendingRequests = requests.filter(req => req.status === "pending");
   const completedRequests = requests.filter(req => ["completed", "cancelled"].includes(req.status));
 
-  const toggleAccordion = () => {
-    setIsAccordionOpen(!isAccordionOpen);
-    if (!isAccordionOpen) {
-      setSelectedView(null); // Reset selection when opening
-    }
-  };
-
   const selectView = (view: "pending" | "current") => {
     setSelectedView(view === selectedView ? null : view);
   };
@@ -173,78 +165,45 @@ export function CounselorSidebar({
         </Button>
       </div>
 
-      {/* Accordion Button */}
+      {/* Tabs */}
       <div className="px-2">
-        <button
-          onClick={toggleAccordion}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-200"
-        >
-          <span className="text-sm font-medium">Counselor Sessions</span>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              {activeChats.length > 0 && (
-                <Badge variant="default" className="text-xs h-4 px-1.5">
-                  {activeChats.length}
-                </Badge>
-              )}
-              {pendingRequests.length > 0 && (
-                <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                  {pendingRequests.length}
-                </Badge>
-              )}
-            </div>
-            {isAccordionOpen ? (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-gray-500" />
+        <div className="flex space-x-1 border-b border-gray-200">
+          {/* Current Sessions Tab */}
+          <button
+            onClick={() => selectView("current")}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors duration-200 border-b-2 ${
+              selectedView === "current"
+                ? "text-blue-600 border-blue-600"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
+            <MessageCircle className="h-3 w-3" />
+            <span>Current Sessions</span>
+            {activeChats.length > 0 && (
+              <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                {activeChats.length}
+              </Badge>
             )}
-          </div>
-        </button>
+          </button>
 
-        {/* Accordion Content */}
-        {isAccordionOpen && (
-          <div className="mt-2 space-y-1">
-            {/* Current Sessions Button */}
-            <button
-              onClick={() => selectView("current")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                selectedView === "current"
-                  ? "bg-blue-50 text-blue-700 border border-blue-200"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <MessageCircle className="h-3 w-3" />
-                <span>Current Sessions</span>
-              </div>
-              {activeChats.length > 0 && (
-                <Badge variant="outline" className="text-xs h-4 px-1.5">
-                  {activeChats.length}
-                </Badge>
-              )}
-            </button>
-
-            {/* Pending Requests Button */}
-            <button
-              onClick={() => selectView("pending")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                selectedView === "pending"
-                  ? "bg-yellow-50 text-yellow-700 border border-yellow-200"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                <span>Pending Requests</span>
-              </div>
-              {pendingRequests.length > 0 && (
-                <Badge variant="secondary" className="text-xs h-4 px-1.5">
-                  {pendingRequests.length}
-                </Badge>
-              )}
-            </button>
-          </div>
-        )}
+          {/* Pending Requests Tab */}
+          <button
+            onClick={() => selectView("pending")}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors duration-200 border-b-2 ${
+              selectedView === "pending"
+                ? "text-yellow-600 border-yellow-600"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
+            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+            <span>Pending Requests</span>
+            {pendingRequests.length > 0 && (
+              <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                {pendingRequests.length}
+              </Badge>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}
