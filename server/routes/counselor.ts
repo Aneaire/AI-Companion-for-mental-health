@@ -419,7 +419,9 @@ const counselor = new Hono()
 
   .post("/admin/accept/:requestId", zValidator("json", acceptRequestSchema), async (c) => {
     try {
-      const adminId = 1; // TODO: Get from JWT
+      // Get admin ID from JWT token
+      const authHeader = c.req.header("authorization");
+      const adminId = await getUserIdFromToken(authHeader);
       const requestId = parseInt(c.req.param("requestId"));
       const { adminNotes } = c.req.valid("json");
 
@@ -523,7 +525,9 @@ const counselor = new Hono()
 
   .post("/admin/message/:chatId", zValidator("json", sendMessageSchema), async (c) => {
     try {
-      const adminId = 1; // TODO: Get from JWT
+      // Get admin ID from JWT token
+      const authHeader = c.req.header("authorization");
+      const adminId = await getUserIdFromToken(authHeader);
       const chatId = parseInt(c.req.param("chatId"));
       const { message, messageType } = c.req.valid("json");
 

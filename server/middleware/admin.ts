@@ -1,6 +1,9 @@
 import type { MiddlewareHandler } from "hono";
 import { logger } from "../lib/logger";
 import { createClerkClient, verifyToken } from "@clerk/backend";
+import { db } from "../db/config";
+import { eq } from "drizzle-orm";
+import { users } from "../db/schema";
 
 const clerkClient = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
@@ -36,6 +39,21 @@ export const adminMiddleware: MiddlewareHandler = async (c, next) => {
         logger.log(`Access denied for user ${payload.sub} with role: ${userRole}`);
         return c.json({ error: "Unauthorized - Admin access required" }, 403);
       }
+
+      // Get user's database ID
+      const [adminUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.clerkId, payload.sub))
+        .limit(1);
+
+      if (!adminUser) {
+        logger.log(`Admin user not found in database: ${payload.sub}`);
+        return c.json({ error: "Unauthorized - Admin user not found" }, 403);
+      }
+
+      // Set admin ID in context for downstream handlers
+      c.set("adminId", adminUser.id);
 
       logger.log(`Admin access granted for user ${payload.sub} with role: ${userRole}`);
       
