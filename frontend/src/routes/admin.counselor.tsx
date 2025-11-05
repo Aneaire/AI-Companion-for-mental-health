@@ -9,16 +9,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
   Clock,
   MessageCircle,
   AlertTriangle,
   CheckCircle,
   User,
-  Phone,
   Send,
   X,
-  Eye,
 } from "lucide-react";
 
 interface CounselorRequest {
@@ -264,30 +263,37 @@ function CounselorDashboard() {
     );
   }
 
+  const sidebarContent = (
+    <div className="space-y-4">
+      <div className="p-3 bg-red-50 rounded-lg">
+        <h4 className="font-medium text-red-900 mb-2">Counseling Stats</h4>
+        <div className="space-y-2 text-xs text-red-700">
+          <div className="flex justify-between">
+            <span>Pending Requests:</span>
+            <span className="font-medium">{requests.filter(r => r.status === "pending").length}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Active Sessions:</span>
+            <span className="font-medium">{chats.filter(c => c.status === "active").length}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <AdminLayout sidebarContent={sidebarContent}>
+      <div className="p-6 space-y-6">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold">Counselor Dashboard</h1>
           <p className="text-muted-foreground">Manage counseling requests and active sessions</p>
         </div>
-        <div className="flex gap-2">
-          <Badge variant="outline" className="flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            {requests.filter(r => r.status === "pending").length} Pending
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1">
-            <MessageCircle className="h-3 w-3" />
-            {chats.filter(c => c.status === "active").length} Active
-          </Badge>
-        </div>
-      </div>
 
-      <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="pending">Pending Requests</TabsTrigger>
-          <TabsTrigger value="current">Current Sessions</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="pending" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="pending">Pending Requests</TabsTrigger>
+            <TabsTrigger value="current">Current Sessions</TabsTrigger>
+          </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
           {requests.filter(r => r.status === "pending").length === 0 ? (
@@ -509,6 +515,7 @@ function CounselorDashboard() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
