@@ -1,11 +1,9 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Search, Eye, User } from "lucide-react";
-import { useState } from "react";
+import { MessageSquare, Eye, User } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { useAuth } from "@clerk/clerk-react";
@@ -36,7 +34,6 @@ interface QualityAnalysisSidebarProps {
 
 export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: QualityAnalysisSidebarProps) {
   const { getToken } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
   const { ref, inView } = useInView();
 
   const {
@@ -46,15 +43,14 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
     isFetchingNextPage,
     isLoading,
   } = useInfiniteQuery<ThreadsResponse>({
-    queryKey: ["qualityThreads", searchTerm],
+    queryKey: ["qualityThreads"],
     queryFn: async ({ pageParam }) => {
       const token = await getToken();
       if (!token) throw new Error("No authentication token available");
       
       const searchParams = new URLSearchParams({
         page: (pageParam as number).toString(),
-        limit: "20",
-        ...(searchTerm && { search: searchTerm }),
+        limit: "30",
       });
 
       const response = await fetch(`/api/quality/threads?${searchParams}`, {
@@ -113,68 +109,44 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
   }
 
   return (
-    <div className="space-y-4">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Search threads..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
+    <div className="space-y-3">
       {/* Threads List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2 pr-2">
+      <ScrollArea className="h-[450px]">
+        <div className="space-y-1 pr-2">
           {threads.length === 0 ? (
             <div className="text-center py-8">
               <MessageSquare className="h-8 w-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No threads found</p>
-              <p className="text-xs text-gray-400 mt-1">Try adjusting your search</p>
             </div>
           ) : (
             threads.map((thread) => (
               <Card
                 key={thread.id}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                className={`cursor-pointer transition-all duration-200 hover:shadow-sm ${
                   selectedThreadId === thread.id 
-                    ? "ring-2 ring-blue-500 bg-blue-50" 
+                    ? "ring-1 ring-blue-500 bg-blue-50" 
                     : "hover:bg-gray-50"
                 }`}
                 onClick={() => onThreadSelect(thread.id)}
               >
-                <div className="p-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-blue-600" />
+                <div className="p-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="h-2.5 w-2.5 text-blue-600" />
                       </div>
-                      <span className="font-medium text-sm truncate">
+                      <span className="text-xs font-medium truncate">
                         {thread.displayName}
                       </span>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {thread.sessionCount} sessions
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">
-                      {formatTime(thread.createdAt)}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onThreadSelect(thread.id);
-                      }}
-                    >
-                      <Eye className="h-3 w-3" />
-                    </Button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
+                        {thread.sessionCount}
+                      </Badge>
+                      <span className="text-xs text-gray-400 ml-1">
+                        {formatTime(thread.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -183,14 +155,15 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
           
           {/* Load More Trigger */}
           {hasNextPage && (
-            <div ref={ref} className="flex justify-center py-4">
+            <div ref={ref} className="flex justify-center py-3">
               {isFetchingNextPage ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
               ) : (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => fetchNextPage()}
+                  className="text-xs h-7"
                 >
                   Load More
                 </Button>
@@ -201,18 +174,12 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
       </ScrollArea>
 
       {/* Summary Stats */}
-      <div className="p-3 bg-gray-50 rounded-lg">
-        <div className="text-xs text-gray-600 space-y-1">
-          <div className="flex justify-between">
-            <span>Total Threads:</span>
-            <span className="font-medium">
-              {(data?.pages[0] as ThreadsResponse)?.pagination.totalThreads || 0}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Loaded:</span>
-            <span className="font-medium">{threads.length}</span>
-          </div>
+      <div className="p-2 bg-gray-50 rounded-lg">
+        <div className="text-xs text-gray-600 flex justify-between">
+          <span>Total Threads:</span>
+          <span className="font-medium">
+            {(data?.pages[0] as ThreadsResponse)?.pagination.totalThreads || 0}
+          </span>
         </div>
       </div>
     </div>
