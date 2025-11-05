@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,6 +17,8 @@ import {
   User,
   Send,
   X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 interface CounselorRequest {
@@ -85,6 +86,8 @@ function CounselorDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState<number | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [activeView, setActiveView] = useState<"pending" | "current" | null>(null);
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -263,8 +266,112 @@ function CounselorDashboard() {
     );
   }
 
+  const toggleAccordion = () => {
+    setIsAccordionOpen(!isAccordionOpen);
+  };
+
+  const selectView = (view: "pending" | "current") => {
+    setActiveView(view);
+    if (view === "pending") {
+      setSelectedChat(null);
+      setChatMessages([]);
+    }
+  };
+
   const sidebarContent = (
     <div className="space-y-4">
+      {/* Accordion Button */}
+      <div className="space-y-2">
+        <Button
+          variant="outline"
+          onClick={toggleAccordion}
+          className="w-full justify-between bg-white border-gray-200 hover:bg-gray-50"
+        >
+          <span className="font-medium">Counseling Options</span>
+          {isAccordionOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </Button>
+        
+        {/* Accordion Content */}
+        {isAccordionOpen && (
+          <div className="space-y-1 pl-2 border-l-2 border-gray-200 ml-2">
+            <Button
+              variant={activeView === "pending" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => selectView("pending")}
+              className="w-full justify-start text-sm"
+            >
+              Pending Requests ({requests.filter(r => r.status === "pending").length})
+            </Button>
+            <Button
+              variant={activeView === "current" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => selectView("current")}
+              className="w-full justify-start text-sm"
+            >
+              Current Sessions ({chats.filter(c => c.status === "active").length})
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Current Sessions Sidebar (similar to main page threads) */}
+      {activeView === "current" && (
+        <div className="space-y-2">
+          <div className="px-2 py-1.5 bg-gray-50 rounded text-sm text-gray-600 flex justify-between">
+            <span>Active Sessions</span>
+            <span className="font-medium">{chats.filter(c => c.status === "active").length}</span>
+          </div>
+          <ScrollArea className="h-[350px]">
+            {chats.filter(c => c.status === "active").length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                <MessageCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                No active sessions
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {chats
+                  .filter(c => c.status === "active")
+                  .map((chat) => (
+                    <div
+                      key={chat.id}
+                      className={`cursor-pointer transition-all duration-200 rounded px-2 py-2 ${
+                        selectedChat?.id === chat.id 
+                          ? "bg-blue-50 border border-blue-200" 
+                          : "hover:bg-gray-50"
+                      }`}
+                      onClick={() => selectChat(chat)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <User className="h-2 w-2 text-green-600" />
+                          </div>
+                          <span className="text-sm font-medium truncate">
+                            {chat.user?.nickname || chat.user?.firstName || "Anonymous User"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Badge variant="outline" className="text-sm px-1 py-0 h-5">
+                            {chat.messageCount}
+                          </Badge>
+                          <span className="text-xs text-gray-400">
+                            {new Date(chat.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Stats Summary */}
       <div className="p-3 bg-red-50 rounded-lg">
         <h4 className="font-medium text-red-900 mb-2">Counseling Stats</h4>
         <div className="space-y-2 text-xs text-red-700">
@@ -289,128 +396,84 @@ function CounselorDashboard() {
           <p className="text-muted-foreground">Manage counseling requests and active sessions</p>
         </div>
 
-        <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="pending">Pending Requests</TabsTrigger>
-            <TabsTrigger value="current">Current Sessions</TabsTrigger>
-          </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          {requests.filter(r => r.status === "pending").length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center justify-center h-32">
-                <p className="text-muted-foreground">No pending requests</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {requests
-                .filter(r => r.status === "pending")
-                .map((request) => (
-                  <Card key={request.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>
-                              <User className="h-4 w-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <CardTitle className="text-lg">
-                              {request.user?.nickname || request.user?.firstName || "Anonymous User"}
-                            </CardTitle>
-                            <CardDescription className="flex items-center gap-2">
-                              <Clock className="h-3 w-3" />
-                              {formatTime(request.requestedAt)}
-                              <Badge variant={getUrgencyColor(request.urgencyLevel)}>
-                                {request.urgencyLevel.toUpperCase()}
-                              </Badge>
-                            </CardDescription>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => acceptRequest(request.id)}
-                          disabled={isAccepting === request.id}
-                          size="sm"
-                        >
-                          {isAccepting === request.id ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                              Accepting...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Accept
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        <strong>Reason:</strong> {request.requestReason}
-                      </p>
-                      {request.userContext && (
-                        <details className="text-xs text-muted-foreground">
-                          <summary className="cursor-pointer">View Context</summary>
-                          <pre className="mt-2 p-2 bg-muted rounded">
-                            {JSON.stringify(request.userContext, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="current" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-4">
-              <h3 className="text-lg font-semibold">Active Sessions</h3>
-              {chats.filter(c => c.status === "active").length === 0 ? (
-                <Card>
-                  <CardContent className="flex items-center justify-center h-32">
-                    <p className="text-muted-foreground">No active sessions</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-2">
-                  {chats
-                    .filter(c => c.status === "active")
-                    .map((chat) => (
-                      <Card
-                        key={chat.id}
-                        className={`cursor-pointer transition-colors ${
-                          selectedChat?.id === chat.id ? "ring-2 ring-primary" : "hover:bg-muted/50"
-                        }`}
-                        onClick={() => selectChat(chat)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
+        {/* Pending Requests View */}
+        {activeView === "pending" && (
+          <div className="space-y-4">
+            {requests.filter(r => r.status === "pending").length === 0 ? (
+              <Card>
+                <CardContent className="flex items-center justify-center h-32">
+                  <p className="text-muted-foreground">No pending requests</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {requests
+                  .filter(r => r.status === "pending")
+                  .map((request) => (
+                    <Card key={request.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback>
+                                <User className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
                             <div>
-                              <p className="font-medium">
-                                {chat.user?.nickname || chat.user?.firstName || "Anonymous User"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Started: {formatTime(chat.startedAt)}
-                              </p>
-                              <Badge variant="outline" className="mt-1">
-                                {chat.messageCount} messages
-                              </Badge>
+                              <CardTitle className="text-lg">
+                                {request.user?.nickname || request.user?.firstName || "Anonymous User"}
+                              </CardTitle>
+                              <CardDescription className="flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                {formatTime(request.requestedAt)}
+                                <Badge variant={getUrgencyColor(request.urgencyLevel)}>
+                                  {request.urgencyLevel.toUpperCase()}
+                                </Badge>
+                              </CardDescription>
                             </div>
-                            <MessageCircle className="h-4 w-4 text-muted-foreground" />
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </div>
+                          <Button
+                            onClick={() => acceptRequest(request.id)}
+                            disabled={isAccepting === request.id}
+                            size="sm"
+                          >
+                            {isAccepting === request.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                Accepting...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Accept
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          <strong>Reason:</strong> {request.requestReason}
+                        </p>
+                        {request.userContext && (
+                          <details className="text-xs text-muted-foreground">
+                            <summary className="cursor-pointer">View Context</summary>
+                            <pre className="mt-2 p-2 bg-muted rounded">
+                              {JSON.stringify(request.userContext, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
 
+        {/* Current Sessions View */}
+        {activeView === "current" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               {selectedChat ? (
                 <Card className="h-[600px] flex flex-col">
@@ -506,15 +569,27 @@ function CounselorDashboard() {
                   <CardContent className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">Select a session to start chatting</p>
+                      <p className="text-muted-foreground">Select a session from the sidebar to start chatting</p>
                     </div>
                   </CardContent>
                 </Card>
               )}
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+
+        {/* Default View - No Selection */}
+        {!activeView && (
+          <Card>
+            <CardContent className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Counselor Dashboard</h3>
+                <p className="text-muted-foreground">Select an option from the sidebar to get started</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AdminLayout>
   );
