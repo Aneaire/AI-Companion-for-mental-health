@@ -248,6 +248,41 @@ const counselor = new Hono()
     }
   })
 
+  .get("/user/chats", async (c) => {
+    try {
+      const authHeader = c.req.header("authorization");
+      const userId = await getUserIdFromToken(authHeader);
+
+      const chats = await db
+        .select({
+          id: counselorChats.id,
+          requestId: counselorChats.requestId,
+          status: counselorChats.status,
+          startedAt: counselorChats.startedAt,
+          messageCount: counselorChats.messageCount,
+          request: {
+            requestReason: counselorRequests.requestReason,
+            urgencyLevel: counselorRequests.urgencyLevel,
+          },
+        })
+        .from(counselorChats)
+        .innerJoin(counselorRequests, eq(counselorChats.requestId, counselorRequests.id))
+        .where(
+          and(
+            eq(counselorChats.userId, userId),
+            sql`${counselorChats.status} = 'active'`
+          )
+        )
+        .orderBy(desc(counselorChats.startedAt));
+
+      return c.json({ chats });
+
+    } catch (error) {
+      logger.error("Error fetching user chats:", error);
+      return c.json({ error: "Failed to fetch chats" }, 500);
+    }
+  })
+
   .get("/user/messages/:chatId", async (c) => {
     try {
       const authHeader = c.req.header("authorization");
@@ -483,7 +518,9 @@ const counselor = new Hono()
 
   .get("/admin/chats", async (c) => {
     try {
-      const adminId = 1; // TODO: Get from JWT
+      // Get admin ID from JWT token
+      const authHeader = c.req.header("authorization");
+      const adminId = await getUserIdFromToken(authHeader);
       const status = c.req.query("status") || "active";
 
       const chats = await db
@@ -589,7 +626,9 @@ const counselor = new Hono()
 
   .put("/admin/end/:chatId", async (c) => {
     try {
-      const adminId = 1; // TODO: Get from JWT
+      // Get admin ID from JWT token
+      const authHeader = c.req.header("authorization");
+      const adminId = await getUserIdFromToken(authHeader);
       const chatId = parseInt(c.req.param("chatId"));
       const { adminSummary } = await c.req.json();
 
@@ -658,6 +697,56 @@ const counselor = new Hono()
     }
   })
 
+  .get("/chat/:chatId", async (c) => {
+    try {
+      const authHeader = c.req.header("authorization");
+      const userId = await getUserIdFromToken(authHeader);
+      const chatId = parseInt(c.req.param("chatId"));
+
+      if (isNaN(chatId)) {
+        return c.json({ error: "Invalid chat ID" }, 400);
+      }
+
+      // Verify user has access to this chat (either user or admin)
+      const [chat] = await db
+        .select()
+        .from(counselorChats)
+        .where(
+          and(
+            eq(counselorChats.id, chatId),
+            sql`(${counselorChats.userId} = ${userId} OR ${counselorChats.adminId} = ${userId})`
+          )
+        )
+        .limit(1);
+
+      if (!chat) {
+        return c.json({ error: "Access denied to chat" }, 403);
+      }
+
+      // Get messages for this chat
+      const messages = await db
+        .select({
+          id: counselorMessages.id,
+          chatId: counselorMessages.chatId,
+          senderId: counselorMessages.senderId,
+          senderType: counselorMessages.senderType,
+          message: counselorMessages.message,
+          messageType: counselorMessages.messageType,
+          isRead: counselorMessages.isRead,
+          timestamp: counselorMessages.timestamp,
+        })
+        .from(counselorMessages)
+        .where(eq(counselorMessages.chatId, chatId))
+        .orderBy(counselorMessages.timestamp);
+
+      return c.json({ messages });
+
+    } catch (error) {
+      logger.error("Error fetching chat messages:", error);
+      return c.json({ error: "Failed to fetch messages" }, 500);
+    }
+  })
+
   // Real-time chat streaming
   .get("/chat/:chatId/stream", async (c) => {
     try {
@@ -666,8 +755,7 @@ const counselor = new Hono()
         return c.json({ error: "Unauthorized" }, 401);
       }
 
-      const token = authHeader.slice(7);
-      const userId = 1; // TODO: Get from JWT
+      const userId = await getUserIdFromToken(authHeader);
       const chatId = parseInt(c.req.param("chatId"));
 
       if (isNaN(chatId)) {

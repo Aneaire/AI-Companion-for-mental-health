@@ -52,27 +52,27 @@ export function CounselorSidebar({
       const token = await getToken();
       if (!token) return;
 
-      // Fetch requests
-      const requestsResponse = await fetch("/api/counselor/user/requests", {
-        headers: { "Authorization": `Bearer ${token}` },
-      });
+      // Fetch requests and chats in parallel
+      const [requestsResponse, chatsResponse] = await Promise.all([
+        fetch("/api/counselor/user/requests", {
+          headers: { "Authorization": `Bearer ${token}` },
+        }),
+        fetch("/api/counselor/user/chats", {
+          headers: { "Authorization": `Bearer ${token}` },
+        }),
+      ]);
+
+      // Update requests
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
         setRequests(requestsData.requests || []);
       }
 
-      // For accepted requests, we'd need to fetch the associated chats
-      // Since the API doesn't have a direct endpoint for user's active chats,
-      // we'll derive them from accepted requests
-      const acceptedRequests = requests.filter(req => req.status === "accepted");
-      const chats: CounselorChat[] = acceptedRequests.map(req => ({
-        id: req.id, // Using request ID as chat ID for simplicity
-        requestId: req.id,
-        status: "active" as const,
-        startedAt: req.acceptedAt || req.requestedAt,
-        messageCount: 0, // This would come from the actual chat data
-      }));
-      setActiveChats(chats);
+      // Update active chats from real chat data
+      if (chatsResponse.ok) {
+        const chatsData = await chatsResponse.json();
+        setActiveChats(chatsData.chats || []);
+      }
     } catch (error) {
       console.error("Error fetching counselor data:", error);
     } finally {
