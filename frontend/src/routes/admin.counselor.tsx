@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@clerk/clerk-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +77,7 @@ export const Route = createFileRoute("/admin/counselor")({
 });
 
 function CounselorDashboard() {
+  const { getToken } = useAuth();
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [chats, setChats] = useState<CounselorChat[]>([]);
   const [selectedChat, setSelectedChat] = useState<CounselorChat | null>(null);
@@ -92,13 +94,22 @@ function CounselorDashboard() {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch("/api/counselor/admin/requests");
-      if (!response.ok) throw new Error("Failed to fetch requests");
+      const token = await getToken();
+      console.log("Admin counselor - token:", token ? "found" : "not found");
+      if (!token) throw new Error("No authentication token available");
+      
+      const response = await fetch("/api/counselor/admin/requests", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      console.log("Admin counselor - response status:", response.status);
+      if (!response.ok) throw new Error(`Failed to fetch requests: ${response.status}`);
       const data = await response.json();
       setRequests(data.requests || []);
     } catch (error) {
       console.error("Error fetching requests:", error);
-      toast.error("Failed to load counselor requests");
+      toast.error(`Failed to load counselor requests: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +117,14 @@ function CounselorDashboard() {
 
   const fetchChats = async () => {
     try {
-      const response = await fetch("/api/counselor/admin/chats");
+      const token = await getToken();
+      if (!token) throw new Error("No authentication token available");
+      
+      const response = await fetch("/api/counselor/admin/chats", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error("Failed to fetch chats");
       const data = await response.json();
       setChats(data.chats || []);
@@ -119,8 +137,14 @@ function CounselorDashboard() {
   const acceptRequest = async (requestId: number) => {
     setIsAccepting(requestId);
     try {
+      const token = await getToken();
+      if (!token) throw new Error("No authentication token available");
+      
       const response = await fetch(`/api/counselor/admin/accept/${requestId}`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       });
       if (!response.ok) throw new Error("Failed to accept request");
       
@@ -137,7 +161,14 @@ function CounselorDashboard() {
 
   const loadChatMessages = async (chatId: number) => {
     try {
-      const response = await fetch(`/api/counselor/chat/${chatId}`);
+      const token = await getToken();
+      if (!token) throw new Error("No authentication token available");
+      
+      const response = await fetch(`/api/counselor/chat/${chatId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error("Failed to load chat messages");
       const data = await response.json();
       setChatMessages(data.messages || []);
@@ -152,9 +183,13 @@ function CounselorDashboard() {
 
     setIsSending(true);
     try {
+      const token = await getToken();
+      if (!token) throw new Error("No authentication token available");
+      
       const response = await fetch(`/api/counselor/admin/message/${selectedChat.id}`, {
         method: "POST",
         headers: {
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
