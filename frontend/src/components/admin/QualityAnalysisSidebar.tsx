@@ -121,7 +121,7 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
             threads.map((thread) => (
               <div
                 key={thread.id}
-                className={`cursor-pointer transition-all duration-200 rounded px-2 py-1.5 ${
+                className={`cursor-pointer transition-all duration-200 rounded px-2 py-2 ${
                   selectedThreadId === thread.id 
                     ? "bg-blue-50 border border-blue-200" 
                     : "hover:bg-gray-50"
@@ -133,15 +133,15 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
                     <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <User className="h-2 w-2 text-blue-600" />
                     </div>
-                    <span className="text-xs font-medium truncate">
+                    <span className="text-sm font-medium truncate">
                       {thread.displayName}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                    <Badge variant="outline" className="text-sm px-1 py-0 h-5">
                       {thread.sessionCount}
                     </Badge>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-sm text-gray-400">
                       {formatTime(thread.createdAt)}
                     </span>
                   </div>
@@ -160,7 +160,7 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
                   variant="outline"
                   size="sm"
                   onClick={() => fetchNextPage()}
-                  className="text-xs h-7"
+                  className="text-sm h-7"
                 >
                   Load More
                 </Button>
@@ -171,7 +171,7 @@ export function QualityAnalysisSidebar({ onThreadSelect, selectedThreadId }: Qua
       </ScrollArea>
 
       {/* Summary Stats */}
-      <div className="px-2 py-1.5 bg-gray-50 rounded text-xs text-gray-600 flex justify-between">
+      <div className="px-2 py-2 bg-gray-50 rounded text-sm text-gray-600 flex justify-between">
         <span>Total Threads:</span>
         <span className="font-medium">
           {(data?.pages[0] as ThreadsResponse)?.pagination.totalThreads || 0}
