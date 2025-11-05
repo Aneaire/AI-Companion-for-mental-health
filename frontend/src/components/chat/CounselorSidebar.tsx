@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@clerk/clerk-react";
-import { HeadphonesIcon, MessageCircle, Plus, Circle } from "lucide-react";
+import { HeadphonesIcon, MessageCircle, Plus, Circle, ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,6 +39,8 @@ export function CounselorSidebar({
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [activeChats, setActiveChats] = useState<CounselorChat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<"pending" | "current" | null>(null);
 
   useEffect(() => {
     fetchCounselorData();
@@ -138,6 +140,30 @@ export function CounselorSidebar({
     );
   }
 
+  const pendingRequests = requests.filter(req => req.status === "pending");
+  const completedRequests = requests.filter(req => ["completed", "cancelled"].includes(req.status));
+
+  const handleSectionClick = (section: "pending" | "current") => {
+    if (selectedSection === section) {
+      setSelectedSection(null);
+      setIsAccordionOpen(false);
+    } else {
+      setSelectedSection(section);
+      setIsAccordionOpen(true);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header with Add Button */}
@@ -157,126 +183,179 @@ export function CounselorSidebar({
         </Button>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0">
-        {activeChats.length === 0 && requests.length === 0 ? (
-          <div className="px-4 py-8 text-center">
-            <HeadphonesIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">No counselor sessions</p>
-            <p className="text-xs text-gray-400 mt-1">Click + to request support</p>
-          </div>
-        ) : (
-          <div className="space-y-2 px-2">
-            {/* Active Chats */}
-            {activeChats.map((chat) => {
-              const request = requests.find(req => req.id === chat.requestId);
-              return (
-                <button
-                  key={chat.id}
-                  onClick={() => onSelectChat(chat)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                    selectedChatId === chat.id
-                      ? "bg-blue-50 border-blue-200 shadow-sm"
-                      : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <MessageCircle className="h-3 w-3 text-blue-600" />
-                        <span className="font-medium text-sm truncate">Counselor Chat</span>
-                        <div className={`w-2 h-2 rounded-full ${getStatusDot(chat.status)}`} />
-                      </div>
-                      {request && (
-                        <p className="text-xs text-gray-600 line-clamp-2 mb-2">
-                          {request.requestReason}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getStatusColor(chat.status)} className="text-xs">
-                          {chat.status}
-                        </Badge>
-                        {request && (
-                          <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs">
-                            {request.urgencyLevel}
-                          </Badge>
-                        )}
-                        <span className="text-xs text-gray-400 ml-auto">
-                          {formatTime(chat.startedAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+      {/* Accordion Button */}
+      <div className="px-2">
+        <Button
+          variant="outline"
+          className="w-full justify-between h-8 text-sm"
+          onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+        >
+          <span>Sessions</span>
+          {isAccordionOpen ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )}
+        </Button>
+      </div>
 
-            {/* Pending Requests */}
-            {requests
-              .filter(req => req.status === "pending")
-              .map((request) => (
-                <div
-                  key={request.id}
-                  className="p-3 rounded-lg border border-yellow-200 bg-yellow-50"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                        <span className="font-medium text-sm">Pending Request</span>
-                      </div>
-                      <p className="text-xs text-gray-600 line-clamp-2 mb-2">
-                        {request.requestReason}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          PENDING
-                        </Badge>
-                        <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs">
-                          {request.urgencyLevel}
-                        </Badge>
-                        <span className="text-xs text-gray-400 ml-auto">
-                          {formatTime(request.requestedAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+      {/* Accordion Content */}
+      {isAccordionOpen && (
+        <div className="px-2 space-y-2">
+          {/* Pending Section */}
+          <div>
+            <button
+              onClick={() => handleSectionClick("pending")}
+              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedSection === "pending"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "hover:bg-gray-100 text-gray-700"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span>Pending Requests</span>
+                {pendingRequests.length > 0 && (
+                  <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                    {pendingRequests.length}
+                  </Badge>
+                )}
+              </div>
+            </button>
 
-            {/* Completed/Cancelled Requests */}
-            {requests
-              .filter(req => ["completed", "cancelled"].includes(req.status))
-              .map((request) => (
-                <div
-                  key={request.id}
-                  className="p-3 rounded-lg border border-gray-200 bg-gray-50 opacity-70"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-2 h-2 rounded-full bg-gray-400" />
-                        <span className="font-medium text-sm text-gray-600">
-                          {request.status === "completed" ? "Completed" : "Cancelled"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-2">
-                        {request.requestReason}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {request.status.toUpperCase()}
-                        </Badge>
-                        <span className="text-xs text-gray-400 ml-auto">
-                          {formatTime(request.completedAt || request.requestedAt)}
-                        </span>
+            {selectedSection === "pending" && (
+              <div className="mt-2 space-y-2">
+                {pendingRequests.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-sm text-gray-500">
+                    No pending requests
+                  </div>
+                ) : (
+                  pendingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="px-3 py-2 rounded-lg border border-yellow-200 bg-yellow-50"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                            <span className="font-medium text-sm">Pending Request</span>
+                          </div>
+                          <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                            {request.requestReason}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              PENDING
+                            </Badge>
+                            <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs">
+                              {request.urgencyLevel}
+                            </Badge>
+                            <span className="text-xs text-gray-400 ml-auto">
+                              {formatTime(request.requestedAt)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  ))
+                )}
+              </div>
+            )}
           </div>
-        )}
-      </ScrollArea>
+
+          {/* Current Sessions Section */}
+          <div>
+            <button
+              onClick={() => handleSectionClick("current")}
+              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedSection === "current"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "hover:bg-gray-100 text-gray-700"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span>Current Sessions</span>
+                {activeChats.length > 0 && (
+                  <Badge variant="default" className="text-xs h-5 px-1.5">
+                    {activeChats.length}
+                  </Badge>
+                )}
+              </div>
+            </button>
+
+            {selectedSection === "current" && (
+              <div className="mt-2 space-y-2">
+                {activeChats.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-sm text-gray-500">
+                    No active sessions
+                  </div>
+                ) : (
+                  activeChats.map((chat) => {
+                    const request = requests.find(req => req.id === chat.requestId);
+                    return (
+                      <button
+                        key={chat.id}
+                        onClick={() => onSelectChat(chat)}
+                        className={`w-full text-left px-3 py-2 rounded-lg border transition-all duration-200 ${
+                          selectedChatId === chat.id
+                            ? "bg-blue-50 border-blue-200 shadow-sm"
+                            : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <MessageCircle className="h-3 w-3 text-blue-600" />
+                              <span className="font-medium text-sm truncate">Counselor Chat</span>
+                              <div className={`w-2 h-2 rounded-full ${getStatusDot(chat.status)}`} />
+                            </div>
+                            {request && (
+                              <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                                {request.requestReason}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Badge variant={getStatusColor(chat.status)} className="text-xs">
+                                {chat.status}
+                              </Badge>
+                              {request && (
+                                <Badge variant={getUrgencyColor(request.urgencyLevel)} className="text-xs">
+                                  {request.urgencyLevel}
+                                </Badge>
+                              )}
+                              <span className="text-xs text-gray-400 ml-auto">
+                                {formatTime(chat.startedAt)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Show active session when selected */}
+      {selectedSection === "current" && selectedChatId && (
+        <div className="px-2 mt-4">
+          <div className="text-center text-xs text-gray-500 mb-2">
+            Active session selected
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isAccordionOpen && activeChats.length === 0 && requests.length === 0 && (
+        <div className="px-4 py-8 text-center">
+          <HeadphonesIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No counselor sessions</p>
+          <p className="text-xs text-gray-400 mt-1">Click + to request support</p>
+        </div>
+      )}
     </div>
   );
 }
