@@ -1,7 +1,7 @@
 // quality.ts (Message Quality Analyzer)
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { zValidator } from "@hono/zod-validator";
-import { and, eq } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { geminiConfig } from "../lib/config";
@@ -52,40 +52,95 @@ export const qualityResponseSchema = z.object({
   recommendations: z.array(z.string()),
 });
 
-const quality = new Hono().post(
-  "/",
-  zValidator("json", qualityRequestSchema),
-  async (c) => {
-    const parsed = qualityRequestSchema.safeParse(await c.req.json());
-    if (!parsed.success) {
-      logger.error("Zod validation error:", parsed.error.errors);
-      return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
-    }
-
-    const { messages, initialForm, sessionId, threadId } = parsed.data;
-
+const quality = new Hono()
+  .get("/threads", async (c) => {
     try {
-      // Get comprehensive thread context if available
-      let threadContext = null;
-      if (sessionId) {
-        threadContext = await getThreadContext(sessionId);
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const search = c.req.query("search") || "";
+      const offset = (page - 1) * limit;
+
+      // Build query conditions
+      let whereCondition = eq(threads.id, threads.id); // Base condition (always true)
+      
+      if (search) {
+        // Add search condition - this would need to be implemented based on your search requirements
+        // For now, we'll just return all threads
       }
 
-      // Use enhanced analysis with full context
-      const analysisResult = await analyzeMessageQuality(messages, initialForm, threadContext);
-      return c.json(analysisResult);
-    } catch (error) {
-      logger.error("Error in quality analysis:", error);
-      return c.json(
-        {
-          error: "Failed to analyze message quality",
-          details: error instanceof Error ? error.message : "Unknown error",
+      // Get threads with session counts
+      const threadsData = await db
+        .select({
+          id: threads.id,
+          displayName: sql<string>`COALESCE(${threads.sessionName}, 'Thread ' || ${threads.id})`.as('displayName'),
+          sessionCount: sql<number>`count(${sessions.id})`.mapWith(Number).as('sessionCount'),
+          createdAt: threads.createdAt,
+        })
+        .from(threads)
+        .leftJoin(sessions, eq(threads.id, sessions.threadId))
+        .where(whereCondition)
+        .groupBy(threads.id, threads.sessionName, threads.createdAt)
+        .orderBy(desc(threads.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({ count: count() })
+        .from(threads);
+
+      const totalThreads = totalCountResult[0].count;
+
+      return c.json({
+        threads: threadsData,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalThreads / limit),
+          totalThreads,
+          hasNext: page * limit < totalThreads,
+          hasPrev: page > 1,
+          limit,
         },
-        500
-      );
+      });
+    } catch (error) {
+      logger.error("Error fetching quality threads:", error);
+      return c.json({ error: "Failed to fetch threads" }, 500);
     }
-  }
-);
+  })
+  .post(
+    "/",
+    zValidator("json", qualityRequestSchema),
+    async (c) => {
+      const parsed = qualityRequestSchema.safeParse(await c.req.json());
+      if (!parsed.success) {
+        logger.error("Zod validation error:", parsed.error.errors);
+        return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
+      }
+
+      const { messages, initialForm, sessionId, threadId } = parsed.data;
+
+      try {
+        // Get comprehensive thread context if available
+        let threadContext = null;
+        if (sessionId) {
+          threadContext = await getThreadContext(sessionId);
+        }
+
+        // Use enhanced analysis with full context
+        const analysisResult = await analyzeMessageQuality(messages, initialForm, threadContext);
+        return c.json(analysisResult);
+      } catch (error) {
+        logger.error("Error in quality analysis:", error);
+        return c.json(
+          {
+            error: "Failed to analyze message quality",
+            details: error instanceof Error ? error.message : "Unknown error",
+          },
+          500
+        );
+      }
+    }
+  );
 
 // Privacy-safe context anonymization
 function anonymizeContent(text: string): string {
