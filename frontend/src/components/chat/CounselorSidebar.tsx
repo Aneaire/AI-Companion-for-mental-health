@@ -65,13 +65,19 @@ export function CounselorSidebar({
       // Update requests
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
+        console.log("CounselorSidebar - User requests:", requestsData.requests);
         setRequests(requestsData.requests || []);
+      } else {
+        console.error("Failed to fetch requests:", requestsResponse.status);
       }
 
       // Update active chats from real chat data
       if (chatsResponse.ok) {
         const chatsData = await chatsResponse.json();
+        console.log("CounselorSidebar - User chats:", chatsData.chats);
         setActiveChats(chatsData.chats || []);
+      } else {
+        console.error("Failed to fetch chats:", chatsResponse.status);
       }
     } catch (error) {
       console.error("Error fetching counselor data:", error);

@@ -108,6 +108,7 @@ function CounselorDashboard() {
       console.log("Admin counselor - response status:", response.status);
       if (!response.ok) throw new Error(`Failed to fetch requests: ${response.status}`);
       const data = await response.json();
+      console.log("Admin counselor - Admin requests:", data.requests);
       setRequests(data.requests || []);
     } catch (error) {
       console.error("Error fetching requests:", error);
@@ -129,6 +130,7 @@ function CounselorDashboard() {
       });
       if (!response.ok) throw new Error("Failed to fetch chats");
       const data = await response.json();
+      console.log("Admin counselor - Admin chats:", data.chats);
       setChats(data.chats || []);
     } catch (error) {
       console.error("Error fetching chats:", error);
@@ -173,6 +175,7 @@ function CounselorDashboard() {
       });
       if (!response.ok) throw new Error("Failed to load chat messages");
       const data = await response.json();
+      console.log(`Admin counselor - Messages for chat ${chatId}:`, data.messages);
       setChatMessages(data.messages || []);
     } catch (error) {
       console.error("Error loading chat messages:", error);

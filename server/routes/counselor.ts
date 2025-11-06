@@ -253,6 +253,12 @@ const counselor = new Hono()
       const authHeader = c.req.header("authorization");
       const userId = await getUserIdFromToken(authHeader);
 
+      // Double-check: ensure we have a valid user ID
+      if (!userId) {
+        logger.error("Invalid user ID in /user/chats endpoint");
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
       const chats = await db
         .select({
           id: counselorChats.id,
@@ -275,6 +281,8 @@ const counselor = new Hono()
         )
         .orderBy(desc(counselorChats.startedAt));
 
+      logger.log(`User ${userId} fetched ${chats.length} chats`);
+
       return c.json({ chats });
 
     } catch (error) {
@@ -294,6 +302,12 @@ const counselor = new Hono()
         return c.json({ error: "Invalid chat ID" }, 400);
       }
 
+      // Double-check: ensure we have a valid user ID
+      if (!userId) {
+        logger.error(`Invalid user ID attempting to access chat ${chatId}`);
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
       // Verify chat exists and belongs to user
       const [chat] = await db
         .select()
@@ -307,6 +321,7 @@ const counselor = new Hono()
         .limit(1);
 
       if (!chat) {
+        logger.warn(`User ${userId} attempted to access chat ${chatId} that doesn't belong to them`);
         return c.json({ error: "Chat not found" }, 404);
       }
 
@@ -325,6 +340,8 @@ const counselor = new Hono()
         .from(counselorMessages)
         .where(eq(counselorMessages.chatId, chatId))
         .orderBy(counselorMessages.timestamp);
+
+      logger.log(`User ${userId} accessed ${messages.length} messages from chat ${chatId}`);
 
       return c.json({ messages });
 
@@ -346,6 +363,12 @@ const counselor = new Hono()
         return c.json({ error: "Invalid chat ID" }, 400);
       }
 
+      // Double-check: ensure we have a valid user ID
+      if (!userId) {
+        logger.error(`Invalid user ID attempting to send message to chat ${chatId}`);
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
       // Verify chat exists and belongs to user
       const [chat] = await db
         .select()
@@ -360,6 +383,7 @@ const counselor = new Hono()
         .limit(1);
 
       if (!chat) {
+        logger.warn(`User ${userId} attempted to send message to chat ${chatId} that doesn't belong to them`);
         return c.json({ error: "Chat not found or not active" }, 404);
       }
 
@@ -385,7 +409,7 @@ const counselor = new Hono()
         })
         .where(eq(counselorChats.id, chatId));
 
-      logger.log("User message sent:", { chatId, messageId: newMessage.id });
+      logger.log("User message sent:", { chatId, userId, messageId: newMessage.id });
 
       return c.json({
         success: true,
@@ -503,7 +527,7 @@ const counselor = new Hono()
         });
       });
 
-      logger.log("Counselor request accepted:", { requestId, adminId });
+      logger.log("Counselor request accepted:", { requestId, adminId, userId: existingRequest.userId });
 
       return c.json({
         success: true,
@@ -522,6 +546,12 @@ const counselor = new Hono()
       const authHeader = c.req.header("authorization");
       const adminId = await getUserIdFromToken(authHeader);
       const status = c.req.query("status") || "active";
+
+      // Double-check: ensure we have a valid admin ID
+      if (!adminId) {
+        logger.error("Invalid admin ID in /admin/chats endpoint");
+        return c.json({ error: "Unauthorized" }, 401);
+      }
 
       const chats = await db
         .select({
@@ -552,6 +582,8 @@ const counselor = new Hono()
         )
         .orderBy(desc(counselorChats.startedAt));
 
+      logger.log(`Admin ${adminId} fetched ${chats.length} chats with status ${status}`);
+
       return c.json({ chats });
 
     } catch (error) {
@@ -572,6 +604,12 @@ const counselor = new Hono()
         return c.json({ error: "Invalid chat ID" }, 400);
       }
 
+      // Double-check: ensure we have a valid admin ID
+      if (!adminId) {
+        logger.error(`Invalid admin ID attempting to send message to chat ${chatId}`);
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
       // Verify chat exists and belongs to admin
       const [chat] = await db
         .select()
@@ -586,6 +624,7 @@ const counselor = new Hono()
         .limit(1);
 
       if (!chat) {
+        logger.warn(`Admin ${adminId} attempted to send message to chat ${chatId} that doesn't belong to them`);
         return c.json({ error: "Chat not found or not active" }, 404);
       }
 
@@ -611,7 +650,7 @@ const counselor = new Hono()
         })
         .where(eq(counselorChats.id, chatId));
 
-      logger.log("Counselor message sent:", { chatId, messageId: newMessage.id });
+      logger.log("Counselor message sent:", { chatId, adminId, messageId: newMessage.id });
 
       return c.json({
         success: true,
@@ -707,9 +746,20 @@ const counselor = new Hono()
         return c.json({ error: "Invalid chat ID" }, 400);
       }
 
+      // Double-check: ensure we have a valid user ID
+      if (!userId) {
+        logger.error(`Invalid user ID attempting to access chat ${chatId} via shared endpoint`);
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
       // Verify user has access to this chat (either user or admin)
       const [chat] = await db
-        .select()
+        .select({
+          id: counselorChats.id,
+          userId: counselorChats.userId,
+          adminId: counselorChats.adminId,
+          status: counselorChats.status,
+        })
         .from(counselorChats)
         .where(
           and(
@@ -720,6 +770,7 @@ const counselor = new Hono()
         .limit(1);
 
       if (!chat) {
+        logger.warn(`User ${userId} denied access to chat ${chatId} - not a participant`);
         return c.json({ error: "Access denied to chat" }, 403);
       }
 
@@ -738,6 +789,8 @@ const counselor = new Hono()
         .from(counselorMessages)
         .where(eq(counselorMessages.chatId, chatId))
         .orderBy(counselorMessages.timestamp);
+
+      logger.log(`User ${userId} (${chat.userId === userId ? 'user' : 'admin'}) accessed ${messages.length} messages from chat ${chatId}`);
 
       return c.json({ messages });
 

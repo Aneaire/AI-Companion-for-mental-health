@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/clerk-react";
+import { useChatStore } from "@/stores/chatStore";
 import {
   MessageCircle,
   Send,
@@ -59,6 +60,7 @@ export const Route = createFileRoute("/counselor")({
 
 function CounselorPage() {
   const { getToken } = useAuth();
+  const { conversationPreferences, setConversationPreferences } = useChatStore();
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [activeChat, setActiveChat] = useState<CounselorChat | null>(null);
   const [chatMessages, setChatMessages] = useState<CounselorMessage[]>([]);
@@ -98,6 +100,7 @@ function CounselorPage() {
       });
       if (!response.ok) throw new Error("Failed to fetch requests");
       const data = await response.json();
+      console.log("Counselor page - User requests:", data.requests);
       setRequests(data.requests || []);
     } catch (error) {
       console.error("Error fetching requests:", error);
@@ -137,6 +140,7 @@ function CounselorPage() {
       });
       if (!response.ok) throw new Error("Failed to load chat messages");
       const data = await response.json();
+      console.log(`Counselor page - Messages for chat ${chatId}:`, data.messages);
       setChatMessages(data.messages || []);
     } catch (error) {
       console.error("Error loading chat messages:", error);
@@ -198,8 +202,8 @@ function CounselorPage() {
       <div className="md:hidden w-full fixed top-0 left-0 z-50">
         <MobileTopbar
           onMenuClick={() => setIsSidebarOpen(true)}
-          preferences={{}}
-          onPreferencesChange={() => {}}
+          preferences={conversationPreferences}
+          onPreferencesChange={setConversationPreferences}
         />
       </div>
       
@@ -355,7 +359,7 @@ function CounselorPage() {
         open={counselorRequestDialogOpen}
         onOpenChange={setCounselorRequestDialogOpen}
         onRequestSubmitted={handleRequestSubmitted}
-        requestLimit={requestLimit}
+        requestLimit={requestLimit || undefined}
       />
     </div>
   );
