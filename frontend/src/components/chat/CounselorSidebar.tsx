@@ -5,9 +5,10 @@ import { useAuth } from "@clerk/clerk-react";
 import { HeadphonesIcon, MessageCircle, Plus, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getCounselorRequests, getCounselorChats } from "@/services/appwriteService";
 
 interface CounselorRequest {
-  id: number;
+  $id: string;
   status: "pending" | "accepted" | "completed" | "cancelled";
   requestReason: string;
   urgencyLevel: "low" | "medium" | "high" | "urgent";
@@ -17,8 +18,8 @@ interface CounselorRequest {
 }
 
 interface CounselorChat {
-  id: number;
-  requestId: number;
+  $id: string;
+  requestId: string;
   status: "active" | "ended";
   startedAt: string;
   messageCount: number;
@@ -27,7 +28,7 @@ interface CounselorChat {
 interface CounselorSidebarProps {
   onSelectChat: (chat: CounselorChat) => void;
   onOpenRequestDialog: () => void;
-  selectedChatId: number | null;
+  selectedChatId: string | null;
 }
 
 export function CounselorSidebar({ 
@@ -35,7 +36,7 @@ export function CounselorSidebar({
   onOpenRequestDialog, 
   selectedChatId 
 }: CounselorSidebarProps) {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [activeChats, setActiveChats] = useState<CounselorChat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,36 +50,21 @@ export function CounselorSidebar({
 
   const fetchCounselorData = async () => {
     try {
-      const token = await getToken();
-      if (!token) return;
+      if (!userId) return;
 
       // Fetch requests and chats in parallel
-      const [requestsResponse, chatsResponse] = await Promise.all([
-        fetch("/api/counselor/user/requests", {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-        fetch("/api/counselor/user/chats", {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
+      const [requestsData, chatsData] = await Promise.all([
+        getCounselorRequests(userId),
+        getCounselorChats(userId),
       ]);
 
       // Update requests
-      if (requestsResponse.ok) {
-        const requestsData = await requestsResponse.json();
-        console.log("CounselorSidebar - User requests:", requestsData.requests);
-        setRequests(requestsData.requests || []);
-      } else {
-        console.error("Failed to fetch requests:", requestsResponse.status);
-      }
+      console.log("CounselorSidebar - User requests:", requestsData.documents);
+      setRequests(requestsData.documents as unknown as CounselorRequest[] || []);
 
       // Update active chats from real chat data
-      if (chatsResponse.ok) {
-        const chatsData = await chatsResponse.json();
-        console.log("CounselorSidebar - User chats:", chatsData.chats);
-        setActiveChats(chatsData.chats || []);
-      } else {
-        console.error("Failed to fetch chats:", chatsResponse.status);
-      }
+      console.log("CounselorSidebar - User chats:", chatsData.documents);
+      setActiveChats(chatsData.documents as unknown as CounselorChat[] || []);
     } catch (error) {
       console.error("Error fetching counselor data:", error);
     } finally {
@@ -174,13 +160,13 @@ export function CounselorSidebar({
           <div className="space-y-2 px-2">
             {/* Active Chats */}
             {activeChats.map((chat) => {
-              const request = requests.find(req => req.id === chat.requestId);
+              const request = requests.find(req => req.$id === chat.requestId);
               return (
                 <button
-                  key={chat.id}
+                  key={chat.$id}
                   onClick={() => onSelectChat(chat)}
                   className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                    selectedChatId === chat.id
+                    selectedChatId === chat.$id
                       ? "bg-blue-50 border-blue-200 shadow-sm"
                       : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                   }`}
@@ -221,7 +207,7 @@ export function CounselorSidebar({
               .filter(req => req.status === "pending")
               .map((request) => (
                 <div
-                  key={request.id}
+                  key={request.$id}
                   className="p-3 rounded-lg border border-yellow-200 bg-yellow-50"
                 >
                   <div className="flex items-start justify-between">
@@ -254,7 +240,7 @@ export function CounselorSidebar({
               .filter(req => ["completed", "cancelled"].includes(req.status))
               .map((request) => (
                 <div
-                  key={request.id}
+                  key={request.$id}
                   className="p-3 rounded-lg border border-gray-200 bg-gray-50 opacity-70"
                 >
                   <div className="flex items-start justify-between">

@@ -50,7 +50,7 @@ async function getUserIdFromToken(authHeader: string | undefined): Promise<numbe
 const createRequestSchema = z.object({
   requestReason: z.string().min(10, "Request reason must be at least 10 characters"),
   urgencyLevel: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
-  userContext: z.record(z.any()).optional(),
+  userContext: z.record(z.any()).nullable().optional(),
 });
 
 const acceptRequestSchema = z.object({

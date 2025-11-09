@@ -17,34 +17,33 @@ import {
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { CounselorSidebar } from "@/components/chat/CounselorSidebar";
 import { CounselorRequestDialog } from "@/components/chat/CounselorRequestDialog";
+import { 
+  getCounselorRequests, 
+  getCounselorChats, 
+  getCounselorMessages, 
+  createCounselorMessage,
+  subscribeToChatMessages,
+  subscribeToCounselorRequests
+} from "@/services/appwriteService";
+import type { CounselorRequest, CounselorChat, CounselorMessage } from "@/lib/appwriteSchema";
 
-interface CounselorRequest {
-  id: number;
-  status: "pending" | "accepted" | "completed" | "cancelled";
-  requestReason: string;
-  urgencyLevel: "low" | "medium" | "high" | "urgent";
-  requestedAt: string;
-  acceptedAt?: string;
-  completedAt?: string;
-  adminNotes?: string;
+// Extended interfaces to include Appwrite document properties
+interface AppwriteCounselorRequest extends CounselorRequest {
+  $id: string;
+  $createdAt: string;
+  $updatedAt: string;
 }
 
-interface CounselorChat {
-  id: number;
-  requestId: number;
-  status: "active" | "ended";
-  startedAt: string;
-  messageCount: number;
+interface AppwriteCounselorChat extends CounselorChat {
+  $id: string;
+  $createdAt: string;
+  $updatedAt: string;
 }
 
-interface CounselorMessage {
-  id: number;
-  chatId: number;
-  senderId: number;
-  senderType: "user" | "counselor";
-  message: string;
-  messageType: "text" | "system";
-  timestamp: string;
+interface AppwriteCounselorMessage extends CounselorMessage {
+  $id: string;
+  $createdAt: string;
+  $updatedAt: string;
 }
 
 interface RequestLimit {
@@ -59,11 +58,11 @@ export const Route = createFileRoute("/counselor")({
 });
 
 function CounselorPage() {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const { conversationPreferences, setConversationPreferences } = useChatStore();
-  const [requests, setRequests] = useState<CounselorRequest[]>([]);
-  const [activeChat, setActiveChat] = useState<CounselorChat | null>(null);
-  const [chatMessages, setChatMessages] = useState<CounselorMessage[]>([]);
+  const [requests, setRequests] = useState<AppwriteCounselorRequest[]>([]);
+  const [activeChat, setActiveChat] = useState<AppwriteCounselorChat | null>(null);
+  const [chatMessages, setChatMessages] = useState<AppwriteCounselorMessage[]>([]);
   const [requestLimit, setRequestLimit] = useState<RequestLimit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -76,6 +75,26 @@ function CounselorPage() {
   useEffect(() => {
     fetchRequests();
     fetchRequestLimit();
+    
+    // Set up real-time subscription for request updates
+    if (userId) {
+      const unsubscribe = subscribeToCounselorRequests(userId, (updatedRequest: any) => {
+        setRequests(prev => {
+          const index = prev.findIndex(req => req.$id === updatedRequest.$id);
+          if (index !== -1) {
+            const newRequests = [...prev];
+            newRequests[index] = updatedRequest as AppwriteCounselorRequest;
+            return newRequests;
+          } else {
+            return [...prev, updatedRequest as AppwriteCounselorRequest];
+          }
+        });
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }
   }, []);
 
   useEffect(() => {
@@ -90,18 +109,11 @@ function CounselorPage() {
 
   const fetchRequests = async () => {
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
+      if (!userId) throw new Error("No user ID available");
       
-      const response = await fetch("/api/counselor/user/requests", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch requests");
-      const data = await response.json();
-      console.log("Counselor page - User requests:", data.requests);
-      setRequests(data.requests || []);
+      const data = await getCounselorRequests(userId);
+      console.log("Counselor page - User requests:", data.documents);
+      setRequests(data.documents as unknown as AppwriteCounselorRequest[] || []);
     } catch (error) {
       console.error("Error fetching requests:", error);
       toast.error("Failed to load counselor requests");
@@ -111,37 +123,21 @@ function CounselorPage() {
   };
 
   const fetchRequestLimit = async () => {
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
-      
-      const response = await fetch("/api/counselor/limit", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch request limit");
-      const data = await response.json();
-      setRequestLimit(data);
-    } catch (error) {
-      console.error("Error fetching request limit:", error);
-    }
+    // TODO: Implement request limit logic with Appwrite
+    // For now, set a default limit
+    setRequestLimit({
+      limit: 5,
+      used: 0,
+      remaining: 5,
+      resetsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
   };
 
-  const loadChatMessages = async (chatId: number) => {
+  const loadChatMessages = async (chatId: string) => {
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
-      
-      const response = await fetch(`/api/counselor/user/messages/${chatId}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to load chat messages");
-      const data = await response.json();
-      console.log(`Counselor page - Messages for chat ${chatId}:`, data.messages);
-      setChatMessages(data.messages || []);
+      const data = await getCounselorMessages(chatId);
+      console.log(`Counselor page - Messages for chat ${chatId}:`, data.documents);
+      setChatMessages(data.documents as unknown as AppwriteCounselorMessage[] || []);
     } catch (error) {
       console.error("Error loading chat messages:", error);
       toast.error("Failed to load chat messages");
@@ -153,25 +149,18 @@ function CounselorPage() {
 
     setIsSending(true);
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
-      
-      const response = await fetch(`/api/counselor/user/message/${activeChat.id}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: newMessage.trim(),
-          messageType: "text",
-        }),
+      if (!userId) throw new Error("No user ID available");
+
+      await createCounselorMessage({
+        chatId: activeChat.$id,
+        senderId: userId,
+        senderType: "user",
+        message: newMessage.trim(),
+        messageType: "text",
       });
 
-      if (!response.ok) throw new Error("Failed to send message");
-
       setNewMessage("");
-      loadChatMessages(activeChat.id);
+      loadChatMessages(activeChat.$id);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
@@ -187,7 +176,16 @@ function CounselorPage() {
   // Handle chat selection from sidebar
   useEffect(() => {
     if (activeChat) {
-      loadChatMessages(activeChat.id);
+      loadChatMessages(activeChat.$id);
+      
+      // Set up real-time subscription for new messages
+      const unsubscribe = subscribeToChatMessages(activeChat.$id, (newMessage) => {
+        setChatMessages(prev => [...prev, newMessage as AppwriteCounselorMessage]);
+      });
+      
+      return () => {
+        unsubscribe();
+      };
     }
   }, [activeChat]);
 
@@ -238,11 +236,11 @@ function CounselorPage() {
         
         {/* Counselor Section */}
         <div className="border-t border-gray-200 flex-1 flex flex-col min-h-0">
-          <CounselorSidebar
-            onSelectChat={setActiveChat}
-            onOpenRequestDialog={() => setCounselorRequestDialogOpen(true)}
-            selectedChatId={activeChat?.id || null}
-          />
+        <CounselorSidebar
+          onSelectChat={(chat) => setActiveChat(chat as unknown as AppwriteCounselorChat)}
+          onOpenRequestDialog={() => setCounselorRequestDialogOpen(true)}
+          selectedChatId={activeChat?.$id || null}
+        />
         </div>
       </div>
       
@@ -287,7 +285,7 @@ function CounselorPage() {
                   <div>
                     <CardTitle className="text-lg">Counselor Chat</CardTitle>
                     <CardDescription>
-                      Session started: {formatTime(activeChat.startedAt)}
+                      Session started: {formatTime(activeChat.startedAt || activeChat.$createdAt)}
                     </CardDescription>
                   </div>
                 </div>
@@ -299,7 +297,7 @@ function CounselorPage() {
                 <div className="space-y-4">
                   {chatMessages.map((message) => (
                     <div
-                      key={message.id}
+                      key={message.$id}
                       className={`flex ${
                         message.senderType === "user" ? "justify-end" : "justify-start"
                       }`}
@@ -313,7 +311,7 @@ function CounselorPage() {
                       >
                         <p className="text-sm">{message.message}</p>
                         <p className="text-xs opacity-70 mt-1">
-                          {formatTime(message.timestamp)}
+                          {formatTime(message.timestamp || message.$createdAt)}
                         </p>
                       </div>
                     </div>

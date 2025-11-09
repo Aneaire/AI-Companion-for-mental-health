@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "appwrite": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "mcp-server-appwrite",
+        "--sites",
+        "--databases"
+      ],
+      "enabled": true,
+      "environment": {
+        "APPWRITE_PROJECT_ID": "691040e8001b642b00e9",
+        "APPWRITE_API_KEY": "standard_74e8cd238b53440c6da20c7f17eddee9eba50324a38a763a3cbc90428729e38fafdc8f4a8bf33d1be69473404a3b6e24b0b779b88fac3021bf53478ce6af290c65a30b0a8bd87ca658a1c7feda5456a00e2620ca4d4e2f4b23543645f7b1a0751f60685e3664cd95840a3406bf3181e909caf29a730b0ab004ee0265d6b86086",
+        "APPWRITE_ENDPOINT": "https://sgp.cloud.appwrite.io/v1"
+      }
+    },
+    "appwrite-docs": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp-for-docs.appwrite.io"
+    }
+  }
+}

@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { AlertTriangle, Loader2, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { createCounselorRequest } from "@/services/appwriteService";
 
 interface CounselorRequestDialogProps {
   open: boolean;
@@ -26,7 +27,7 @@ export function CounselorRequestDialog({
   onRequestSubmitted,
   requestLimit 
 }: CounselorRequestDialogProps) {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const [requestReason, setRequestReason] = useState("");
   const [urgencyLevel, setUrgencyLevel] = useState<"low" | "medium" | "high" | "urgent">("medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,30 +50,19 @@ export function CounselorRequestDialog({
 
     setIsSubmitting(true);
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
+      if (!userId) throw new Error("No user ID available");
       
-      const response = await fetch("/api/counselor/request", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          requestReason: requestReason.trim(),
-          urgencyLevel,
-          userContext: {
-            requestedAt: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            source: "sidebar_dialog"
-          },
+      await createCounselorRequest({
+        userId,
+        requestReason: requestReason.trim(),
+        urgencyLevel,
+        status: "pending",
+        userContext: JSON.stringify({
+          requestedAt: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          source: "sidebar_dialog"
         }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to submit request");
-      }
 
       toast.success("Counselor request submitted successfully");
       setRequestReason("");

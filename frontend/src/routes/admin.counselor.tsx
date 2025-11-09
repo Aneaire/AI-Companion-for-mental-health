@@ -20,10 +20,20 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import {
+  getAllCounselorRequests,
+  getAllCounselorChats,
+  getCounselorChatWithMessages,
+  acceptCounselorRequest,
+  sendAdminMessage,
+  endCounselorChat,
+  subscribeToNewRequests,
+  subscribeToChatMessages,
+} from "@/services/appwriteAdminService";
 
 interface CounselorRequest {
-  id: number;
-  userId: number;
+  $id: string;
+  userId: string;
   status: "pending" | "accepted" | "completed" | "cancelled";
   requestReason: string;
   urgencyLevel: "low" | "medium" | "high";
@@ -33,7 +43,7 @@ interface CounselorRequest {
   completedAt?: string;
   adminNotes?: string;
   user?: {
-    id: number;
+    id: string;
     nickname?: string;
     firstName?: string;
     email: string;
@@ -41,10 +51,10 @@ interface CounselorRequest {
 }
 
 interface CounselorChat {
-  id: number;
-  requestId: number;
-  userId: number;
-  adminId: number;
+  $id: string;
+  requestId: string;
+  userId: string;
+  adminId: string;
   status: "active" | "ended" | "transferred";
   startedAt: string;
   endedAt?: string;
@@ -53,7 +63,7 @@ interface CounselorChat {
   transferReason?: string;
   adminSummary?: string;
   user?: {
-    id: number;
+    id: string;
     nickname?: string;
     firstName?: string;
     email: string;
@@ -62,9 +72,9 @@ interface CounselorChat {
 }
 
 interface CounselorMessage {
-  id: number;
-  chatId: number;
-  senderId: number;
+  $id: string;
+  chatId: string;
+  senderId: string;
   senderType: "user" | "admin";
   message: string;
   messageType: "text" | "system";
@@ -77,14 +87,14 @@ export const Route = createFileRoute("/admin/counselor")({
 });
 
 function CounselorDashboard() {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const [requests, setRequests] = useState<CounselorRequest[]>([]);
   const [chats, setChats] = useState<CounselorChat[]>([]);
   const [selectedChat, setSelectedChat] = useState<CounselorChat | null>(null);
   const [chatMessages, setChatMessages] = useState<CounselorMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isAccepting, setIsAccepting] = useState<number | null>(null);
+  const [isAccepting, setIsAccepting] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [activeView, setActiveView] = useState<"pending" | "current" | null>("current");
   const [isAccordionOpen, setIsAccordionOpen] = useState(true);
@@ -92,24 +102,38 @@ function CounselorDashboard() {
   useEffect(() => {
     fetchRequests();
     fetchChats();
+    
+    // Set up real-time subscription for new requests
+    const unsubscribeRequests = subscribeToNewRequests((newRequest) => {
+      setRequests(prev => [newRequest, ...prev]);
+      toast.info("New counselor request received");
+    });
+    
+    return () => {
+      unsubscribeRequests();
+    };
   }, []);
+
+  // Set up real-time subscription for chat messages when a chat is selected
+  useEffect(() => {
+    if (selectedChat) {
+      const unsubscribeMessages = subscribeToChatMessages(selectedChat.$id, (newMessage) => {
+        setChatMessages(prev => [...prev, newMessage]);
+      });
+      
+      return () => {
+        unsubscribeMessages();
+      };
+    }
+  }, [selectedChat]);
 
   const fetchRequests = async () => {
     try {
-      const token = await getToken();
-      console.log("Admin counselor - token:", token ? "found" : "not found");
-      if (!token) throw new Error("No authentication token available");
+      if (!userId) throw new Error("No user ID available");
       
-      const response = await fetch("/api/counselor/admin/requests", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      console.log("Admin counselor - response status:", response.status);
-      if (!response.ok) throw new Error(`Failed to fetch requests: ${response.status}`);
-      const data = await response.json();
-      console.log("Admin counselor - Admin requests:", data.requests);
-      setRequests(data.requests || []);
+      const data = await getAllCounselorRequests("pending");
+      console.log("Admin counselor - Admin requests:", data.documents);
+      setRequests(data.documents as any || []);
     } catch (error) {
       console.error("Error fetching requests:", error);
       toast.error(`Failed to load counselor requests: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -120,37 +144,23 @@ function CounselorDashboard() {
 
   const fetchChats = async () => {
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
+      if (!userId) throw new Error("No user ID available");
       
-      const response = await fetch("/api/counselor/admin/chats", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch chats");
-      const data = await response.json();
-      console.log("Admin counselor - Admin chats:", data.chats);
-      setChats(data.chats || []);
+      const data = await getAllCounselorChats(userId);
+      console.log("Admin counselor - Admin chats:", data.documents);
+      setChats(data.documents as any || []);
     } catch (error) {
       console.error("Error fetching chats:", error);
       toast.error("Failed to load counselor chats");
     }
   };
 
-  const acceptRequest = async (requestId: number) => {
+  const acceptRequest = async (requestId: string) => {
     setIsAccepting(requestId);
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
+      if (!userId) throw new Error("No user ID available");
       
-      const response = await fetch(`/api/counselor/admin/accept/${requestId}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to accept request");
+      await acceptCounselorRequest(requestId, userId);
       
       toast.success("Request accepted successfully");
       fetchRequests();
@@ -163,20 +173,11 @@ function CounselorDashboard() {
     }
   };
 
-  const loadChatMessages = async (chatId: number) => {
+  const loadChatMessages = async (chatId: string) => {
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
-      
-      const response = await fetch(`/api/counselor/chat/${chatId}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to load chat messages");
-      const data = await response.json();
+      const data = await getCounselorChatWithMessages(chatId);
       console.log(`Admin counselor - Messages for chat ${chatId}:`, data.messages);
-      setChatMessages(data.messages || []);
+      setChatMessages(data.messages as any || []);
     } catch (error) {
       console.error("Error loading chat messages:", error);
       toast.error("Failed to load chat messages");
@@ -188,25 +189,12 @@ function CounselorDashboard() {
 
     setIsSending(true);
     try {
-      const token = await getToken();
-      if (!token) throw new Error("No authentication token available");
+      if (!userId) throw new Error("No user ID available");
       
-      const response = await fetch(`/api/counselor/admin/message/${selectedChat.id}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: newMessage.trim(),
-          messageType: "text",
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to send message");
+      await sendAdminMessage(selectedChat.$id, userId, newMessage.trim());
 
       setNewMessage("");
-      loadChatMessages(selectedChat.id);
+      loadChatMessages(selectedChat.$id);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
@@ -215,7 +203,7 @@ function CounselorDashboard() {
     }
   };
 
-  const endChat = async (chatId: number) => {
+  const endChat = async (chatId: string) => {
     try {
       const response = await fetch(`/api/counselor/admin/end/${chatId}`, {
         method: "PUT",
@@ -258,7 +246,7 @@ function CounselorDashboard() {
 
   const selectChat = (chat: CounselorChat) => {
     setSelectedChat(chat);
-    loadChatMessages(chat.id);
+    loadChatMessages(chat.$id);
   };
 
   if (isLoading) {
@@ -340,9 +328,9 @@ function CounselorDashboard() {
                   .filter(c => c.status === "active")
                   .map((chat) => (
                     <div
-                      key={chat.id}
+                      key={chat.$id}
                       className={`cursor-pointer transition-all duration-200 rounded px-2 py-2 ${
-                        selectedChat?.id === chat.id 
+                        selectedChat?.$id === chat.$id 
                           ? "bg-blue-50 border border-blue-200" 
                           : "hover:bg-gray-50"
                       }`}
@@ -413,7 +401,7 @@ function CounselorDashboard() {
                 {requests
                   .filter(r => r.status === "pending")
                   .map((request) => (
-                    <Card key={request.id} className="hover:shadow-md transition-shadow">
+                    <Card key={request.$id} className="hover:shadow-md transition-shadow">
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
@@ -436,11 +424,11 @@ function CounselorDashboard() {
                             </div>
                           </div>
                           <Button
-                            onClick={() => acceptRequest(request.id)}
-                            disabled={isAccepting === request.id}
+                            onClick={() => acceptRequest(request.$id)}
+                            disabled={isAccepting === request.$id}
                             size="sm"
                           >
-                            {isAccepting === request.id ? (
+                            {isAccepting === request.$id ? (
                               <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                                 Accepting...
@@ -501,7 +489,7 @@ function CounselorDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => endChat(selectedChat.id)}
+                          onClick={() => endChat(selectedChat.$id)}
                         >
                           <X className="h-4 w-4 mr-2" />
                           End Session
@@ -515,7 +503,7 @@ function CounselorDashboard() {
                       <div className="space-y-4">
                         {chatMessages.map((message) => (
                           <div
-                            key={message.id}
+                            key={message.$id}
                             className={`flex ${
                               message.senderType === "admin" ? "justify-end" : "justify-start"
                             }`}
