@@ -22,6 +22,7 @@ import { Route as AdminManagementImport } from './routes/admin-management'
 import { Route as IndexImport } from './routes/index'
 import { Route as AdminIndexImport } from './routes/admin.index'
 import { Route as AdminCounselorImport } from './routes/admin.counselor'
+import { Route as AdminCounselorRefactoredImport } from './routes/admin.counselor.refactored'
 
 // Create/Update Routes
 
@@ -89,6 +90,12 @@ const AdminCounselorRoute = AdminCounselorImport.update({
   id: '/admin/counselor',
   path: '/admin/counselor',
   getParentRoute: () => rootRoute,
+} as any)
+
+const AdminCounselorRefactoredRoute = AdminCounselorRefactoredImport.update({
+  id: '/refactored',
+  path: '/refactored',
+  getParentRoute: () => AdminCounselorRoute,
 } as any)
 
 // Populate the FileRoutesByPath interface
@@ -172,10 +179,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexImport
       parentRoute: typeof rootRoute
     }
+    '/admin/counselor/refactored': {
+      id: '/admin/counselor/refactored'
+      path: '/refactored'
+      fullPath: '/admin/counselor/refactored'
+      preLoaderRoute: typeof AdminCounselorRefactoredImport
+      parentRoute: typeof AdminCounselorImport
+    }
   }
 }
 
 // Create and export the route tree
+
+interface AdminCounselorRouteChildren {
+  AdminCounselorRefactoredRoute: typeof AdminCounselorRefactoredRoute
+}
+
+const AdminCounselorRouteChildren: AdminCounselorRouteChildren = {
+  AdminCounselorRefactoredRoute: AdminCounselorRefactoredRoute,
+}
+
+const AdminCounselorRouteWithChildren = AdminCounselorRoute._addFileChildren(
+  AdminCounselorRouteChildren,
+)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -187,8 +213,9 @@ export interface FileRoutesByFullPath {
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
-  '/admin/counselor': typeof AdminCounselorRoute
+  '/admin/counselor': typeof AdminCounselorRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
 }
 
 export interface FileRoutesByTo {
@@ -201,8 +228,9 @@ export interface FileRoutesByTo {
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
-  '/admin/counselor': typeof AdminCounselorRoute
+  '/admin/counselor': typeof AdminCounselorRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
 }
 
 export interface FileRoutesById {
@@ -216,8 +244,9 @@ export interface FileRoutesById {
   '/persona-library': typeof PersonaLibraryRoute
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
-  '/admin/counselor': typeof AdminCounselorRoute
+  '/admin/counselor': typeof AdminCounselorRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
 }
 
 export interface FileRouteTypes {
@@ -234,6 +263,7 @@ export interface FileRouteTypes {
     | '/quality-analysis'
     | '/admin/counselor'
     | '/admin'
+    | '/admin/counselor/refactored'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -247,6 +277,7 @@ export interface FileRouteTypes {
     | '/quality-analysis'
     | '/admin/counselor'
     | '/admin'
+    | '/admin/counselor/refactored'
   id:
     | '__root__'
     | '/'
@@ -260,6 +291,7 @@ export interface FileRouteTypes {
     | '/quality-analysis'
     | '/admin/counselor'
     | '/admin/'
+    | '/admin/counselor/refactored'
   fileRoutesById: FileRoutesById
 }
 
@@ -273,7 +305,7 @@ export interface RootRouteChildren {
   PersonaLibraryRoute: typeof PersonaLibraryRoute
   PodcastRoute: typeof PodcastRoute
   QualityAnalysisRoute: typeof QualityAnalysisRoute
-  AdminCounselorRoute: typeof AdminCounselorRoute
+  AdminCounselorRoute: typeof AdminCounselorRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -287,7 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
   PersonaLibraryRoute: PersonaLibraryRoute,
   PodcastRoute: PodcastRoute,
   QualityAnalysisRoute: QualityAnalysisRoute,
-  AdminCounselorRoute: AdminCounselorRoute,
+  AdminCounselorRoute: AdminCounselorRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -342,10 +374,17 @@ export const routeTree = rootRoute
       "filePath": "quality-analysis.tsx"
     },
     "/admin/counselor": {
-      "filePath": "admin.counselor.tsx"
+      "filePath": "admin.counselor.tsx",
+      "children": [
+        "/admin/counselor/refactored"
+      ]
     },
     "/admin/": {
       "filePath": "admin.index.tsx"
+    },
+    "/admin/counselor/refactored": {
+      "filePath": "admin.counselor.refactored.tsx",
+      "parent": "/admin/counselor"
     }
   }
 }

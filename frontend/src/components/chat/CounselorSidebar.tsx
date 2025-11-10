@@ -131,21 +131,18 @@ export function CounselorSidebar({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full">
       {/* Header with Add Button */}
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-2">
-          <HeadphonesIcon className="h-4 w-4 text-blue-600" />
-          <span className="font-semibold text-sm">Counselor</span>
-        </div>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <span className="font-semibold text-lg text-gray-800">Counselor</span>
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6 rounded-full hover:bg-blue-100"
+          className="rounded-full hover:bg-blue-100"
           onClick={onOpenRequestDialog}
           title="Request Counselor"
         >
-          <Plus className="text-blue-600 h-3 w-3" />
+          <Plus className="text-blue-600" size={20} />
         </Button>
       </div>
 
@@ -165,11 +162,17 @@ export function CounselorSidebar({
                 <button
                   key={chat.$id}
                   onClick={() => onSelectChat(chat)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                  className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors duration-200 ${
                     selectedChatId === chat.$id
-                      ? "bg-blue-50 border-blue-200 shadow-sm"
-                      : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                      ? "bg-blue-50 text-blue-700 border-l-4 border-blue-500 font-semibold shadow-sm"
+                      : "text-gray-700 hover:bg-gray-100"
                   }`}
+                  style={{
+                    boxShadow:
+                      selectedChatId === chat.$id
+                        ? "0 2px 8px 0 rgba(59,130,246,0.08)"
+                        : undefined,
+                  }}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -206,15 +209,15 @@ export function CounselorSidebar({
             {requests
               .filter(req => req.status === "pending")
               .map((request) => (
-                <div
+                <button
                   key={request.$id}
-                  className="p-3 rounded-lg border border-yellow-200 bg-yellow-50"
+                  className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors duration-200 text-gray-700 hover:bg-gray-100"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                        <span className="font-medium text-sm">Pending Request</span>
+                        <span className="font-medium text-sm truncate">Pending Request</span>
                       </div>
                       <p className="text-xs text-gray-600 line-clamp-2 mb-2">
                         {request.requestReason}
@@ -232,7 +235,7 @@ export function CounselorSidebar({
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
 
             {/* Completed/Cancelled Requests */}

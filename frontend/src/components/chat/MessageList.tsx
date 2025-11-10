@@ -254,7 +254,7 @@ const MessageBubble = memo(({
 
   return (
     <div
-      className={`flex items-end gap-2 sm:gap-3 animate-in fade-in duration-300 ${
+      className={`flex items-end gap-2 sm:gap-3 animate-in fade-in duration-300 w-full ${
         isUser ? "justify-end" : "justify-start"
       } ${message.status === "failed" ? "opacity-75" : ""}`}
     >
@@ -725,10 +725,10 @@ export const MessageList = memo(function MessageList({
             );
           }
 
-           // For positioning: user and impostor messages appear on the right, AI messages appear on the left
-           // In impersonate mode: user (therapist) and impostor (patient) messages are on the right, ai/therapist (therapist AI) messages are on the left
-           // In regular mode: user messages are on the right, ai messages are on the left
-           const isUser = message.sender === "user" || message.sender === "impostor";
+           // For positioning: user, impostor, and therapist messages appear on the right, AI messages appear on the left
+            // In impersonate mode: user (therapist) and impostor (patient) messages are on the right, ai/therapist (therapist AI) messages are on the left
+            // In regular mode: user messages are on the right, ai messages are on the left
+            const isUser = message.sender === "user" || message.sender === "impostor" || message.sender === "therapist";
 
            // For play buttons: show for AI messages only when TTS is enabled
            const ttsEnabled = isImpersonateMode ? preferences?.enableTTS : preferences?.mainEnableTTS;

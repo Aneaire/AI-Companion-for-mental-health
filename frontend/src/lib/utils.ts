@@ -484,6 +484,48 @@ export function buildMessagesForObserver(
 }
 
 /**
+ * Format timestamp as relative time (Facebook style)
+ * Examples: "just now", "2m ago", "1h ago", "3d ago", "1w ago"
+ */
+export function formatRelativeTime(timestamp: string | Date): string {
+  const now = new Date();
+  const date = new Date(timestamp);
+
+  // Handle invalid dates
+  if (isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(Math.abs(diffMs) / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  // Future dates
+  if (diffMs < 0) {
+    if (diffSeconds < 30) return "in a moment";
+    if (diffSeconds < 60) return `in ${diffSeconds}s`;
+    if (diffMinutes < 60) return `in ${diffMinutes}m`;
+    if (diffHours < 24) return `in ${diffHours}h`;
+    return "in the future";
+  }
+
+  // Past dates - Facebook style
+  if (diffSeconds < 30) return "just now";
+  if (diffSeconds < 60) return `${diffSeconds}s ago`;
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffWeeks < 4) return `${diffWeeks}w ago`;
+  if (diffMonths < 12) return `${diffMonths}mo ago`;
+  return `${diffYears}y ago`;
+}
+
+/**
  * Validate and sanitize initial form data
  */
 export function sanitizeInitialForm(initialForm: any): any {

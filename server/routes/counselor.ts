@@ -441,11 +441,12 @@ const counselor = new Hono()
           urgencyLevel: counselorRequests.urgencyLevel,
           requestedAt: counselorRequests.requestedAt,
           acceptedAt: counselorRequests.acceptedAt,
-          user: {
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email,
-          },
+           user: {
+             nickname: users.nickname,
+             firstName: users.firstName,
+             lastName: users.lastName,
+             email: users.email,
+           },
         })
         .from(counselorRequests)
         .leftJoin(users, eq(counselorRequests.userId, users.id))
@@ -561,11 +562,12 @@ const counselor = new Hono()
           status: counselorChats.status,
           startedAt: counselorChats.startedAt,
           messageCount: counselorChats.messageCount,
-          user: {
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email,
-          },
+           user: {
+             nickname: users.nickname,
+             firstName: users.firstName,
+             lastName: users.lastName,
+             email: users.email,
+           },
           request: {
             requestReason: counselorRequests.requestReason,
             urgencyLevel: counselorRequests.urgencyLevel,

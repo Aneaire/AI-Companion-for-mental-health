@@ -1,12 +1,12 @@
-import { 
-  databases, 
+import {
+  databases,
   client,
-  DATABASE_ID, 
-  COUNSELOR_REQUESTS_COLLECTION, 
-  COUNSELOR_CHATS_COLLECTION, 
+  DATABASE_ID,
+  COUNSELOR_REQUESTS_COLLECTION,
+  COUNSELOR_CHATS_COLLECTION,
   COUNSELOR_MESSAGES_COLLECTION,
   ID,
-  Query 
+  Query
 } from '@/lib/appwrite';
 import type { CounselorRequest, CounselorChat, CounselorMessage } from '@/lib/appwriteSchema';
 
@@ -16,31 +16,58 @@ import type { CounselorRequest, CounselorChat, CounselorMessage } from '@/lib/ap
 export const getAllCounselorRequests = async (status?: string, page = 1, limit = 20) => {
   try {
     let queries = [];
-    
+
     if (status) {
       queries.push(Query.equal('status', status));
     }
-    
+
     // Add pagination
     const offset = (page - 1) * limit;
     queries.push(Query.limit(limit));
     queries.push(Query.offset(offset));
-    
+
     const requests = await databases.listDocuments(
       DATABASE_ID,
       COUNSELOR_REQUESTS_COLLECTION,
       queries.length > 0 ? queries : undefined
     );
-    
+
     // Get total count for pagination
     const totalCount = await databases.listDocuments(
       DATABASE_ID,
       COUNSELOR_REQUESTS_COLLECTION,
       status ? [Query.equal('status', status)] : undefined
     );
-    
+
+    // Fetch user data for each request
+    const requestsWithUsers = await Promise.all(
+      requests.documents.map(async (request: any) => {
+        try {
+          const response = await fetch(`/api/user/profile/${request.userId}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user profile: ${response.status}`);
+          }
+          const user = await response.json();
+          return {
+            ...request,
+            user: {
+              id: user.id,
+              nickname: user.nickname,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              profileImageUrl: user.profileImageUrl,
+            },
+          };
+        } catch (error) {
+          console.warn(`Could not fetch user data for request ${request.$id}:`, error);
+          return request;
+        }
+      })
+    );
+
     return {
-      documents: requests.documents,
+      documents: requestsWithUsers,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(totalCount.total / limit),
@@ -98,18 +125,48 @@ export const acceptCounselorRequest = async (requestId: string, adminId: string,
 export const getAllCounselorChats = async (adminId?: string) => {
   try {
     let queries = [Query.equal('status', 'active')];
-    
+
     if (adminId) {
       queries.push(Query.equal('adminId', adminId));
     }
-    
+
     const chats = await databases.listDocuments(
       DATABASE_ID,
       COUNSELOR_CHATS_COLLECTION,
       queries
     );
-    
-    return chats;
+
+    // Fetch user data for each chat
+    const chatsWithUsers = await Promise.all(
+      chats.documents.map(async (chat: any) => {
+        try {
+          const response = await fetch(`/api/user/profile/${chat.userId}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user profile: ${response.status}`);
+          }
+          const user = await response.json();
+          return {
+            ...chat,
+            user: {
+              id: user.id,
+              nickname: user.nickname,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              profileImageUrl: user.profileImageUrl,
+            },
+          };
+        } catch (error) {
+          console.warn(`Could not fetch user data for chat ${chat.$id}:`, error);
+          return chat;
+        }
+      })
+    );
+
+    return {
+      ...chats,
+      documents: chatsWithUsers,
+    };
   } catch (error) {
     console.error('Error fetching all counselor chats:', error);
     throw error;

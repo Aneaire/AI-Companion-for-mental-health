@@ -1,11 +1,11 @@
-import { 
-  databases, 
-  DATABASE_ID, 
-  COUNSELOR_REQUESTS_COLLECTION, 
-  COUNSELOR_CHATS_COLLECTION, 
+import {
+  databases,
+  DATABASE_ID,
+  COUNSELOR_REQUESTS_COLLECTION,
+  COUNSELOR_CHATS_COLLECTION,
   COUNSELOR_MESSAGES_COLLECTION,
   ID,
-  Query 
+  Query
 } from '@/lib/appwrite';
 import type { CounselorRequest, CounselorChat, CounselorMessage } from '@/lib/appwriteSchema';
 
@@ -31,21 +31,52 @@ export const createCounselorRequest = async (data: Omit<CounselorRequest, '$id' 
 export const getCounselorRequests = async (userId?: string, status?: string) => {
   try {
     let queries = [];
-    
+
     if (userId) {
       queries.push(Query.equal('userId', userId));
     }
-    
+
     if (status) {
       queries.push(Query.equal('status', status));
     }
-    
+
     const requests = await databases.listDocuments(
       DATABASE_ID,
       COUNSELOR_REQUESTS_COLLECTION,
       queries.length > 0 ? queries : undefined
     );
-    return requests;
+
+    // Fetch user data for each request
+    const requestsWithUsers = await Promise.all(
+      requests.documents.map(async (request: any) => {
+        try {
+          const response = await fetch(`/api/user/profile/${request.userId}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user profile: ${response.status}`);
+          }
+          const user = await response.json();
+          return {
+            ...request,
+            user: {
+              id: user.id,
+              nickname: user.nickname,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              profileImageUrl: user.profileImageUrl,
+            },
+          };
+        } catch (error) {
+          console.warn(`Could not fetch user data for request ${request.$id}:`, error);
+          return request;
+        }
+      })
+    );
+
+    return {
+      ...requests,
+      documents: requestsWithUsers,
+    };
   } catch (error) {
     console.error('Error fetching counselor requests:', error);
     throw error;
@@ -90,25 +121,56 @@ export const createCounselorChat = async (data: Omit<CounselorChat, '$id' | '$cr
 export const getCounselorChats = async (userId?: string, adminId?: string, status?: string) => {
   try {
     let queries = [];
-    
+
     if (userId) {
       queries.push(Query.equal('userId', userId));
     }
-    
+
     if (adminId) {
       queries.push(Query.equal('adminId', adminId));
     }
-    
+
     if (status) {
       queries.push(Query.equal('status', status));
     }
-    
+
     const chats = await databases.listDocuments(
       DATABASE_ID,
       COUNSELOR_CHATS_COLLECTION,
       queries.length > 0 ? queries : undefined
     );
-    return chats;
+
+    // Fetch user data for each chat
+    const chatsWithUsers = await Promise.all(
+      chats.documents.map(async (chat: any) => {
+        try {
+          const response = await fetch(`/api/user/profile/${chat.userId}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch user profile: ${response.status}`);
+          }
+          const user = await response.json();
+          return {
+            ...chat,
+            user: {
+              id: user.id,
+              nickname: user.nickname,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              profileImageUrl: user.profileImageUrl,
+            },
+          };
+        } catch (error) {
+          console.warn(`Could not fetch user data for chat ${chat.$id}:`, error);
+          return chat;
+        }
+      })
+    );
+
+    return {
+      ...chats,
+      documents: chatsWithUsers,
+    };
   } catch (error) {
     console.error('Error fetching counselor chats:', error);
     throw error;
