@@ -1,4 +1,4 @@
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, createFileRoute } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Route as rootRoute } from "./__root";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
@@ -21,7 +21,7 @@ interface ThreadAnalysis {
   summary: string;
 }
 
-export const Route = createRoute({
+export const Route = createRoute("/quality-analysis")({
   getParentRoute: () => rootRoute,
   path: "/quality-analysis",
   component: QualityAnalysis,

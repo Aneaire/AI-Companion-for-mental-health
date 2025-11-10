@@ -8,200 +8,81 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as QualityAnalysisRouteImport } from './routes/quality-analysis'
+import { Route as PodcastRouteImport } from './routes/podcast'
+import { Route as PersonaLibraryRouteImport } from './routes/persona-library'
+import { Route as ImpersonateRouteImport } from './routes/impersonate'
+import { Route as ElevenlabsTtsTestRouteImport } from './routes/elevenlabs-tts-test'
+import { Route as ElevenlabsTestRouteImport } from './routes/elevenlabs-test'
+import { Route as CounselorRouteImport } from './routes/counselor'
+import { Route as AdminManagementRouteImport } from './routes/admin-management'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminCounselorRouteImport } from './routes/admin.counselor'
+import { Route as AdminCounselorRefactoredRouteImport } from './routes/admin.counselor.refactored'
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as QualityAnalysisImport } from './routes/quality-analysis'
-import { Route as PodcastImport } from './routes/podcast'
-import { Route as PersonaLibraryImport } from './routes/persona-library'
-import { Route as ImpersonateImport } from './routes/impersonate'
-import { Route as ElevenlabsTtsTestImport } from './routes/elevenlabs-tts-test'
-import { Route as ElevenlabsTestImport } from './routes/elevenlabs-test'
-import { Route as CounselorImport } from './routes/counselor'
-import { Route as AdminManagementImport } from './routes/admin-management'
-import { Route as IndexImport } from './routes/index'
-import { Route as AdminIndexImport } from './routes/admin.index'
-import { Route as AdminCounselorImport } from './routes/admin.counselor'
-import { Route as AdminCounselorRefactoredImport } from './routes/admin.counselor.refactored'
-
-// Create/Update Routes
-
-const QualityAnalysisRoute = QualityAnalysisImport.update({
+const QualityAnalysisRoute = QualityAnalysisRouteImport.update({
   id: '/quality-analysis',
   path: '/quality-analysis',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const PodcastRoute = PodcastImport.update({
+const PodcastRoute = PodcastRouteImport.update({
   id: '/podcast',
   path: '/podcast',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const PersonaLibraryRoute = PersonaLibraryImport.update({
+const PersonaLibraryRoute = PersonaLibraryRouteImport.update({
   id: '/persona-library',
   path: '/persona-library',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const ImpersonateRoute = ImpersonateImport.update({
+const ImpersonateRoute = ImpersonateRouteImport.update({
   id: '/impersonate',
   path: '/impersonate',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const ElevenlabsTtsTestRoute = ElevenlabsTtsTestImport.update({
+const ElevenlabsTtsTestRoute = ElevenlabsTtsTestRouteImport.update({
   id: '/elevenlabs-tts-test',
   path: '/elevenlabs-tts-test',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const ElevenlabsTestRoute = ElevenlabsTestImport.update({
+const ElevenlabsTestRoute = ElevenlabsTestRouteImport.update({
   id: '/elevenlabs-test',
   path: '/elevenlabs-test',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const CounselorRoute = CounselorImport.update({
+const CounselorRoute = CounselorRouteImport.update({
   id: '/counselor',
   path: '/counselor',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AdminManagementRoute = AdminManagementImport.update({
+const AdminManagementRoute = AdminManagementRouteImport.update({
   id: '/admin-management',
   path: '/admin-management',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const IndexRoute = IndexImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AdminIndexRoute = AdminIndexImport.update({
+const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AdminCounselorRoute = AdminCounselorImport.update({
+const AdminCounselorRoute = AdminCounselorRouteImport.update({
   id: '/admin/counselor',
   path: '/admin/counselor',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AdminCounselorRefactoredRoute = AdminCounselorRefactoredImport.update({
-  id: '/refactored',
-  path: '/refactored',
-  getParentRoute: () => AdminCounselorRoute,
-} as any)
-
-// Populate the FileRoutesByPath interface
-
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/admin-management': {
-      id: '/admin-management'
-      path: '/admin-management'
-      fullPath: '/admin-management'
-      preLoaderRoute: typeof AdminManagementImport
-      parentRoute: typeof rootRoute
-    }
-    '/counselor': {
-      id: '/counselor'
-      path: '/counselor'
-      fullPath: '/counselor'
-      preLoaderRoute: typeof CounselorImport
-      parentRoute: typeof rootRoute
-    }
-    '/elevenlabs-test': {
-      id: '/elevenlabs-test'
-      path: '/elevenlabs-test'
-      fullPath: '/elevenlabs-test'
-      preLoaderRoute: typeof ElevenlabsTestImport
-      parentRoute: typeof rootRoute
-    }
-    '/elevenlabs-tts-test': {
-      id: '/elevenlabs-tts-test'
-      path: '/elevenlabs-tts-test'
-      fullPath: '/elevenlabs-tts-test'
-      preLoaderRoute: typeof ElevenlabsTtsTestImport
-      parentRoute: typeof rootRoute
-    }
-    '/impersonate': {
-      id: '/impersonate'
-      path: '/impersonate'
-      fullPath: '/impersonate'
-      preLoaderRoute: typeof ImpersonateImport
-      parentRoute: typeof rootRoute
-    }
-    '/persona-library': {
-      id: '/persona-library'
-      path: '/persona-library'
-      fullPath: '/persona-library'
-      preLoaderRoute: typeof PersonaLibraryImport
-      parentRoute: typeof rootRoute
-    }
-    '/podcast': {
-      id: '/podcast'
-      path: '/podcast'
-      fullPath: '/podcast'
-      preLoaderRoute: typeof PodcastImport
-      parentRoute: typeof rootRoute
-    }
-    '/quality-analysis': {
-      id: '/quality-analysis'
-      path: '/quality-analysis'
-      fullPath: '/quality-analysis'
-      preLoaderRoute: typeof QualityAnalysisImport
-      parentRoute: typeof rootRoute
-    }
-    '/admin/counselor': {
-      id: '/admin/counselor'
-      path: '/admin/counselor'
-      fullPath: '/admin/counselor'
-      preLoaderRoute: typeof AdminCounselorImport
-      parentRoute: typeof rootRoute
-    }
-    '/admin/': {
-      id: '/admin/'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminIndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/admin/counselor/refactored': {
-      id: '/admin/counselor/refactored'
-      path: '/refactored'
-      fullPath: '/admin/counselor/refactored'
-      preLoaderRoute: typeof AdminCounselorRefactoredImport
-      parentRoute: typeof AdminCounselorImport
-    }
-  }
-}
-
-// Create and export the route tree
-
-interface AdminCounselorRouteChildren {
-  AdminCounselorRefactoredRoute: typeof AdminCounselorRefactoredRoute
-}
-
-const AdminCounselorRouteChildren: AdminCounselorRouteChildren = {
-  AdminCounselorRefactoredRoute: AdminCounselorRefactoredRoute,
-}
-
-const AdminCounselorRouteWithChildren = AdminCounselorRoute._addFileChildren(
-  AdminCounselorRouteChildren,
-)
+const AdminCounselorRefactoredRoute =
+  AdminCounselorRefactoredRouteImport.update({
+    id: '/refactored',
+    path: '/refactored',
+    getParentRoute: () => AdminCounselorRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -217,7 +98,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
 }
-
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-management': typeof AdminManagementRoute
@@ -232,9 +112,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
 }
-
 export interface FileRoutesById {
-  __root__: typeof rootRoute
+  __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin-management': typeof AdminManagementRoute
   '/counselor': typeof CounselorRoute
@@ -248,7 +127,6 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
 }
-
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
@@ -294,7 +172,6 @@ export interface FileRouteTypes {
     | '/admin/counselor/refactored'
   fileRoutesById: FileRoutesById
 }
-
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminManagementRoute: typeof AdminManagementRoute
@@ -309,6 +186,107 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/quality-analysis': {
+      id: '/quality-analysis'
+      path: '/quality-analysis'
+      fullPath: '/quality-analysis'
+      preLoaderRoute: typeof QualityAnalysisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/podcast': {
+      id: '/podcast'
+      path: '/podcast'
+      fullPath: '/podcast'
+      preLoaderRoute: typeof PodcastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/persona-library': {
+      id: '/persona-library'
+      path: '/persona-library'
+      fullPath: '/persona-library'
+      preLoaderRoute: typeof PersonaLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impersonate': {
+      id: '/impersonate'
+      path: '/impersonate'
+      fullPath: '/impersonate'
+      preLoaderRoute: typeof ImpersonateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/elevenlabs-tts-test': {
+      id: '/elevenlabs-tts-test'
+      path: '/elevenlabs-tts-test'
+      fullPath: '/elevenlabs-tts-test'
+      preLoaderRoute: typeof ElevenlabsTtsTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/elevenlabs-test': {
+      id: '/elevenlabs-test'
+      path: '/elevenlabs-test'
+      fullPath: '/elevenlabs-test'
+      preLoaderRoute: typeof ElevenlabsTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/counselor': {
+      id: '/counselor'
+      path: '/counselor'
+      fullPath: '/counselor'
+      preLoaderRoute: typeof CounselorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-management': {
+      id: '/admin-management'
+      path: '/admin-management'
+      fullPath: '/admin-management'
+      preLoaderRoute: typeof AdminManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/counselor': {
+      id: '/admin/counselor'
+      path: '/admin/counselor'
+      fullPath: '/admin/counselor'
+      preLoaderRoute: typeof AdminCounselorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/counselor/refactored': {
+      id: '/admin/counselor/refactored'
+      path: '/refactored'
+      fullPath: '/admin/counselor/refactored'
+      preLoaderRoute: typeof AdminCounselorRefactoredRouteImport
+      parentRoute: typeof AdminCounselorRoute
+    }
+  }
+}
+
+interface AdminCounselorRouteChildren {
+  AdminCounselorRefactoredRoute: typeof AdminCounselorRefactoredRoute
+}
+
+const AdminCounselorRouteChildren: AdminCounselorRouteChildren = {
+  AdminCounselorRefactoredRoute: AdminCounselorRefactoredRoute,
+}
+
+const AdminCounselorRouteWithChildren = AdminCounselorRoute._addFileChildren(
+  AdminCounselorRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminManagementRoute: AdminManagementRoute,
@@ -322,70 +300,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminCounselorRoute: AdminCounselorRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/",
-        "/admin-management",
-        "/counselor",
-        "/elevenlabs-test",
-        "/elevenlabs-tts-test",
-        "/impersonate",
-        "/persona-library",
-        "/podcast",
-        "/quality-analysis",
-        "/admin/counselor",
-        "/admin/"
-      ]
-    },
-    "/": {
-      "filePath": "index.tsx"
-    },
-    "/admin-management": {
-      "filePath": "admin-management.tsx"
-    },
-    "/counselor": {
-      "filePath": "counselor.tsx"
-    },
-    "/elevenlabs-test": {
-      "filePath": "elevenlabs-test.tsx"
-    },
-    "/elevenlabs-tts-test": {
-      "filePath": "elevenlabs-tts-test.tsx"
-    },
-    "/impersonate": {
-      "filePath": "impersonate.tsx"
-    },
-    "/persona-library": {
-      "filePath": "persona-library.tsx"
-    },
-    "/podcast": {
-      "filePath": "podcast.tsx"
-    },
-    "/quality-analysis": {
-      "filePath": "quality-analysis.tsx"
-    },
-    "/admin/counselor": {
-      "filePath": "admin.counselor.tsx",
-      "children": [
-        "/admin/counselor/refactored"
-      ]
-    },
-    "/admin/": {
-      "filePath": "admin.index.tsx"
-    },
-    "/admin/counselor/refactored": {
-      "filePath": "admin.counselor.refactored.tsx",
-      "parent": "/admin/counselor"
-    }
-  }
-}
-ROUTE_MANIFEST_END */

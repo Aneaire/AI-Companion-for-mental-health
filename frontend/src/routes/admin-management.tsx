@@ -1,4 +1,4 @@
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, createFileRoute } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Users, Settings, Save, Plus, Edit, Trash2 } from "lucide-react";
 
-export const Route = createRoute({
+export const Route = createRoute("/admin-management")({
   getParentRoute: () => rootRoute,
   path: "/admin-management",
   component: AdminManagement,

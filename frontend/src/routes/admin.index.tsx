@@ -1,4 +1,4 @@
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, createFileRoute } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { Route as rootRoute } from "./__root";
@@ -72,7 +72,7 @@ const personaNames: Record<number, string> = {
 
 const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#f97316', '#6366f1'];
 
-export const Route = createRoute({
+export const Route = createRoute('/admin/')({
   getParentRoute: () => rootRoute,
   path: "/admin",
   component: AdminDashboard,
