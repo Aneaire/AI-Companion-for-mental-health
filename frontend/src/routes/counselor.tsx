@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { useAuth } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 import { useChatStore } from "@/stores/chatStore";
 import {
   MessageCircle,
@@ -17,15 +17,16 @@ import {
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { CounselorSidebar } from "@/components/chat/CounselorSidebar";
 import { CounselorRequestDialog } from "@/components/chat/CounselorRequestDialog";
-import { 
-  getCounselorRequests, 
-  getCounselorChats, 
-  getCounselorMessages, 
+import {
+  getCounselorRequests,
+  getCounselorChats,
+  getCounselorMessages,
   createCounselorMessage,
   subscribeToChatMessages,
   subscribeToCounselorRequests
 } from "@/services/appwriteService";
 import type { CounselorRequest, CounselorChat, CounselorMessage } from "@/lib/appwriteSchema";
+import { formatRelativeTime } from "@/lib/utils";
 
 // Extended interfaces to include Appwrite document properties
 interface AppwriteCounselorRequest extends CounselorRequest {
@@ -38,6 +39,11 @@ interface AppwriteCounselorChat extends CounselorChat {
   $id: string;
   $createdAt: string;
   $updatedAt: string;
+  counselor?: {
+    profileImageUrl?: string;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 interface AppwriteCounselorMessage extends CounselorMessage {
@@ -58,7 +64,7 @@ export const Route = createFileRoute("/counselor")({
 });
 
 function CounselorPage() {
-  const { getToken, userId } = useAuth();
+  const { user } = useUser();
   const { conversationPreferences, setConversationPreferences } = useChatStore();
   const [requests, setRequests] = useState<AppwriteCounselorRequest[]>([]);
   const [activeChat, setActiveChat] = useState<AppwriteCounselorChat | null>(null);
@@ -66,9 +72,14 @@ function CounselorPage() {
   const [requestLimit, setRequestLimit] = useState<RequestLimit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [newMessage, setNewMessage] = useState("");
-  
+
+  // Auto-scroll refs and state
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   // Counselor dialog state
   const [counselorRequestDialogOpen, setCounselorRequestDialogOpen] = useState(false);
 
@@ -77,8 +88,8 @@ function CounselorPage() {
     fetchRequestLimit();
     
     // Set up real-time subscription for request updates
-    if (userId) {
-      const unsubscribe = subscribeToCounselorRequests(userId, (updatedRequest: any) => {
+    if (user?.id) {
+      const unsubscribe = subscribeToCounselorRequests(user.id, (updatedRequest: any) => {
         setRequests(prev => {
           const index = prev.findIndex(req => req.$id === updatedRequest.$id);
           if (index !== -1) {
@@ -95,7 +106,7 @@ function CounselorPage() {
         unsubscribe();
       };
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -109,9 +120,9 @@ function CounselorPage() {
 
   const fetchRequests = async () => {
     try {
-      if (!userId) throw new Error("No user ID available");
+      if (!user?.id) throw new Error("No user ID available");
       
-      const data = await getCounselorRequests(userId);
+      const data = await getCounselorRequests(user.id);
       console.log("Counselor page - User requests:", data.documents);
       setRequests(data.documents as unknown as AppwriteCounselorRequest[] || []);
     } catch (error) {
@@ -149,11 +160,11 @@ function CounselorPage() {
 
     setIsSending(true);
     try {
-      if (!userId) throw new Error("No user ID available");
+      if (!user?.id) throw new Error("No user ID available");
 
       await createCounselorMessage({
         chatId: activeChat.$id,
-        senderId: userId,
+        senderId: user.id,
         senderType: "user",
         message: newMessage.trim(),
         messageType: "text",
@@ -170,24 +181,69 @@ function CounselorPage() {
   };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    return formatRelativeTime(timestamp);
+  };
+
+  // Handle scroll events to track if user is at bottom
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const isAtBottom = Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) < 50; // 50px threshold
+    setIsScrolledToBottom(isAtBottom);
+  };
+
+  // Auto-scroll to bottom if user was already scrolled to bottom
+  const scrollToBottom = () => {
+    if (scrollAreaRef.current && isScrolledToBottom) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  };
+
+  // Initial scroll to bottom when messages are loaded
+  const scrollToBottomInitial = () => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        setIsScrolledToBottom(true); // Mark as at bottom after initial scroll
+      }
+    }
   };
 
   // Handle chat selection from sidebar
   useEffect(() => {
     if (activeChat) {
+      setIsInitialLoad(true); // Reset for new chat
       loadChatMessages(activeChat.$id);
-      
+
       // Set up real-time subscription for new messages
       const unsubscribe = subscribeToChatMessages(activeChat.$id, (newMessage) => {
         setChatMessages(prev => [...prev, newMessage as AppwriteCounselorMessage]);
       });
-      
+
       return () => {
         unsubscribe();
       };
     }
   }, [activeChat]);
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      if (isInitialLoad) {
+        // Initial load - always scroll to bottom
+        setTimeout(() => {
+          scrollToBottomInitial();
+          setIsInitialLoad(false);
+        }, 100);
+      } else {
+        // Subsequent messages - only scroll if user was at bottom
+        scrollToBottom();
+      }
+    }
+  }, [chatMessages]);
 
   const handleRequestSubmitted = () => {
     fetchRequests();
@@ -205,10 +261,12 @@ function CounselorPage() {
         />
       </div>
       
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
-        {/* Navigation Section */}
-        <div className="p-3 border-b border-gray-200">
+      {/* Sidebar - Hidden on mobile, overlay when open */}
+       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col h-full md:relative md:translate-x-0 ${
+         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+       }`}>
+        {/* Navigation Section - Sticky on mobile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-3 md:relative md:z-auto">
           <div className="flex flex-col gap-1">
             <a
               href="/"
@@ -235,7 +293,7 @@ function CounselorPage() {
         </div>
         
         {/* Counselor Section */}
-        <div className="border-t border-gray-200 flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <CounselorSidebar
           onSelectChat={(chat) => setActiveChat(chat as unknown as AppwriteCounselorChat)}
           onOpenRequestDialog={() => setCounselorRequestDialogOpen(true)}
@@ -243,9 +301,17 @@ function CounselorPage() {
         />
         </div>
       </div>
-      
+
+      {/* Mobile Backdrop - Only covers area behind sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-y-0 left-64 right-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-30 md:ml-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="animate-spin h-8 w-8" />
@@ -272,84 +338,188 @@ function CounselorPage() {
               )}
             </div>
           </div>
-        ) : (
-          <Card className="h-full flex flex-col m-6">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback>
+          ) : (
+            <div className="flex flex-col h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
+             {/* Mobile Header */}
+              <div className="md:hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/60 px-3 py-2 sticky top-16 z-10">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsSidebarOpen(true)}
+                      className="p-1.5"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                   <div>
+                     <h2 className="text-base font-semibold text-gray-800">Counselor Chat</h2>
+                     <p className="text-xs text-gray-600">
+                       Session started: {formatTime(activeChat.startedAt || activeChat.$createdAt)}
+                     </p>
+                   </div>
+                 </div>
+<Avatar className="w-8 h-8 border-2 border-white shadow-sm">
+                    <AvatarImage src={user?.imageUrl} alt={user?.firstName || "User"} />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                       <User className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">Counselor Chat</CardTitle>
-                    <CardDescription>
-                      Session started: {formatTime(activeChat.startedAt || activeChat.$createdAt)}
-                    </CardDescription>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="flex-1 flex flex-col p-0">
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {chatMessages.map((message) => (
-                    <div
-                      key={message.$id}
-                      className={`flex ${
-                        message.senderType === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          message.senderType === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
-                      >
-                        <p className="text-sm">{message.message}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {formatTime(message.timestamp || message.$createdAt)}
-                        </p>
-                      </div>
+               </div>
+             </div>
+
+             {/* Desktop Header with subtle shadow */}
+             <div className="hidden md:block relative z-10">
+                <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm px-4 py-3">
+                  <div className="flex items-center gap-2">
+<Avatar className="w-8 h-8 border-2 border-white shadow-sm">
+                      <AvatarImage src={user?.imageUrl} alt={user?.firstName || "User"} />
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h2 className="text-base font-semibold text-gray-800">Counselor Chat</h2>
+                      <p className="text-xs text-gray-600">
+                        Session started: {formatTime(activeChat.startedAt || activeChat.$createdAt)}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-              
-              <div className="p-4 border-t">
-                <div className="flex gap-2">
-                  <Textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    className="flex-1 min-h-[40px] max-h-[120px]"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim() || isSending}
-                    size="sm"
-                    className="self-end"
-                  >
-                    {isSending ? (
-                      <Loader2 className="animate-spin h-4 w-4" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                 </div>
+               </div>
+             </div>
+             
+             {/* Main Content Area with enhanced styling */}
+              <main className="flex-1 overflow-hidden md:pb-0 w-full flex h-full flex-col relative bg-white/60 backdrop-blur-sm md:rounded-b-2xl md:border-x md:border-b border-gray-200/60 md:shadow-lg">
+                <ScrollArea
+                  ref={scrollAreaRef}
+                  className="flex-1 h-full min-h-0"
+                  onScroll={handleScroll}
+                >
+                    <div className="px-2 md:px-3 pt-20 md:pt-4 pb-3 md:pb-4">
+                   {chatMessages.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center h-64 text-center">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-3">
+                          <MessageCircle size={24} className="text-blue-600" />
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-800 mb-2">
+                          Start Your Counselor Conversation
+                        </h3>
+                        <p className="text-xs text-gray-600 max-w-md">
+                          Send a message to begin your conversation with the counselor.
+                        </p>
+                     </div>
+                   ) : (
+                      <div className="space-y-2 sm:space-y-3">
+                       {chatMessages.map((message, index) => {
+                         const isUser = message.senderType === "user";
+                         const isConsecutive = index > 0 && chatMessages[index - 1]?.senderType === message.senderType;
+                         
+                         return (
+                            <div
+                              key={message.$id}
+                              className={`flex items-end gap-1.5 sm:gap-2 animate-in fade-in duration-300 ${
+                                isUser ? "justify-end" : "justify-start"
+                              } ${isConsecutive ? "mt-0.5" : "mt-1"}`}
+                            >
+{!isUser && (
+                                  <div className="flex flex-col items-center">
+                                   <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white shadow-sm rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                       <User size={10} className="text-white sm:w-3.5 sm:h-3.5" />
+                                     </div>
+                                  </div>
+                                )}
+                             
+                               <div className={`max-w-[75%] sm:max-w-[70%] group relative ${isConsecutive ? "mt-0.5" : "mt-0"}`}>
+                                <div
+                                  className={`rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 shadow-sm transition-all duration-200 hover:shadow-md ${
+                                    isUser
+                                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                      : "bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-800"
+                                  }`}
+                                  role="article"
+                                  aria-label={isUser ? "User message" : "Counselor message"}
+                                >
+                                  <div className={`prose prose-sm max-w-none ${isUser ? "prose-invert" : ""} [&_p]:mb-1 sm:[&_p]:mb-1.5 [&_p:last-child]:mb-0`}>
+                                    <p className="text-sm sm:text-base">{message.message}</p>
+                                  </div>
+                                  <p className={`text-xs mt-0.5 ${isUser ? "text-blue-100" : "text-gray-500"}`}>
+                                    {formatTime(message.timestamp || message.$createdAt)}
+                                  </p>
+                                </div>
+                              </div>
+                             
+{isUser && (
+                                   <div className="flex flex-col items-center">
+                                      <Avatar className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white shadow-sm">
+                                        <AvatarImage src={user?.imageUrl} alt={user?.firstName || "User"} />
+                                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                                          <User size={10} className="text-white sm:w-3.5 sm:h-3.5" />
+                                        </AvatarFallback>
+                                      </Avatar>
+                                   </div>
+                                 )}
+                           </div>
+                         );
+                       })}
+                     </div>
+                   )}
+                 </div>
+               </ScrollArea>
+               
+               {/* Enhanced Input Area */}
+                <div className="sticky bottom-0 bg-white/90 backdrop-blur-sm border-t border-gray-200/50 p-3">
+                 <div className="w-full mx-auto bg-white/50 backdrop-blur-sm">
+                   <div className="relative">
+                      <div className="flex items-end gap-1.5 p-1.5 sm:p-2 bg-white rounded-lg border border-gray-200 shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all duration-200">
+                       <Textarea
+                         value={newMessage}
+                         onChange={(e) => setNewMessage(e.target.value)}
+                         placeholder="Type your message..."
+                          className="flex-1 min-h-[32px] sm:min-h-[36px] max-h-20 sm:max-h-28 resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-sm sm:text-base"
+                         disabled={isSending}
+                         onKeyDown={(e) => {
+                           if (e.key === "Enter" && !e.shiftKey) {
+                             e.preventDefault();
+                             sendMessage();
+                           }
+                         }}
+                       />
+                       <Button
+                         onClick={sendMessage}
+                         disabled={!newMessage.trim() || isSending}
+                         size="sm"
+                           className="shrink-0 h-8 sm:h-8 px-2 sm:px-2"
+                       >
+                         <div className="flex items-center">
+                           {isSending ? (
+                              <Loader2 size={12} className="mr-1 sm:w-3.5 sm:h-3.5 animate-spin" />
+                           ) : (
+                              <Send size={12} className="mr-1 sm:w-3.5 sm:h-3.5" />
+                           )}
+                            <span className="text-xs">{isSending ? "Sending..." : "Send"}</span>
+                         </div>
+                       </Button>
+                     </div>
+                   </div>
+                   <div className="mt-2 text-xs text-gray-500 text-center px-2">
+                     Press Enter to send, Shift+Enter for a new line
+                   </div>
+                 </div>
+               </div>
+             </main>
+             
+             {/* Subtle background pattern overlay */}
+             <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
+               <div
+                 className="absolute inset-0"
+                 style={{
+                   backgroundImage: `radial-gradient(circle at 1px 1px, rgba(99, 102, 241, 0.3) 1px, transparent 0)`,
+                   backgroundSize: "20px 20px",
+                 }}
+               ></div>
+             </div>
+           </div>
+         )}
       </div>
 
       {/* Counselor Request Dialog */}
