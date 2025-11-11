@@ -62,9 +62,9 @@ export function ChatHeader({
 
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900">
-                  AI Companion
-                </h1>
+                 <h1 className="text-xl font-bold text-gray-900">
+                   Companion
+                 </h1>
                 <Badge variant="outline" className="text-xs">
                   <Sparkles size={10} className="mr-1" />
                   Active

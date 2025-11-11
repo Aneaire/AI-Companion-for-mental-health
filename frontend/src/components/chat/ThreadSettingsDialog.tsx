@@ -82,13 +82,8 @@ export function ThreadSettingsDialog({
   // Use thread-specific preferences for conversation tab, global preferences otherwise
   const currentPreferences = context === "impersonate" && selectedThreadId ? threadPreferences : preferences;
 
-  // ElevenLabs model options
-  const elevenLabsModels = [
-    { id: "eleven_v3", name: "Eleven v3" },
-    { id: "eleven_flash_v2_5", name: "Eleven Flash v2.5" },
-    { id: "eleven_flash_v2", name: "Eleven Flash v2" },
-    { id: "eleven_turbo_v2", name: "Eleven Turbo v2" },
-  ];
+  // ElevenLabs model - fixed to Eleven Flash v2.5 only
+  const elevenLabsModel = { id: "eleven_flash_v2_5", name: "Eleven Flash v2.5" };
 
   // Fetch voices when dialog opens
   useEffect(() => {
@@ -418,54 +413,21 @@ export function ThreadSettingsDialog({
                 <div className="space-y-3">
                   <Label className="text-base">ElevenLabs Model</Label>
                   <p className="text-sm text-gray-600">
-                    Choose the AI model for text-to-speech generation
+                    Text-to-speech model (Eleven Flash v2.5 - fixed)
                   </p>
-                  <Select
-                    value={
-                      context === "main"
-                        ? preferences.mainTTSModel || "eleven_flash_v2_5"
-                        : currentPreferences.therapistModel || "eleven_flash_v2_5"
-                    }
-                    onValueChange={(value) =>
-                      updateVoicePreference(
-                        context === "main" ? "mainTTSModel" : "therapistModel",
-                        value
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {elevenLabsModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
+                    <span className="text-sm font-medium">Eleven Flash v2.5</span>
+                    <span className="text-xs text-gray-500">Default model</span>
+                  </div>
                   {context === "impersonate" && (
                     <div className="mt-4">
                       <Label className="text-sm font-medium">
                         Impostor Model
                       </Label>
-                      <Select
-                        value={currentPreferences.impostorModel || "eleven_flash_v2_5"}
-                        onValueChange={(value) =>
-                          updateVoicePreference("impostorModel", value)
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select impostor model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {elevenLabsModels.map((model) => (
-                            <SelectItem key={model.id} value={model.id}>
-                              {model.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
+                        <span className="text-sm font-medium">Eleven Flash v2.5</span>
+                        <span className="text-xs text-gray-500">Default model</span>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -2858,35 +2858,12 @@ export function ImpersonateThread({
                 <div className="w-full h-full bg-green-400 rounded-full animate-pulse" />
               </div>
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900">
-                  AI Impersonation
-                </h1>
-                <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                  Therapist & Patient
-                </div>
-                 <div
-                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                     conversationCompleted
-                       ? "bg-green-100 text-green-700"
-                       : conversationPhase === "diagnosis"
-                         ? "bg-blue-100 text-blue-700"
-                         : conversationPhase === "story_development"
-                           ? "bg-purple-100 text-purple-700"
-                           : "bg-green-100 text-green-700"
-                   }`}
-                 >
-                   {conversationCompleted
-                     ? "Session Complete"
-                     : conversationPhase === "diagnosis"
-                       ? "Phase 1: Diagnosis"
-                       : conversationPhase === "story_development"
-                         ? "Phase 2: Stories"
-                         : "Phase 3: Resolution"}{" "}
-                   {conversationCompleted ? "" : `(Turn ${turnCount})`}
-                  </div>
-              </div>
+             <div className="flex flex-col">
+               <div className="flex items-center gap-2">
+                 <h1 className="text-xl font-bold text-gray-900">
+                   Impersonation
+                 </h1>
+               </div>
               <p className="text-sm text-gray-600">
                 Interactive role-playing for therapeutic scenarios
               </p>

@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit generate && drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:seed": "bun seed.ts",
     "dev:frontend": "cd frontend && bun run dev",
     "dev:server": "bun --watch server/index.ts",
     "dev:all": "concurrently \"bun run dev:frontend\" \"bun run dev:server\""

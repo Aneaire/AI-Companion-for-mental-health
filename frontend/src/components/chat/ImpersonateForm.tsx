@@ -6,6 +6,7 @@ import {
   Book,
   Brain,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Heart,
@@ -16,7 +17,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
@@ -121,6 +122,9 @@ export function ImpersonateForm({
     null
   );
 
+  const selectedTemplateRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Fetch available templates
   const { data: templates, isLoading: templatesLoading } = useQuery({
     queryKey: ["personaTemplates"],
@@ -183,6 +187,8 @@ export function ImpersonateForm({
       setSelectedTraits([]);
     }
   }, [selectedTemplateId, templates]);
+
+
 
   const form = useForm<ImpersonateFormData>({
     resolver: zodResolver(impersonateSchema),
@@ -255,6 +261,15 @@ export function ImpersonateForm({
     setSelectedTraits((prev) =>
       prev.includes(trait) ? prev.filter((t) => t !== trait) : [...prev, trait]
     );
+  };
+
+  const scrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   const isStepComplete = (step: number) => {
@@ -376,8 +391,9 @@ export function ImpersonateForm({
               </div>
 
               {selectedTemplateId && (
-                <Card className="mt-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-                  <CardContent className="p-4">
+                <div ref={selectedTemplateRef}>
+                  <Card className="mt-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -416,8 +432,9 @@ export function ImpersonateForm({
                         })()}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
             </div>
           </div>
@@ -856,7 +873,10 @@ export function ImpersonateForm({
   };
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+    <div
+      ref={scrollContainerRef}
+      className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 sm:p-6 max-h-[90vh] overflow-y-auto"
+    >
       <div className="max-w-xl mx-auto">
         {/* Compact Header */}
         <div className="text-center mb-3">
@@ -993,6 +1013,15 @@ export function ImpersonateForm({
           </p>
         </div>
       </div>
+
+      {/* Floating Scroll to Bottom Button */}
+      <Button
+        onClick={scrollToBottom}
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 z-50"
+        size="sm"
+      >
+        <ChevronDown className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

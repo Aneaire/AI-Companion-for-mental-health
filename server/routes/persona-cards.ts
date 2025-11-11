@@ -530,19 +530,17 @@ const personaCards = new Hono()
           description?: string;
         }>;
 
-
-
-        // Build comprehensive context for AI analysis
-        const analysisContext = {
-          userMessage: message,
-          initialForm: initialForm,
-          conversationHistory: conversationHistory.slice(-5), // Last 5 messages for context
-          availablePersonas: personaArray.filter(p => p).map((p: any) => ({
-            id: (p && p.id) ? p.id : 0,
-            name: (p && p.name) ? p.name : '',
-            description: (p && p.description) ? p.description : ''
-          }))
-        };
+         // Build comprehensive context for AI analysis
+         const analysisContext = {
+           userMessage: message,
+           initialForm: initialForm,
+           conversationHistory: conversationHistory.slice(-10), // Last 10 messages for context to detect consecutive gibberish
+           availablePersonas: personaArray.filter(p => p).map((p: any) => ({
+             id: (p && p.id) ? p.id : 0,
+             name: (p && p.name) ? p.name : '',
+             description: (p && p.description) ? p.description : ''
+           }))
+         };
 
         // Use AI to intelligently select persona and detect crisis
         const aiAnalysisPrompt = `
@@ -550,10 +548,11 @@ You are an intelligent conversation analyst. Analyze the complete context and ma
 
 USER MESSAGE: "${message}"
 INITIAL FORM DATA: ${JSON.stringify(initialForm || {})}
-RECENT CONVERSATION HISTORY: ${JSON.stringify(conversationHistory.slice(-3).map(msg => ({
+RECENT CONVERSATION HISTORY: ${JSON.stringify(conversationHistory.slice(-10).map(msg => ({
            role: msg.role,
-           text: "conversation context available"
+           text: msg.parts?.[0]?.text || ""
          })))}
+CONSECUTIVE GIBBERISH CHECK: Analyze the last 10 messages for 3+ consecutive gibberish responses
 
 AVAILABLE PERSONAS:
 ${personaArray.map(p => `- ${p.id}: ${p.description || p.name}`).join('\n')}
@@ -577,14 +576,21 @@ ANALYSIS TASKS:
    - If anger detected, select "anchor" persona for de-escalation
    - Do not select anchor for mild frustration - only clear anger/hostility
 
- 3. GIBBERISH & NONSENSE DETECTION:
-    - Detect random gibberish, nonsense words, or meaningless input that prevents conversation progress
-    - Look for patterns: random characters, word salad, completely irrelevant responses, repeated nonsense
-    - Keywords indicating nonsense: "asdf", "qwerty", random letters, repeated gibberish, incoherent text
-    - Behavioral signals: continuous random input, refusal to communicate meaningfully, repeated nonsense patterns
-    - Filipino nonsense indicators: random Filipino words mixed incorrectly, "kjdflg", "asdfgh", meaningless combinations
-    - If clear nonsense detected and conversation cannot progress, select "direct_engager" persona to stop the behavior
-    - Only select "direct_engager" for persistent nonsense, not occasional typos or language difficulties
+  3. GIBBERISH & NONSENSE DETECTION:
+     - Detect persistent random gibberish or meaningless input that prevents meaningful conversation
+     - DO NOT flag casual greetings, millennial slang, or normal conversational language as gibberish
+     - Allow millennial/Gen Z language: "hello", "hi", "hey", "sup", "yo", "bruh", "lol", "lmao", "omg", "wtf", "idk", "tbh", "fr", "cap", "no cap", "sus", "bet", "vibes", "mood", "flex", "yeet", "lit", "fire", "trash", "salamat", "opo", "po", "kamusta", "ok lang", "sige", "tara", "grabe", "haist", "naman", "bakit", "ano", "gusto", "ayoko"
+     - Analyze CONVERSATION HISTORY for patterns: Check if the last 3+ user messages are gibberish
+     - Look for patterns: random characters, word salad, completely irrelevant responses, repeated nonsense, keyboard mashing
+     - Keywords indicating nonsense: "asdf", "qwerty", "lkajskjd", "990dasf", "ajsdkj", random letters, repeated gibberish, incoherent text
+     - Character patterns: excessive consonants without vowels (lkajskjd), random numbers mixed with letters (990dasf), meaningless sequences
+     - Length-based detection: Very short random strings (< 3 chars) that are gibberish, or long strings (>50 chars) of random characters
+     - Entropy analysis: High randomness with no recognizable words or patterns
+     - Behavioral signals: 3+ consecutive random inputs, persistent refusal to communicate meaningfully, repeated nonsense patterns
+     - Filipino nonsense indicators: random Filipino words mixed incorrectly, "kjdflg", "asdfgh", meaningless combinations
+     - Only select "direct_engager" after detecting 3+ consecutive gibberish responses in conversation history
+     - Be very conservative - prefer normal conversation personas unless clearly persistent nonsense across multiple messages
+     - Allow for occasional gibberish or typos without triggering direct intervention
 
  4. SOPHISTICATED CRISIS DETECTION:
     - Look for GENUINE emergency indicators: specific plans, immediate intent, severe distress
@@ -593,12 +599,15 @@ ANALYSIS TASKS:
     - Require clear indicators of danger or immediate risk
     - DO NOT trigger crisis for general emotional distress, venting, or difficult life situations
 
- 5. NATURAL LANGUAGE DETECTION (Philippine Focus):
-   - Detect if user primarily uses Filipino, Taglish, English, or mixed languages
-   - PRIORITIZE Filipino/Tagalog for Philippine users - respond in Filipino/Tagalog unless user clearly wants English
-   - Consider code-switching patterns and cultural expressions
-   - Match the language style naturally - if user uses Tagalog, respond in Tagalog
-   - Filipino indicators: "po", "opo", "ho", "ba", "pa", "na", "ko", "ka", "ta", "ni", "si", "ang", "ng", "sa", "kay"
+  5. NATURAL LANGUAGE DETECTION (Philippine Focus):
+    - DEFAULT TO FILIPINO: Always prioritize Filipino/Tagalog responses unless user explicitly uses ONLY English with NO Filipino elements
+    - Detect if user primarily uses Filipino, Taglish, English, or mixed languages
+    - STRONG FILIPINO PRIORITY: For Philippine users, respond in Filipino/Tagalog by default - only use English if user consistently writes in pure English
+    - Consider code-switching patterns and cultural expressions
+    - Match the language style naturally - if user uses any Tagalog, respond in Tagalog
+    - Filipino indicators: "po", "opo", "ho", "ba", "pa", "na", "ko", "ka", "ta", "ni", "si", "ang", "ng", "sa", "kay", "haist", "naman", "grabe", "bakit", "ano", "paano", "sana", "kasi", "lang", "gusto", "ayoko", "masakit", "masaya", "malungkot"
+    - Taglish detection: Any mixing of Filipino and English words
+    - Filipino expressions: "Hay nako", "Susmaryosep", "Luh", "Gosh", "Ayoko na", "Gusto ko", "Masakit ang ulo ko", "Masaya ako", "Malungkot ako"
 
 Output schema:
 {
@@ -606,8 +615,9 @@ Output schema:
   "persona": "listener" | "guide" | "crisis" | "companion" | "anchor" | "confrontational" | "direct_engager",
   "isAngry": boolean,
   "isCrisis": boolean,
+  "consecutiveGibberish": number,
   "confidence": "low" | "medium" | "high",
-  "reasoning": "short summary of how you decided"
+  "reasoning": "short summary of how you decided - include consecutive gibberish analysis"
 }`;
 
         const analysisModel = gemini.getGenerativeModel({
@@ -624,13 +634,14 @@ Your core mission:
 
 Follow these heuristics:
 
-1. **Language Intelligence** (Philippine Priority)
-   - PRIORITIZE Filipino/Tagalog detection for Philippine users - default to Filipino/Tagalog responses unless clearly English-only.
+1. **Language Intelligence** (STRONG Filipino Priority)
+   - DEFAULT TO FILIPINO: Always respond in Filipino/Tagalog unless the user uses PURE ENGLISH with absolutely no Filipino words or expressions
+   - STRONG FILIPINO BIAS: For any Philippine context, prioritize Filipino/Tagalog responses - err on the side of Filipino
    - Infer the user's main language (filipino, taglish, english, or mixed) by analyzing syntax, sentiment markers, and idioms.
-   - Detect Filipino/Tagalog cues: "haist", "naman", "grabe", "bakit", "ano", "paano", "sana", "kasi", "lang", "na", "ko", "mo", "po", "opo", "salamat", "wag", "huwag", "tayo", "kami", "sila".
-   - Taglish detection: Mixed Filipino-English patterns, code-switching between languages.
-   - Filipino expressions: "Hay nako", "Susmaryosep", "Luh", "Gosh", "Ayoko", "Gusto ko", "Masakit", "Masaya", "Malungkot".
-   - Only respond in English if the user consistently uses English with no Filipino elements.
+   - Detect Filipino/Tagalog cues: "haist", "naman", "grabe", "bakit", "ano", "paano", "sana", "kasi", "lang", "na", "ko", "mo", "po", "opo", "salamat", "wag", "huwag", "tayo", "kami", "sila", "masakit", "masaya", "malungkot", "gusto", "ayoko"
+   - Taglish detection: Any mixing of Filipino and English words, even minimal mixing
+   - Filipino expressions: "Hay nako", "Susmaryosep", "Luh", "Gosh", "Ayoko na", "Gusto ko", "Masakit ang ulo ko", "Masaya ako", "Malungkot ako", "Kamusta", "Salamat po"
+   - ENGLISH ONLY EXCEPTION: Only respond in English if the entire message is in perfect, academic English with zero Filipino influence
 
 2. **Persona Inference**
    - Choose the best persona based on emotional weight, conversational trajectory, and tone.
@@ -645,10 +656,11 @@ Follow these heuristics:
    - If no clear evidence, return "isCrisis": false with "confidence": "low".
 
 4. **Output Rules**
-   - Respond with pure JSON — no Markdown, no extra commentary.
-   - Include your reasoning summary for transparency.
-   - Be conservative: only set "isCrisis": true if high confidence and imminent risk.
-   - IMPORTANT: When "language" is "filipino" or "taglish", the selected persona MUST respond in Filipino/Tagalog in the actual conversation.`
+  - Respond with pure JSON — no Markdown, no extra commentary.
+  - Include your reasoning summary for transparency.
+  - Be conservative: only set "isCrisis": true if high confidence and imminent risk.
+  - CRITICAL: When "language" is "filipino", "taglish", or "mixed", the selected persona MUST respond in Filipino/Tagalog in the actual conversation.
+  - Only set "language": "english" if the user message is 100% pure English with no Filipino words, expressions, or influences.`
             }]
           }
         });
@@ -664,43 +676,50 @@ Follow these heuristics:
            const analysisResult = await analysisSession.sendMessage(aiAnalysisPrompt);
            const analysisText = analysisResult.response.text();
 
-           // Parse AI analysis
-           const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
+            // Parse AI analysis
+            const analysis = JSON.parse(analysisText.replace(/```json/g, '').replace(/```/g, '').trim());
 
+            // Select persona based on AI analysis
+            let chosenPersona = personaArray.find(p => p.id === analysis.persona);
 
-
-           // Select persona based on AI analysis
-           let chosenPersona = personaArray.find(p => p.id === analysis.persona);
-
-           // Override with anchor persona if anger detected
-           if (analysis.isAngry && (!analysis.confidence || analysis.confidence !== 'low')) {
-              const anchorPersona = personaArray.find(p => p.id === 'anchor');
-              if (anchorPersona) {
-                chosenPersona = anchorPersona;
-              }
+            // Override with anchor persona if anger detected
+            if (analysis.isAngry && (!analysis.confidence || analysis.confidence !== 'low')) {
+               const anchorPersona = personaArray.find(p => p.id === 'anchor');
+               if (anchorPersona) {
+                 chosenPersona = anchorPersona;
+               }
             }
 
-          if (chosenPersona) {
-            selectedPersona = chosenPersona.id;
-            personaSystemInstruction = chosenPersona.systemInstruction;
-            
-            // Track persona selection for analytics
-            await trackPersonaSelection(selectedPersona);
-          }
+            // Override with direct_engager only if 3+ consecutive gibberish detected
+            if (analysis.persona === 'direct_engager' && (!analysis.consecutiveGibberish || analysis.consecutiveGibberish < 3)) {
+               // Not enough consecutive gibberish, fall back to listener
+               const listenerPersona = personaArray.find(p => p.id === 'listener');
+               if (listenerPersona) {
+                 chosenPersona = listenerPersona;
+               }
+            }
+
+           if (chosenPersona) {
+             selectedPersona = chosenPersona.id;
+             personaSystemInstruction = chosenPersona.systemInstruction;
+
+             // Track persona selection for analytics
+             await trackPersonaSelection(selectedPersona);
+           }
 
 
 
-        } catch (analysisError) {
-          logger.error("AI analysis failed, using default listener:", analysisError);
-          // Fallback to default listener persona
-          const listenerPersona = (personas as any).listener || personaArray.find((p) => 
-            p.id.includes('listener') || p.name.toLowerCase().includes('listener')
-          );
-          if (listenerPersona) {
-            selectedPersona = listenerPersona.id;
-            personaSystemInstruction = listenerPersona.systemInstruction;
-          }
-        }
+         } catch (analysisError) {
+           logger.error("AI analysis failed, using default listener:", analysisError);
+           // Fallback to default listener persona
+           const listenerPersona = (personas as any).listener || personaArray.find((p) =>
+             p.id.includes('listener') || p.name.toLowerCase().includes('listener')
+           );
+           if (listenerPersona) {
+             selectedPersona = listenerPersona.id;
+             personaSystemInstruction = listenerPersona.systemInstruction;
+           }
+         }
 
       } catch (error) {
         logger.error("Error in AI-driven persona selection:", error);
@@ -715,7 +734,8 @@ ${personaSystemInstruction}
 
 **Dynamic Cognitive Directives**
 - Adapt to the user's emotional, cultural, and linguistic state in real time.
-- Seamlessly detect and respond in English, Filipino, or Taglish.
+- PRIORITIZE FILIPINO: Default to Filipino/Tagalog responses for Philippine users unless explicitly using pure English.
+- Seamlessly detect and respond in Filipino/Tagalog primarily, with English only as exception.
 - Never mention language switching; it must feel natural and intuitive.
 
 **Adaptive Persona Behavior**
@@ -744,8 +764,9 @@ ${personaSystemInstruction}
 
 **Response Style**
 - Sound genuinely human, empathetic, and culturally aware.
-- Apply Filipino warmth or subtle indirectness where suitable.
-- Prioritize clarity, brevity, and empathy over verbosity.
+- STRONG FILIPINO FOCUS: Use Filipino warmth, indirect communication, and cultural expressions as primary style.
+- Incorporate Filipino phrases naturally: "Naiintindihan ko", "Andito ako para sa iyo", "Kaya mo yan", "Tara, pag-usapan natin".
+- Prioritize clarity, brevity, and empathy with Filipino cultural sensitivity.
 `;
 
       // Add conversation preferences
