@@ -69,13 +69,140 @@ app.use('/*', serveStatic({
   }
 }));
 
-// Health check endpoint
-app.get('/api/health', (c) => {
-  return c.json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    service: 'mental-health-ai-chat'
-  });
+// Health check endpoint with comprehensive checks
+app.get('/api/health', async (c) => {
+  const startTime = Date.now();
+  const checks = {
+    database: false,
+    environment: false,
+    memory: false,
+    apis: false,
+  };
+
+  const errors: string[] = [];
+
+  try {
+    // 1. Database connectivity check
+    try {
+      const { db } = await import('./db/config');
+      await db.execute('SELECT 1');
+      checks.database = true;
+    } catch (error: any) {
+      errors.push(`Database check failed: ${error?.message || 'Unknown error'}`);
+    }
+
+    // 2. Environment variables check
+    const requiredEnvVars = [
+      'DATABASE_URL',
+      'GEMINI_API_KEY',
+      'ANTHROPIC_KEY',
+      'CLERK_SECRET_KEY'
+    ];
+
+    const optionalEnvVars = [
+      'ELEVENLABS_API_KEY',
+      'VITE_CLERK_PUBLISHABLE_KEY'
+    ];
+
+    const missingRequired = requiredEnvVars.filter(key => !process.env[key]);
+    const missingOptional = optionalEnvVars.filter(key => !process.env[key]);
+
+    if (missingRequired.length > 0) {
+      errors.push(`Missing required environment variables: ${missingRequired.join(', ')}`);
+    } else {
+      checks.environment = true;
+    }
+
+    if (missingOptional.length > 0) {
+      errors.push(`Missing optional environment variables: ${missingOptional.join(', ')}`);
+    }
+
+    // 3. Memory usage check
+    const memUsage = process.memoryUsage();
+    const memUsageMB = {
+      rss: Math.round(memUsage.rss / 1024 / 1024),
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+      external: Math.round(memUsage.external / 1024 / 1024),
+    };
+
+    // Check if memory usage is reasonable (< 500MB heap used)
+    if (memUsageMB.heapUsed < 500) {
+      checks.memory = true;
+    } else {
+      errors.push(`High memory usage: ${memUsageMB.heapUsed}MB heap used`);
+    }
+
+    // 4. External API connectivity check (basic ping)
+    const apiChecks = [];
+
+    // Check Gemini API (if key is available)
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'test' }] }] }),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (geminiResponse.ok || geminiResponse.status === 400) { // 400 is expected for invalid request
+          apiChecks.push('gemini');
+        }
+      } catch (error: any) {
+        errors.push(`Gemini API check failed: ${error?.message || 'Unknown error'}`);
+      }
+    }
+
+
+
+    // Check ElevenLabs API (if key is available)
+    if (process.env.ELEVENLABS_API_KEY) {
+      try {
+        const elevenlabsResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
+          headers: {
+            'xi-api-key': process.env.ELEVENLABS_API_KEY
+          },
+          signal: AbortSignal.timeout(5000)
+        });
+        if (elevenlabsResponse.ok) {
+          apiChecks.push('elevenlabs');
+        }
+      } catch (error: any) {
+        errors.push(`ElevenLabs API check failed: ${error?.message || 'Unknown error'}`);
+      }
+    }
+
+    checks.apis = apiChecks.length > 0;
+
+    const responseTime = Date.now() - startTime;
+    const overallStatus = errors.length === 0 ? 'healthy' : 'degraded';
+
+    return c.json({
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      service: 'mental-health-ai-chat',
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      responseTime: `${responseTime}ms`,
+      checks,
+      memory: memUsageMB,
+      apis: {
+        available: apiChecks,
+        total: apiChecks.length
+      },
+      ...(errors.length > 0 && { errors })
+    });
+
+  } catch (error: any) {
+    return c.json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      service: 'mental-health-ai-chat',
+      error: error?.message || 'Unknown error',
+      responseTime: `${Date.now() - startTime}ms`
+    }, 503);
+  }
 });
 
 // Serve index.html for all non-API routes (SPA routing)

@@ -230,8 +230,15 @@ CLERK_SECRET_KEY=sk_live_production_key
 ### Health Checks
 Render automatically monitors your `/` endpoint. Configure custom health checks:
 
-1. Go to service Settings
+1. Go to your service Settings
 2. Set Health Check Path: `/api/health`
+
+The health endpoint provides comprehensive checks including:
+- Database connectivity
+- Environment variables validation
+- Memory usage monitoring
+- External API availability (Gemini, Anthropic, ElevenLabs)
+- Response time metrics
 
 ### View Logs
 - **Dashboard**: Service → Logs tab

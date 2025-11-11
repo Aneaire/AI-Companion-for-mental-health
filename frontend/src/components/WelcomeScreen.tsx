@@ -31,13 +31,26 @@ export const WelcomeScreen = () => {
       const checkUserProfile = async () => {
         setIsCheckingProfile(true);
         try {
-          const response = await fetch(`/api/user/profile/${user.id}`);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+          const response = await fetch(`/api/user/profile/${user.id}`, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
           if (response.status === 404) {
             // User doesn't have a profile yet, show the dialog
+            setShowProfileDialog(true);
+          } else if (!response.ok) {
+            console.error("Profile check failed:", response.status, response.statusText);
+            // Still show dialog on other errors to allow profile creation
             setShowProfileDialog(true);
           }
         } catch (error) {
           console.error("Error checking user profile:", error);
+          // On network errors, still allow profile creation
+          setShowProfileDialog(true);
         } finally {
           setIsCheckingProfile(false);
         }
