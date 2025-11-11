@@ -242,6 +242,7 @@ export function Thread({
   const [dialogSessionId, setDialogSessionId] = useState<number | null>(null);
   const [justCreatedNewSession, setJustCreatedNewSession] = useState(false);
   const [followupFormData, setFollowupFormData] = useState<Record<string, any> | null>(null);
+  const [crisisSectionDismissed, setCrisisSectionDismissed] = useState(false);
 
   // Thread management functions (memoized to prevent recreating on every render)
   const handleDeleteThread = useCallback(async (threadId: number) => {
@@ -912,17 +913,26 @@ export function Thread({
               showPersonaBadge={showPersonaInMessages}
              />
          </div>
-         {/* Crisis Button Section - Only show when crisis is detected or crisis_support persona is selected */}
-         {(crisisDetected || selectedPersona === 'crisis_support') && (
-           <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-6 py-4">
-             <div className="flex items-center justify-between">
-               <div className="text-sm text-gray-600">
-                 Need immediate support? Connect with a trained counselor.
-               </div>
-               <CrisisButton className="shrink-0" />
-             </div>
-           </div>
-         )}
+          {/* Crisis Button Section - Only show when crisis is detected or crisis_support persona is selected */}
+          {(crisisDetected || selectedPersona === 'crisis_support') && !crisisSectionDismissed && (
+            <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setCrisisSectionDismissed(true)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors mr-2"
+                  aria-label="Dismiss crisis support section"
+                >
+                  <X size={16} />
+                </button>
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="text-sm text-gray-600">
+                    Need immediate support? Connect with a trained counselor.
+                  </div>
+                </div>
+                <CrisisButton className="shrink-0" />
+              </div>
+            </div>
+          )}
        </div>
 
       {/* Visual indicator for form answers being used */}

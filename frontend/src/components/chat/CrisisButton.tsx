@@ -99,14 +99,14 @@ export function CrisisButton({ className }: CrisisButtonProps) {
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        variant="destructive"
+        variant="default"
         size="lg"
-        className={`relative overflow-hidden group ${className}`}
+        className={`relative overflow-hidden group bg-green-600 hover:bg-green-700 text-white ${className}`}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         <div className="relative flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 animate-pulse" />
-          <span className="font-semibold">Need to Talk to a Counselor?</span>
+          <span className="font-semibold">Need a talk?</span>
         </div>
       </Button>
 
