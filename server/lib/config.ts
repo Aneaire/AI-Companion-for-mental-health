@@ -1,4 +1,7 @@
 export const geminiConfig = {
+  // Default model to use
+  model: "gemini-1.5-flash",
+
   // Flash Models (optimized for speed and efficiency)
   twoFlash: "gemini-2.5-flash-lite",
   twoPoint5Flash: "gemini-2.5-flash-lite",

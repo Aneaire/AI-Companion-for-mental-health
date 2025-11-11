@@ -10,7 +10,7 @@ import { messages, sessionForms, sessions, threads } from "../db/schema";
 import { logger } from "../lib/logger";
 
 // Initialize Gemini
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 // Define enhanced schema for quality analysis request
 export const qualityRequestSchema = z.object({
@@ -235,8 +235,32 @@ async function analyzeMessageQuality(
     forms: any[];
   } | null
 ) {
+  if (!gemini) {
+    return {
+      overallProgress: 0,
+      emotionalStability: 0,
+      communicationClarity: 0,
+      problemSolving: 0,
+      recommendations: ["AI service not configured"],
+      crisisDetected: false,
+      summary: "Unable to analyze - AI service not available"
+    };
+  }
+
   // Use provided thread context if available, or try to get it from session info
   let fullContext = threadContext;
+
+  if (!gemini) {
+    return {
+      overallProgress: 0,
+      emotionalStability: 0,
+      communicationClarity: 0,
+      problemSolving: 0,
+      recommendations: ["AI service not configured"],
+      crisisDetected: false,
+      summary: "Unable to analyze - AI service not available"
+    };
+  }
 
   const model = gemini.getGenerativeModel({
     model: geminiConfig.twoPoint5FlashLite,

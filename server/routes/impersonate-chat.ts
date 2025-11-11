@@ -18,7 +18,7 @@ import {
   threads,
 } from "../db/schema";
 
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 const saveConversationToFile = async (
   sessionId: number,
@@ -968,6 +968,10 @@ You are an AI designed to realistically roleplay as a highly empathetic, support
       }
     }
 
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
+
     const model = gemini.getGenerativeModel({
       model: geminiConfig.twoPoint5FlashLite,
       systemInstruction: {
@@ -1587,6 +1591,10 @@ Expected output:
       ) {
         maxTokens = 600; // Allow slightly more if consistently brief
       }
+
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
 
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,

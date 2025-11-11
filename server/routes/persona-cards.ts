@@ -24,7 +24,7 @@ import {
 import { logger } from "../lib/logger";
 
 // Initialize Gemini
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 // Load personas configuration
 let personasConfig: any = null;
@@ -773,6 +773,10 @@ ${personaSystemInstruction}
 
         systemInstructionText += prefsText;
       }
+
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
 
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5Flash,

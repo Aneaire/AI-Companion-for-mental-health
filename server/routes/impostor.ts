@@ -9,7 +9,7 @@ import { db } from "../db/config";
 import { impersonateThread, messages, persona } from "../db/schema";
 
 // Initialize Gemini
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 const profileSchema = z.object({
   userId: z.number(),
@@ -254,6 +254,10 @@ ${
 
     try {
       // Get response from Gemini (streaming) with flexible token limits for natural conversation
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
+
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,
         generationConfig: {

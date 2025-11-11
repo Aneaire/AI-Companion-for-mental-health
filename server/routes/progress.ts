@@ -2,9 +2,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Hono } from "hono";
 import { geminiConfig } from "server/lib/config";
 
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 const progressRoute = new Hono().post("/", async (c) => {
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
+
   const body = await c.req.json();
   const { context } = body;
 

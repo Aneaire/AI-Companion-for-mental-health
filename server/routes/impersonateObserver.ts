@@ -9,7 +9,7 @@ import { geminiConfig } from "../lib/config";
 import { logger } from "../lib/logger";
 
 // Initialize Gemini
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 // Impersonate observer logging function
 const logImpersonateObserverCall = async (
@@ -192,6 +192,10 @@ async function analyzeWithImpersonateGemini(
   rationale: string;
   next_steps: string[];
 }> {
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
+
   const model = gemini.getGenerativeModel({
     model: geminiConfig.twoPoint5FlashLite,
   });

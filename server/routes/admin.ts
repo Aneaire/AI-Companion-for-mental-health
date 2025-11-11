@@ -9,7 +9,7 @@ import { geminiConfig } from "../lib/config";
 import { logger } from "../lib/logger";
 
 // Initialize Gemini
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 // Using same streaming approach as working chat - no chunk processing needed
 
@@ -459,6 +459,10 @@ You must internally analyze each query to understand:
 **CRITICAL: DO NOT SHOW YOUR THINKING PROCESS. Skip any "ANALYSIS:" or "DECODE:" sections and go straight to the answer the admin needs.**`;
 
       // Initialize Gemini model for streaming analysis
+  if (!gemini) {
+    return c.json({ error: "AI service not configured" }, 503);
+  }
+
       const model = gemini.getGenerativeModel({
         model: geminiConfig.twoPoint5FlashLite,
         systemInstruction: {
