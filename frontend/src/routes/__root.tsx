@@ -81,11 +81,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         setIsCheckingProfile(true);
       } else {
         setIsCheckingProfile(false);
-        if (isError) {
+        if (isError || userProfile === null) {
           setIsProfileOpen(true);
         }
       }
-    }, [isError, isProfileLoading]);
+    }, [isError, isProfileLoading, userProfile]);
 
     return (
       <TooltipProvider>
