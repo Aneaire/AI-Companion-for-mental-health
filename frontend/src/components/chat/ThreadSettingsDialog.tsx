@@ -170,15 +170,15 @@ export function ThreadSettingsDialog({
                 value="conversation"
                 className="flex items-center gap-2"
               >
-                <MessageSquare size={16} />
+                <MessageSquare size={16} className="hidden sm:block" />
                 Conversation
               </TabsTrigger>
               <TabsTrigger value="voice" className="flex items-center gap-2">
-                <Volume2 size={16} />
+                <Volume2 size={16} className="hidden sm:block" />
                 Voice
               </TabsTrigger>
               <TabsTrigger value="thread" className="flex items-center gap-2">
-                <User size={16} />
+                <User size={16} className="hidden sm:block" />
                 Thread
               </TabsTrigger>
             </TabsList>
