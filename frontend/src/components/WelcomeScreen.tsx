@@ -91,7 +91,7 @@ export const WelcomeScreen = () => {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold tracking-tight">
-              AI Smart Therapist
+              AI Smart Companion
             </CardTitle>
             <CardDescription className="text-slate-500">
               Your personal mental health companion
