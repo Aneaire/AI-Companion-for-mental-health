@@ -68,6 +68,8 @@ app.use('/logo2.png', serveStatic({ path: './frontend/dist/logo2.png' }));
 app.use('/manifest.json', serveStatic({ path: './frontend/dist/manifest.json' }));
 app.use('/robots.txt', serveStatic({ path: './frontend/dist/robots.txt' }));
 
+
+
 // Health check endpoint with comprehensive checks
 app.get('/api/health', async (c) => {
   const startTime = Date.now();
