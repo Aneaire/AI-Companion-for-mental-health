@@ -114,7 +114,7 @@ export function ChatInterface({
 
       {/* Input Area */}
       {inputVisible && (
-        <div className="sticky bottom-0 bg-white/90 backdrop-blur-sm border-t border-gray-200/50 p-4">
+        <div className="sticky bottom-0 bg-white/90 backdrop-blur-sm border-t border-gray-200/50 p-3 md:p-4">
           <MessageInput
             disabled={loadingState !== "idle"}
             onSendMessage={onSendMessage}

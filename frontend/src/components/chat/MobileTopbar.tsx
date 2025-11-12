@@ -3,13 +3,17 @@ import type { ConversationPreferences } from "@/stores/chatStore";
 import { Menu, Settings, Radio, MessageSquare } from "lucide-react";
 import type { JSX } from "react";
 import { useState } from "react";
-import { ConversationPreferencesDialog } from "./ConversationPreferencesDialog";
+import { ThreadSettingsDialog } from "./ThreadSettingsDialog";
 
 interface MobileTopbarProps {
   onMenuClick: () => void;
   preferences: ConversationPreferences;
   onPreferencesChange: (preferences: ConversationPreferences) => void;
   isImpersonatePage?: boolean;
+  selectedThreadId?: number | null;
+  threadTitle?: string;
+  onDeleteThread?: (threadId: number) => void;
+  onArchiveThread?: (threadId: number) => void;
 }
 
 export function MobileTopbar({
@@ -17,8 +21,12 @@ export function MobileTopbar({
   preferences,
   onPreferencesChange,
   isImpersonatePage = false,
+  selectedThreadId,
+  threadTitle,
+  onDeleteThread,
+  onArchiveThread,
 }: MobileTopbarProps): JSX.Element {
-  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handlePodcastToggle = () => {
     onPreferencesChange({
@@ -37,7 +45,7 @@ export function MobileTopbar({
       >
         <Menu className="h-6 w-6 text-gray-700" />
       </Button>
-      <span className="font-semibold text-lg text-gray-800">AI Chat</span>
+      <span className="font-semibold text-lg text-gray-800">companion</span>
       <div className="flex items-center gap-1">
         {isImpersonatePage && (
           <Button
@@ -65,17 +73,22 @@ export function MobileTopbar({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setPrefsOpen(true)}
-          aria-label="Conversation Preferences"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Thread Settings"
         >
           <Settings className="h-6 w-6 text-gray-700" />
         </Button>
       </div>
-      <ConversationPreferencesDialog
-        isOpen={prefsOpen}
-        onClose={() => setPrefsOpen(false)}
+      <ThreadSettingsDialog
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        selectedThreadId={selectedThreadId ?? null}
+        threadTitle={threadTitle}
         preferences={preferences}
         onPreferencesChange={onPreferencesChange}
+        onDeleteThread={onDeleteThread}
+        onArchiveThread={onArchiveThread}
+        context="main"
       />
     </div>
   );

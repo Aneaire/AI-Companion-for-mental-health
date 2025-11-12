@@ -895,7 +895,7 @@ export function Thread({
     : currentContext.initialForm;
 
   return (
-    <div className="flex flex-col min-h-screen h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 md:max-w-5xl md:mx-auto md:py-8 py-0 w-full max-w-full flex-1 relative">
+    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/30 w-full max-w-full flex-1 relative md:max-w-5xl md:mx-auto md:py-8 py-0">
        {/* Enhanced Header with subtle shadow */}
        <div className="hidden md:block relative z-10">
          <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 rounded-t-2xl shadow-sm">

@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAuth } from "@clerk/clerk-react";
 
-function getThreadTitle(thread: any) {
+function getThreadTitle(thread: { id: number; sessionName?: string; reasonForVisit?: string; createdAt?: string }) {
   if (thread.sessionName) return thread.sessionName;
   if (thread.reasonForVisit) return thread.reasonForVisit;
   if (thread.createdAt) {
@@ -134,7 +134,7 @@ function Index() {
   const { data: threadSessions } = useThreadSessions(selectedThreadId);
 
   const handleSelectThread = async (id: number) => {
-    if (threadsWithoutPersona.some((t) => t.id === id)) {
+    if (threadsWithoutPersona.some((t: { id: number }) => t.id === id)) {
       setSelectedThread(id);
       setThreadId(id);
       setSelectedSession(null);
@@ -166,7 +166,7 @@ function Index() {
       const sessionsCount = threadSessions?.length || 0;
       const newSession = await threadsApi.createSession(threadId, {
         sessionName: `Session ${sessionsCount + 1}`,
-      });
+      } as any);
 
       // Select the new session
       setSelectedSession(newSession.id);
@@ -200,7 +200,7 @@ function Index() {
       // Get current sessions for this thread
       const currentSessions = threadSessions || [];
       const activeSession = currentSessions.find(
-        (session) => session.status === "active"
+        (session: { status: string }) => session.status === "active"
       );
 
       if (!activeSession) {
@@ -337,7 +337,7 @@ function Index() {
   }, [selectedThreadId, selectedSessionId, setSelectedSession, setSessionId]);
 
   // Prepare threads with sessions for sidebar - only for selected thread to avoid overfetching
-  const threadsWithSessions: ThreadType[] = threadsWithoutPersona.map((t) => ({
+  const threadsWithSessions: ThreadType[] = threadsWithoutPersona.map((t: { id: number; sessionName?: string; reasonForVisit?: string; createdAt?: string }) => ({
     id: t.id,
     title: getThreadTitle(t),
     sessions: t.id === selectedThreadId ? threadSessions : undefined,
@@ -348,7 +348,7 @@ function Index() {
     (threadId: number) => {
       const sessions = threadSessions || [];
       // Prefer the latest active session
-      const active = sessions.filter((s) => s.status === "active");
+      const active = sessions.filter((s: { status: string }) => s.status === "active");
       return active.length > 0
         ? active[active.length - 1]
         : sessions[sessions.length - 1];
@@ -424,20 +424,55 @@ function Index() {
 
   const [showFormIndicator, setShowFormIndicator] = useState(false);
   const formIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [threadTitle, setThreadTitle] = useState<string>("");
+
+  // Update thread title when selected thread changes
+  useEffect(() => {
+    if (selectedThreadId) {
+      const thread = threadsWithoutPersona.find((t: { id: number }) => t.id === selectedThreadId);
+      if (thread) {
+        setThreadTitle(getThreadTitle(thread));
+      }
+    } else {
+      setThreadTitle("");
+    }
+  }, [selectedThreadId, threadsWithoutPersona]);
+
+  const handleArchiveThread = useCallback(async (threadId: number) => {
+    try {
+      const response = await fetch(`/api/threads/${threadId}/archive`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to archive thread');
+      }
+
+      // Invalidate query cache to refresh thread list
+      queryClient.invalidateQueries({ queryKey: ["normalThreads"] });
+      
+      toast.success("Thread archived successfully");
+    } catch (error) {
+      console.error("Error archiving thread:", error);
+      toast.error("Failed to archive thread");
+    }
+  }, [queryClient]);
 
   return (
     <div className="flex h-screen w-full">
       {/* Mobile Topbar for mobile screens */}
-      <div className="md:hidden w-full fixed top-0 left-0 z-50">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50">
         <MobileTopbar
           onMenuClick={() => setIsSidebarOpen(true)}
           preferences={conversationPreferences}
           onPreferencesChange={setConversationPreferences}
+          selectedThreadId={selectedThreadId}
+          threadTitle={threadTitle}
         />
       </div>
       
-      {/* Main Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+      {/* Main Sidebar - hidden on mobile, visible on desktop */}
+      <div className="hidden md:flex md:w-64 bg-white border-r border-gray-200 flex-col h-full">
         <Sidebar
           threads={threadsWithSessions}
           onSelectThread={handleSelectThread}
@@ -456,12 +491,29 @@ function Index() {
           total={totalThreads}
         />
       </div>
-      <div className="flex-1 flex flex-col overflow-hidden relative">
-        <MobileTopbar
-          onMenuClick={() => setIsSidebarOpen(true)}
-          preferences={conversationPreferences}
-          onPreferencesChange={setConversationPreferences}
+      
+      {/* Mobile Sidebar (overlay) - only visible when open on mobile */}
+      <div className="md:hidden">
+        <Sidebar
+          threads={threadsWithSessions}
+          onSelectThread={handleSelectThread}
+          onSelectSession={handleSelectSession}
+          onNewThread={handleNewThread}
+          onNewSession={handleNewSession}
+          onExpireSession={handleExpireSession}
+          selectedThreadId={selectedThreadId ?? null}
+          selectedSessionId={selectedSessionId ?? null}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          limit={limit}
+          setLimit={setLimit}
+          offset={offset}
+          setOffset={setOffset}
+          total={totalThreads}
         />
+      </div>
+      
+      <div className="flex-1 flex flex-col overflow-hidden relative md:ml-0 pt-16 md:pt-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             Loading threads...
@@ -490,7 +542,7 @@ function Index() {
               // Select first available thread after deletion
               if (threadsWithoutPersona.length > 1) {
                 const remainingThreads = threadsWithoutPersona.filter(
-                  (t) => t.id !== selectedThreadId
+                  (t: { id: number }) => t.id !== selectedThreadId
                 );
                 if (remainingThreads.length > 0) {
                   handleSelectThread(remainingThreads[0].id);
@@ -606,7 +658,7 @@ function Index() {
                     // Send an empty user message to trigger the AI therapist's first message
                     // Find the thread for this session to get userId
                     const thread = threadsWithoutPersona.find(
-                      (t) => t.id === threadId
+                      (t: { id: number; userId?: string }) => t.id === threadId
                     );
                     if (!thread)
                       throw new Error("Thread not found for userId lookup");
