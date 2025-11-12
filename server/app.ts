@@ -61,13 +61,12 @@ const routes = app
 
 
 // Serve static files from frontend build
-app.use('/*', serveStatic({ 
-  root: './frontend/dist',
-  onNotFound: (path, c) => {
-    // If static file not found, continue to next middleware (for SPA routing)
-    return undefined;
-  }
-}));
+app.use('/assets/*', serveStatic({ root: './frontend/dist' }));
+app.use('/images/*', serveStatic({ root: './frontend/dist' }));
+app.use('/favicon.ico', serveStatic({ path: './frontend/dist/favicon.ico' }));
+app.use('/logo2.png', serveStatic({ path: './frontend/dist/logo2.png' }));
+app.use('/manifest.json', serveStatic({ path: './frontend/dist/manifest.json' }));
+app.use('/robots.txt', serveStatic({ path: './frontend/dist/robots.txt' }));
 
 // Health check endpoint with comprehensive checks
 app.get('/api/health', async (c) => {
