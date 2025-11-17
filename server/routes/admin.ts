@@ -902,33 +902,21 @@ You must internally analyze each query to understand:
 
         case "remove":
           try {
-            // Check if user exists in Clerk first
-            logger.log(`Checking if user ${user.clerkId} exists in Clerk`);
-            try {
-              await clerkClient.users.getUser(user.clerkId);
-              logger.log(`User ${user.clerkId} found in Clerk, proceeding with deletion`);
+            // Delete user from Clerk first
+            logger.log(`Attempting to delete user ${user.clerkId} from Clerk`);
+            await clerkClient.users.deleteUser(user.clerkId);
+            logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
 
-              // Delete user from Clerk
-              await clerkClient.users.deleteUser(user.clerkId);
-              logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
-            } catch (checkError: any) {
-              if (checkError.status === 404) {
-                logger.warn(`User ${user.clerkId} not found in Clerk, skipping Clerk deletion`);
-              } else {
-                throw checkError; // Re-throw if it's a different error
-              }
-            }
-
-            // Always delete from local database
+            // Delete from local database
             logger.log(`Deleting user ${userId} from local database`);
             await db
               .delete(users)
               .where(eq(users.id, parseInt(userId)));
             logger.log(`Successfully deleted user ${userId} from local database`);
-
-          } catch (error) {
-            logger.error(`Failed to delete user:`, error);
-            throw new Error(`Failed to delete user: ${error}`);
+          } catch (clerkError) {
+            logger.error(`Failed to delete user from Clerk:`, clerkError);
+            // If Clerk deletion fails, don't delete from local DB
+            throw new Error(`Failed to delete user from authentication service: ${clerkError}`);
           }
           break;
 
