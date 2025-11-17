@@ -4,6 +4,7 @@ import { streamSSE } from "hono/streaming";
 import { db } from "../db/config";
 import { sessions, threads, messages, sessionForms, users } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
+import { createClerkClient } from "@clerk/backend";
 import { count, eq, sql, desc, asc, like, or } from "drizzle-orm";
 import { geminiConfig, getGeminiApiKey } from "../lib/config";
 import { logger } from "../lib/logger";
@@ -710,7 +711,7 @@ You must internally analyze each query to understand:
           break;
       }
 
-      // Get users with pagination and sorting, including thread count
+      // Get users with pagination and sorting, including thread count and role
       const userList = await db
         .select({
           id: users.id,
@@ -721,6 +722,7 @@ You must internally analyze each query to understand:
           lastName: users.lastName,
           age: users.age,
           status: users.status,
+          role: users.status, // Map status to role for frontend compatibility
           hobby: users.hobby,
           profileImageUrl: users.profileImageUrl,
           createdAt: users.createdAt,
@@ -855,6 +857,99 @@ You must internally analyze each query to understand:
         success: false,
         message: 'Failed to save system settings'
       }, 400);
+    }
+  })
+  .post("/users/:userId/:action", async (c) => {
+    try {
+      const userId = c.req.param("userId");
+      const action = c.req.param("action");
+
+      if (!userId || !action) {
+        return c.json({ error: "User ID and action are required" }, 400);
+      }
+
+      // Get user from database
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(userId)))
+        .limit(1);
+
+      if (!user) {
+        return c.json({ error: "User not found" }, 404);
+      }
+
+      // Initialize Clerk client
+      const clerkClient = createClerkClient({
+        secretKey: process.env.CLERK_SECRET_KEY!,
+      });
+
+      switch (action) {
+        case "block":
+          // Block user in Clerk (ban the user)
+          await clerkClient.users.banUser(user.clerkId);
+          // Update local database status
+          await db
+            .update(users)
+            .set({ status: "blocked" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "remove":
+          // Delete user from Clerk
+          await clerkClient.users.deleteUser(user.clerkId);
+          // Delete from local database
+          await db
+            .delete(users)
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "makeAdmin":
+          // Update user metadata in Clerk to make admin
+          await clerkClient.users.updateUserMetadata(user.clerkId, {
+            publicMetadata: {
+              ...user, // Preserve existing metadata
+              role: "admin"
+            }
+          });
+          // Update local database
+          await db
+            .update(users)
+            .set({ status: "admin" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "revokeAdmin":
+          // Remove admin role from Clerk metadata
+          await clerkClient.users.updateUserMetadata(user.clerkId, {
+            publicMetadata: {
+              ...user, // Preserve existing metadata
+              role: "user"
+            }
+          });
+          // Update local database
+          await db
+            .update(users)
+            .set({ status: "user" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        default:
+          return c.json({ error: "Invalid action" }, 400);
+      }
+
+      logger.log(`User ${action} action completed for user ${userId}`);
+      return c.json({
+        success: true,
+        message: `User ${action} action completed successfully`
+      });
+
+    } catch (error) {
+      logger.error('Error performing user action:', error);
+      return c.json({
+        success: false,
+        message: 'Failed to perform user action'
+      }, 500);
     }
   });
 

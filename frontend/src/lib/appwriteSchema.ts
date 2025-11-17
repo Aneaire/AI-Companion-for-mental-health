@@ -10,6 +10,7 @@ export interface User {
   lastName: string | null;
   age: number | null;
   status: string | null;
+  role?: string; // User role (admin, user, etc.)
   hobby: string | null;
   profileImageUrl: string | null;
   createdAt: Date;

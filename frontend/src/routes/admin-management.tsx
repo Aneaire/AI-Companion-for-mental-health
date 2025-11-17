@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Users, Settings, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Save, RotateCcw, Bot, Zap, Shield, Target, AlertTriangle, X, Plus } from "lucide-react";
 import { getUsers, type UserListParams } from "@/services/userService";
+import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
 import type { User } from "@/lib/appwriteSchema";
 
 // Personas configuration types
@@ -147,6 +148,11 @@ function AdminManagementContent() {
   const [selectedPersona, setSelectedPersona] = useState<string>("");
   const [originalJson, setOriginalJson] = useState<string>("");
 
+  // User management dialog state
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [userActionLoading, setUserActionLoading] = useState(false);
+
   // System settings state
   const [systemSettings, setSystemSettings] = useState<{
     geminiApiKey: string;
@@ -164,7 +170,7 @@ function AdminManagementContent() {
   });
   const [isSystemSettingsDirty, setIsSystemSettingsDirty] = useState(false);
 
-  const { data: userData, isLoading, error } = useQuery({
+  const { data: userData, isLoading, error, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users', currentPage, searchTerm, sortBy, sortOrder],
     queryFn: async () => {
       const token = await getToken();
@@ -405,6 +411,40 @@ function AdminManagementContent() {
     setIsSystemSettingsDirty(hasChanged);
   };
 
+  // Handle user management actions
+  const handleUserAction = async (action: 'block' | 'remove' | 'makeAdmin' | 'revokeAdmin', userId: number) => {
+    setUserActionLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`/api/admin/users/${userId}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        alert(`User ${action} action completed successfully!`);
+        // Refresh the user list
+        refetchUsers();
+      } else {
+        const error = await response.json();
+        alert(`Action failed: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error performing user action:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
   // Save system settings
   const handleSaveSystemSettings = async () => {
     try {
@@ -606,8 +646,15 @@ function AdminManagementContent() {
                             </td>
                           </tr>
                        ) : (
-                         userData?.users.map((user: User) => (
-                           <tr key={user.id} className="hover:bg-gray-50">
+                          userData?.users.map((user: User) => (
+                            <tr
+                              key={user.id}
+                              className="hover:bg-gray-50 cursor-pointer"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setShowUserDialog(true);
+                              }}
+                            >
                              <td className="px-4 py-4 whitespace-nowrap">
                                <div className="flex items-center">
                                  <div className="flex-shrink-0 h-10 w-10">
@@ -673,12 +720,23 @@ function AdminManagementContent() {
                          Next
                          <ChevronRight className="h-4 w-4" />
                        </Button>
-                     </div>
-                   </div>
-                 )}
-               </div>
-             </Card>
-           </TabsContent>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              <UserManagementDialog
+                user={selectedUser}
+                isOpen={showUserDialog}
+                onClose={() => {
+                  setShowUserDialog(false);
+                  setSelectedUser(null);
+                }}
+                onAction={handleUserAction}
+                isLoading={userActionLoading}
+              />
+            </TabsContent>
 
            <TabsContent value="personas" className="space-y-6">
              <div className="flex items-center justify-between mb-6">
