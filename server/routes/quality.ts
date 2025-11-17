@@ -20,7 +20,7 @@ export const qualityRequestSchema = z.object({
       sender: z.enum(["user", "ai"]),
       timestamp: z.number(),
     })
-  ),
+  ).optional(),
   initialForm: z
     .object({
       preferredName: z.string().optional(),
@@ -32,6 +32,9 @@ export const qualityRequestSchema = z.object({
     .optional(),
   sessionId: z.number().optional(), // Add session context for comprehensive analysis
   threadId: z.number().optional(), // Add thread context for full conversation history
+  analysisFocus: z.string().optional(), // Analysis focus/context
+}).refine((data) => data.messages || data.threadId, {
+  message: "Either messages or threadId must be provided",
 });
 
 export const qualityResponseSchema = z.object({
@@ -53,6 +56,49 @@ export const qualityResponseSchema = z.object({
 });
 
 const quality = new Hono()
+  .get("/threads/:threadId/data", async (c) => {
+    try {
+      const threadId = parseInt(c.req.param("threadId"));
+      
+      if (isNaN(threadId)) {
+        return c.json({ error: "Invalid thread ID" }, 400);
+      }
+
+      // Get thread data with counts
+      const threadData = await db
+        .select({
+          id: threads.id,
+          displayName: sql<string>`COALESCE(${threads.sessionName}, 'Thread ' || ${threads.id})`.as('displayName'),
+          sessionCount: sql<number>`count(${sessions.id})`.mapWith(Number).as('sessionCount'),
+          messageCount: sql<number>`(
+            SELECT count(${messages.id})
+            FROM ${messages}
+            INNER JOIN ${sessions} ON ${messages.sessionId} = ${sessions.id}
+            WHERE ${sessions.threadId} = ${threadId}
+          )`.mapWith(Number).as('messageCount'),
+          formCount: sql<number>`(
+            SELECT count(${sessionForms.id})
+            FROM ${sessionForms}
+            INNER JOIN ${sessions} ON ${sessionForms.sessionId} = ${sessions.id}
+            WHERE ${sessions.threadId} = ${threadId}
+          )`.mapWith(Number).as('formCount'),
+        })
+        .from(threads)
+        .leftJoin(sessions, eq(threads.id, sessions.threadId))
+        .where(eq(threads.id, threadId))
+        .groupBy(threads.id, threads.sessionName)
+        .limit(1);
+
+      if (threadData.length === 0) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      return c.json(threadData[0]);
+    } catch (error) {
+      logger.error("Error fetching thread data:", error);
+      return c.json({ error: "Failed to fetch thread data" }, 500);
+    }
+  })
   .get("/threads", async (c) => {
     try {
       const page = parseInt(c.req.query("page") || "1");
@@ -111,13 +157,69 @@ const quality = new Hono()
     "/",
     zValidator("json", qualityRequestSchema),
     async (c) => {
-      const parsed = qualityRequestSchema.safeParse(await c.req.json());
-      if (!parsed.success) {
-        logger.error("Zod validation error:", parsed.error.errors);
-        return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
-      }
+      try {
+        const rawBody = await c.req.json();
+        logger.info("Quality analysis request received:", { threadId: rawBody.threadId, analysisFocus: rawBody.analysisFocus });
+        
+        const parsed = qualityRequestSchema.safeParse(rawBody);
+        if (!parsed.success) {
+          logger.error("Zod validation error:", parsed.error.errors);
+          return c.json({ error: JSON.stringify(parsed.error.errors) }, 400);
+        }
 
-      const { messages, initialForm, sessionId, threadId } = parsed.data;
+        const { messages: providedMessages, initialForm, sessionId, threadId } = parsed.data;
+
+        // Fetch messages and form data from database if threadId is provided but messages are not
+        let analysisMessages = providedMessages;
+        let formData = initialForm;
+        if (!analysisMessages && threadId) {
+          // Fetch all messages for the thread
+          const threadMessages = await db
+            .select({
+              text: messages.text,
+              sender: messages.sender,
+              timestamp: messages.timestamp,
+            })
+            .from(messages)
+            .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+            .where(eq(sessions.threadId, threadId))
+            .orderBy(messages.timestamp);
+
+          // Transform to expected format
+          analysisMessages = threadMessages.map(msg => ({
+            text: msg.text,
+            sender: msg.sender === 'therapist' || msg.sender === 'impostor' ? 'ai' : msg.sender as 'user' | 'ai',
+            timestamp: msg.timestamp.getTime(),
+          }));
+
+          // Fetch form data for the thread
+          const threadData = await db
+            .select({
+              preferredName: threads.preferredName,
+              currentEmotions: threads.currentEmotions,
+              reasonForVisit: threads.reasonForVisit,
+              supportType: threads.supportType,
+              additionalContext: threads.additionalContext,
+            })
+            .from(threads)
+            .where(eq(threads.id, threadId))
+            .limit(1);
+
+          if (threadData.length > 0) {
+            const data = threadData[0];
+            formData = {
+              preferredName: data.preferredName || undefined,
+              currentEmotions: data.currentEmotions || undefined,
+              reasonForVisit: data.reasonForVisit || undefined,
+              supportType: data.supportType || undefined,
+              additionalContext: data.additionalContext || undefined,
+            };
+          }
+        }
+
+        if (!analysisMessages || analysisMessages.length === 0) {
+          return c.json({ error: "No messages found for analysis" }, 400);
+        }
 
       try {
         // Get comprehensive thread context if available
@@ -127,7 +229,7 @@ const quality = new Hono()
         }
 
         // Use enhanced analysis with full context
-        const analysisResult = await analyzeMessageQuality(messages, initialForm, threadContext);
+        const analysisResult = await analyzeMessageQuality(analysisMessages, initialForm, threadContext);
         return c.json(analysisResult);
       } catch (error) {
         logger.error("Error in quality analysis:", error);
@@ -139,8 +241,18 @@ const quality = new Hono()
           500
         );
       }
-    }
-  );
+    } catch (error) {
+      logger.error("Unexpected error in quality analysis route:", error);
+      return c.json(
+        {
+          error: "Unexpected error occurred",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        500
+       );
+     }
+  }
+);
 
 // Privacy-safe context anonymization
 function anonymizeContent(text: string): string {
@@ -299,12 +411,11 @@ async function analyzeMessageQuality(
 
   const systemInstructionText = `You are an AI therapeutic conversation quality analyst with expertise in mental health assessment and therapeutic effectiveness evaluation.
 
-**CRITICAL PRIVACY REQUIREMENTS:**
-- DO NOT leak, mention, or reference any specific user information, names, personal details, or identifiable content
-- DO NOT quote or reproduce exact user messages or AI responses
-- Focus ONLY on patterns, metrics, and therapeutic quality indicators
-- Use generic references like "the user" or "the conversation"
-- Provide analysis sufficient for quality assessment without compromising privacy
+**PRIVACY REQUIREMENTS:**
+- DO NOT reveal specific user names, personal identifiers, or exact quotes from messages
+- Use generic references like "the user" or "the client" 
+- Focus on problems, patterns, and therapeutic content while maintaining anonymity
+- Provide detailed analysis of issues discussed and therapeutic approaches used
 
 **Analysis Context:**
 - Request Messages: ${messages.length} (User: ${messages.filter(m => m.sender === "user").length}, AI: ${messages.filter(m => m.sender === "ai").length})
@@ -313,18 +424,28 @@ async function analyzeMessageQuality(
 ${contextualInfo}
 
 **Your Role:**
-Analyze therapeutic conversation quality across multiple dimensions while maintaining complete privacy protection. Focus on measurable patterns, engagement metrics, and therapeutic effectiveness indicators.
+Analyze therapeutic conversation quality across multiple dimensions. Provide detailed insights about:
+- Problems and issues discussed (without revealing personal details)
+- Therapeutic techniques and approaches used
+- Communication patterns and effectiveness
+- Progress indicators and treatment outcomes
+- Engagement quality and depth
 
-**FORMATTING REQUIREMENTS FOR STREAMING:**
-- Use proper markdown formatting with clear line breaks between paragraphs
-- Structure your response with headers (##), bullet points (•), and numbered lists when appropriate
-- Ensure each sentence ends with proper punctuation followed by a line break when starting new topics
-- Use double line breaks (\\n\\n) between major sections for better readability
-- Format metrics and statistics clearly with bullet points or numbered lists
-- Use **bold text** for emphasis on key findings and recommendations
+**FORMATTING REQUIREMENTS:**
+- Use proper markdown formatting with clear structure
+- Include headers (##), bullet points (•), and numbered lists
+- Use **bold text** for key findings and recommendations
+- Provide clear separation between analysis sections
 
 **Response Requirements:**
-Provide numerical scores (0-100) for each dimension and professional insights about therapeutic patterns without revealing any personal information. Structure your response with clear formatting for better readability.`;
+Provide numerical scores (0-100) for each dimension plus detailed reasoning about:
+1. Specific problems and concerns addressed
+2. Therapeutic methods and interventions observed
+3. Communication effectiveness and rapport building
+4. Progress indicators and outcome measures
+5. Recommendations for continued treatment
+
+Focus on professional therapeutic assessment with actionable insights while maintaining client confidentiality.`;
 
   // Build anonymized context
   let contextString = "";
@@ -356,7 +477,7 @@ Provide numerical scores (0-100) for each dimension and professional insights ab
   const avgUserLength = userMessages.length > 0 ? userMessages.reduce((sum, m) => sum + m.text.length, 0) / userMessages.length : 0;
   const avgAiLength = aiMessages.length > 0 ? aiMessages.reduce((sum, m) => sum + m.text.length, 0) / aiMessages.length : 0;
 
-  const prompt = `Analyze this therapeutic conversation for quality and effectiveness patterns.
+  const prompt = `Analyze this therapeutic conversation for quality and effectiveness. Provide detailed, actionable insights for clinical review.
 
 ${contextString}
 
@@ -369,41 +490,72 @@ Engagement Metrics:
 - Response ratio: ${aiMessages.length}:${userMessages.length} (AI:User)
 - Conversation duration: ${messages.length > 0 ? Math.round((Math.max(...messages.map(m => m.timestamp)) - Math.min(...messages.map(m => m.timestamp))) / (1000 * 60)) : 0} minutes
 
-Analyze across these therapeutic dimensions:
-1. Overall Progress (0-100): General therapeutic advancement and goal achievement patterns
-2. Emotional Stability (0-100): Emotional regulation and consistency patterns
-3. Communication Clarity (0-100): Expression clarity and therapeutic communication effectiveness
-4. Problem Solving (0-100): Coping strategy development and solution-focused patterns
-5. Self Awareness (0-100): Insight development and self-reflection patterns
+**THERAPEUTIC ANALYSIS REQUIREMENTS:**
 
-For each major conversation segment, provide quality indicators and therapeutic focus categories.
+1. **PROBLEMS & ISSUES IDENTIFIED:**
+   - List specific problems discussed (anxiety, depression, relationship issues, stress, trauma, etc.)
+   - Identify severity levels (mild, moderate, severe)
+   - Note patterns of problem recurrence or escalation
+   - Include any crisis indicators detected
+
+2. **THERAPEUTIC TECHNIQUES USED:**
+   - Active listening and validation techniques observed
+   - Cognitive behavioral strategies employed
+   - Mindfulness or grounding exercises suggested
+   - Problem-solving approaches utilized
+   - Emotional regulation techniques taught
+
+3. **COMMUNICATION EFFECTIVENESS:**
+   - User's emotional expression patterns
+   - AI's rapport building effectiveness
+   - Communication clarity and mutual understanding
+   - Response appropriateness to user's emotional state
+
+4. **PROGRESS INDICATORS:**
+   - Measurable changes in emotional regulation
+   - Development of new coping skills
+   - Insight and self-awareness growth
+   - Behavioral pattern improvements
+   - Goal achievement milestones
+
+5. **TREATMENT OUTCOMES:**
+   - Symptom reduction or management progress
+   - Functional improvements in daily life
+   - Quality of life enhancements
+   - Relapse prevention or early warning signs
+   - Continued treatment engagement
+
+**RESPONSE FORMAT:**
+Provide detailed analysis with specific examples and actionable clinical insights. Focus on therapeutic effectiveness and treatment progression.
 
 Respond in this exact JSON format:
 {
-  "overallProgress": 75,
-  "emotionalStability": 80,
-  "communicationClarity": 85,
-  "problemSolving": 70,
-  "selfAwareness": 75,
+  "overallProgress": 85,
+  "emotionalStability": 78,
+  "communicationClarity": 82,
+  "problemSolving": 75,
+  "selfAwareness": 80,
   "qualityScores": [
     {
       "timestamp": 1234567890,
-      "score": 75,
-      "category": "emotional_expression",
-      "message": "Segment 1"
+      "score": 82,
+      "category": "emotional_regulation",
+      "message": "User demonstrated improved emotional awareness"
     }
   ],
   "insights": [
-    "Therapeutic engagement shows positive progression patterns",
-    "Communication demonstrates increasing clarity and depth"
+    "User shows significant progress in anxiety management through consistent CBT techniques",
+    "Therapeutic alliance strengthened through active validation and appropriate challenges",
+    "Communication patterns indicate increased insight and self-reflection capabilities"
   ],
   "recommendations": [
-    "Continue current therapeutic approaches",
-    "Consider expanding coping strategy discussions"
+    "Continue exposure therapy exercises while maintaining emotional safety",
+    "Introduce advanced cognitive restructuring for persistent negative thought patterns",
+    "Schedule follow-up to assess medication effectiveness if symptoms persist"
   ]
 }
 
-Focus on professional therapeutic assessment without revealing any personal information.`;
+Provide professional clinical assessment with specific therapeutic insights while maintaining confidentiality.`;
 
   const chatSession = model.startChat({
     history: [{
@@ -436,7 +588,7 @@ Focus on professional therapeutic assessment without revealing any personal info
       selfAwareness: Math.min(100, Math.max(0, parsed.selfAwareness || 0)),
       qualityScores: Array.isArray(parsed.qualityScores) ? parsed.qualityScores : [],
       insights: Array.isArray(parsed.insights) ? parsed.insights : ["Analysis completed with privacy protection"],
-      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : ["Continue therapeutic engagement"],
+       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : ["Continue therapeutic engagement"],
     };
   } catch (parseError) {
     logger.error("Error parsing Gemini response:", parseError);
@@ -445,7 +597,7 @@ Focus on professional therapeutic assessment without revealing any personal info
     const userMsgCount = userMessages.length;
     const aiMsgCount = aiMessages.length;
     const avgLength = avgUserLength;
-    
+
     return {
       overallProgress: Math.min(75, Math.max(25, userMsgCount * 10)),
       emotionalStability: Math.min(80, Math.max(30, avgLength > 50 ? 70 : 50)),
