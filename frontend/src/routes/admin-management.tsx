@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useSession } from "@clerk/clerk-react";
 import { useState, useEffect, useRef } from "react";
 import {
   Tabs,
@@ -135,6 +135,7 @@ function AdminManagement() {
 
 function AdminManagementContent() {
   const { getToken } = useAuth();
+  const { session } = useSession();
   const [activeTab, setActiveTab] = useState("users");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,7 +174,7 @@ function AdminManagementContent() {
   const { data: userData, isLoading, error, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users', currentPage, searchTerm, sortBy, sortOrder],
     queryFn: async () => {
-      const token = await getToken();
+      const token = await session?.getToken();
       if (!token) {
         throw new Error('No authentication token available');
       }
@@ -274,7 +275,8 @@ function AdminManagementContent() {
   useEffect(() => {
     const loadPersonasData = async () => {
       try {
-        const token = await getToken();
+        const token = await session?.getToken();
+        console.log('Retrieved session token:', token ? 'Token exists' : 'No token');
         if (!token) {
           console.error('No authentication token available');
           return;
@@ -311,7 +313,7 @@ function AdminManagementContent() {
   useEffect(() => {
     const loadSystemSettings = async () => {
       try {
-        const token = await getToken();
+        const token = await session?.getToken();
         if (!token) {
           console.error('No authentication token available');
           return;
@@ -415,7 +417,7 @@ function AdminManagementContent() {
   const handleUserAction = async (action: 'block' | 'remove' | 'makeAdmin' | 'revokeAdmin', userId: number) => {
     setUserActionLoading(true);
     try {
-      const token = await getToken();
+      const token = await session?.getToken();
       if (!token) {
         alert('Authentication required');
         return;
@@ -448,7 +450,7 @@ function AdminManagementContent() {
   // Save system settings
   const handleSaveSystemSettings = async () => {
     try {
-      const token = await getToken();
+      const token = await session?.getToken();
       if (!token) {
         alert('Authentication required');
         return;
@@ -489,7 +491,7 @@ function AdminManagementContent() {
   // Save personas data
   const handleSavePersonas = async () => {
     try {
-      const token = await getToken();
+      const token = await session?.getToken();
       if (!token) {
         alert('Authentication required');
         return;
