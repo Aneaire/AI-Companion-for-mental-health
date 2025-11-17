@@ -908,7 +908,6 @@ You must internally analyze each query to understand:
           // Update user metadata in Clerk to make admin
           await clerkClient.users.updateUserMetadata(user.clerkId, {
             publicMetadata: {
-              ...user, // Preserve existing metadata
               role: "admin"
             }
           });
@@ -923,7 +922,6 @@ You must internally analyze each query to understand:
           // Remove admin role from Clerk metadata
           await clerkClient.users.updateUserMetadata(user.clerkId, {
             publicMetadata: {
-              ...user, // Preserve existing metadata
               role: "user"
             }
           });
