@@ -281,7 +281,7 @@ function AdminManagementContent() {
           return;
         }
 
-        const response = await fetch('/api/admin/personas', {
+        const response = await fetch('/api/admin/personas/config', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -502,13 +502,13 @@ function AdminManagementContent() {
         return;
       }
 
-      const response = await fetch('/api/admin/personas', {
+      const response = await fetch('/api/admin/personas/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ personasData: JSON.stringify(personasConfig, null, 2) }),
+        body: JSON.stringify(personasConfig),
       });
 
       if (response.ok) {
