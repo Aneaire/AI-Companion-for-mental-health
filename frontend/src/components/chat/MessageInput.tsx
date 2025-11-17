@@ -1,5 +1,5 @@
 import { Send } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 
@@ -14,6 +14,27 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle mobile keyboard focus behavior
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handleFocus = () => {
+      // Small delay to ensure keyboard is shown
+      setTimeout(() => {
+        textarea.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }, 300);
+    };
+
+    textarea.addEventListener('focus', handleFocus);
+    return () => textarea.removeEventListener('focus', handleFocus);
+  }, []);
 
   const handleSubmit = () => {
     if (message.trim()) {
@@ -26,7 +47,7 @@ export default function MessageInput({
   };
 
   return (
-    <div className="w-full mx-auto bg-white/50 backdrop-blur-sm">
+    <div ref={containerRef} className="w-full mx-auto bg-white/50 backdrop-blur-sm mobile-input-container">
       <div className="relative">
         <div className="flex items-end gap-2 p-2 sm:p-3 bg-white rounded-lg border border-gray-200 shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all duration-200">
           <Textarea

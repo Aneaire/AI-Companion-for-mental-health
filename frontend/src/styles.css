@@ -136,3 +136,25 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile keyboard and safe area handling */
+@supports (padding: max(0px)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Ensure input areas account for safe areas */
+  .mobile-input-container {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Safe area utilities */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
