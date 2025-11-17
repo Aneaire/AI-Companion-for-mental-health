@@ -5,9 +5,10 @@ Guidelines for AI agents operating in this repository.
 ## Global Instructions
 
 - **Package Manager**: Use `bun` for all JavaScript/Node.js operations
-- **Reusability**: Design components/functions for reuse across the codebase  
+- **Reusability**: Design components/functions for reuse across the codebase
 - **Web Design**: Tailwind CSS for styling, shadcn/ui for components
 - **Implementation**: You can implement code directly without asking permission
+- **Git Operations**: Do not commit or push changes unless explicitly prompted by the user
 
 ## Commands
 

@@ -746,7 +746,8 @@ function AdminManagementContent() {
             </TabsContent>
 
             <TabsContent value="personas" className="space-y-6">
-              <div className="flex items-center justify-end mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold hidden md:block">Persona Configuration</h3>
                 <div className="flex items-center gap-2">
                  <Button
                    onClick={handleRestorePersonas}
@@ -1040,10 +1041,10 @@ function AdminManagementContent() {
              </Card>
            </TabsContent>
 
-           <TabsContent value="settings" className="space-y-6">
-             <div className="flex items-center justify-between mb-6">
-               <h3 className="text-lg font-semibold">System Settings</h3>
-               <div className="flex items-center gap-2">
+            <TabsContent value="settings" className="space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold hidden md:block">System Settings</h3>
+                <div className="flex items-center gap-2">
                  <Button
                    onClick={handleRestoreSystemSettings}
                    variant="outline"
