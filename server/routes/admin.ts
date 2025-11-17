@@ -901,12 +901,23 @@ You must internally analyze each query to understand:
           break;
 
         case "remove":
-          // Delete user from Clerk
-          await clerkClient.users.deleteUser(user.clerkId);
-          // Delete from local database
-          await db
-            .delete(users)
-            .where(eq(users.id, parseInt(userId)));
+          try {
+            // Delete user from Clerk first
+            logger.log(`Attempting to delete user ${user.clerkId} from Clerk`);
+            await clerkClient.users.deleteUser(user.clerkId);
+            logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
+
+            // Delete from local database
+            logger.log(`Deleting user ${userId} from local database`);
+            await db
+              .delete(users)
+              .where(eq(users.id, parseInt(userId)));
+            logger.log(`Successfully deleted user ${userId} from local database`);
+          } catch (clerkError) {
+            logger.error(`Failed to delete user from Clerk:`, clerkError);
+            // If Clerk deletion fails, don't delete from local DB
+            throw new Error(`Failed to delete user from authentication service: ${clerkError}`);
+          }
           break;
 
         case "makeAdmin":

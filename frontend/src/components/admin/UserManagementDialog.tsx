@@ -168,12 +168,12 @@ export function UserManagementDialog({
                 : user.nickname || user.email}</strong>?
               <br /><br />
               This action cannot be undone and will:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Delete the user account from the system</li>
-                <li>Remove all associated data and threads</li>
-                <li>Revoke all access permissions</li>
-              </ul>
             </DialogDescription>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-gray-600">
+              <li>Delete the user account from the system</li>
+              <li>Remove all associated data and threads</li>
+              <li>Revoke all access permissions</li>
+            </ul>
           </DialogHeader>
 
           <DialogFooter>
