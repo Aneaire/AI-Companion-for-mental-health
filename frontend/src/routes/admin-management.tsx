@@ -568,7 +568,7 @@ function AdminManagementContent() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="personas">Persona Configuration</TabsTrigger>
+             <TabsTrigger value="personas">Persona</TabsTrigger>
             <TabsTrigger value="settings">System Settings</TabsTrigger>
           </TabsList>
 
@@ -745,10 +745,9 @@ function AdminManagementContent() {
               />
             </TabsContent>
 
-           <TabsContent value="personas" className="space-y-6">
-             <div className="flex items-center justify-between mb-6">
-               <h3 className="text-lg font-semibold">Persona Configuration</h3>
-               <div className="flex items-center gap-2">
+            <TabsContent value="personas" className="space-y-6">
+              <div className="flex items-center justify-end mb-6">
+                <div className="flex items-center gap-2">
                  <Button
                    onClick={handleRestorePersonas}
                    variant="outline"
