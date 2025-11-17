@@ -30,11 +30,14 @@ const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.G
 let personasConfig: any = null;
 const loadPersonasConfig = async () => {
   try {
-    const personasPath = path.join(process.cwd(), "personas.json");
+    // Use path relative to the project root, not current working directory
+    const personasPath = path.join(process.cwd(), "..", "personas.json");
+    console.log("Loading personas from:", personasPath); // Debug log
     const personasData = await fs.promises.readFile(personasPath, "utf8");
     personasConfig = JSON.parse(personasData);
   } catch (error) {
     logger.error("Error loading personas config:", error);
+    logger.error("Current working directory:", process.cwd());
     personasConfig = {
       personas: {
         listener: {

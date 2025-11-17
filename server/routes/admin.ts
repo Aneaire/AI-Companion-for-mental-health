@@ -5,7 +5,7 @@ import { db } from "../db/config";
 import { sessions, threads, messages, sessionForms, users } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
 import { createClerkClient } from "@clerk/backend";
-import { count, eq, sql, desc, asc, like, or } from "drizzle-orm";
+import { count, eq, sql, desc, asc, like, or, ne, and } from "drizzle-orm";
 import { geminiConfig, getGeminiApiKey } from "../lib/config";
 import { logger } from "../lib/logger";
 
@@ -664,6 +664,9 @@ You must internally analyze each query to understand:
   })
   .get("/users", async (c) => {
     try {
+      // Get current admin user ID from context (set by admin middleware)
+      const adminId = c.get("adminId");
+
       // Get pagination parameters
       const page = parseInt(c.req.query("page") || "1");
       const limit = parseInt(c.req.query("limit") || "20");
@@ -673,15 +676,17 @@ You must internally analyze each query to understand:
 
       const offset = (page - 1) * limit;
 
-      // Build where conditions for search
-      let whereClause = undefined;
+      // Build where conditions for search and exclude current admin
+      let whereClause = ne(users.id, adminId); // Always exclude current admin
+
       if (search) {
-        whereClause = or(
+        const searchCondition = or(
           like(users.email, `%${search}%`),
           like(users.firstName, `%${search}%`),
           like(users.lastName, `%${search}%`),
           like(users.nickname, `%${search}%`)
         );
+        whereClause = and(whereClause, searchCondition);
       }
 
       // Get total count for pagination
@@ -775,7 +780,7 @@ You must internally analyze each query to understand:
       const fs = await import('fs');
       const path = await import('path');
 
-      const personasPath = path.join(process.cwd(), 'personas.json');
+      const personasPath = path.join(process.cwd(), '..', 'personas.json');
 
       if (!fs.existsSync(personasPath)) {
         return c.json({ error: 'Personas configuration file not found' }, 404);
@@ -801,7 +806,7 @@ You must internally analyze each query to understand:
       const fs = await import('fs');
       const path = await import('path');
 
-      const personasPath = path.join(process.cwd(), 'personas.json');
+      const personasPath = path.join(process.cwd(), '..', 'personas.json');
       fs.writeFileSync(personasPath, personasData, 'utf-8');
 
       logger.log('Personas configuration saved successfully');
