@@ -8,7 +8,7 @@ const personas = new Hono();
 // Load personas configuration
 const loadPersonasConfig = () => {
   try {
-    const configPath = join(process.cwd(), "personas.json");
+    const configPath = join(process.cwd(), "..", "personas.json");
     const configData = readFileSync(configPath, "utf-8");
     return JSON.parse(configData);
   } catch (error) {
@@ -20,7 +20,7 @@ const loadPersonasConfig = () => {
 // Load default personas configuration (backup)
 const loadDefaultConfig = () => {
   try {
-    const configPath = join(process.cwd(), "server", "personas.json.backup");
+    const configPath = join(process.cwd(), "..", "server", "personas.json.backup");
     const configData = readFileSync(configPath, "utf-8");
     return JSON.parse(configData);
   } catch (error) {
@@ -32,7 +32,7 @@ const loadDefaultConfig = () => {
 // Save personas configuration
 const savePersonasConfig = (config: any) => {
   try {
-    const configPath = join(process.cwd(), "personas.json");
+    const configPath = join(process.cwd(), "..", "personas.json");
     writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
     return true;
   } catch (error) {

@@ -1,6 +1,23 @@
 // Appwrite database schema for counselor conversations
 // This file defines the structure for Appwrite collections
 
+export interface User {
+  id: number;
+  clerkId: string;
+  email: string;
+  nickname: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  age: number | null;
+  status: string | null;
+  role?: string; // User role (admin, user, etc.)
+  hobby: string | null;
+  profileImageUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  threadCount: number;
+}
+
 export interface CounselorRequest {
   $id?: string;
   $createdAt?: string;

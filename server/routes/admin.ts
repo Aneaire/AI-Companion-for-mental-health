@@ -2,14 +2,15 @@ import { Hono } from "hono";
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { streamSSE } from "hono/streaming";
 import { db } from "../db/config";
-import { sessions, threads, messages, sessionForms } from "../db/schema";
+import { sessions, threads, messages, sessionForms, users } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
-import { count, eq, sql } from "drizzle-orm";
-import { geminiConfig } from "../lib/config";
+import { createClerkClient } from "@clerk/backend";
+import { count, eq, sql, desc, asc, like, or, ne, and } from "drizzle-orm";
+import { geminiConfig, getGeminiApiKey } from "../lib/config";
 import { logger } from "../lib/logger";
 
 // Initialize Gemini
-const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const gemini = getGeminiApiKey() ? new GoogleGenerativeAI(getGeminiApiKey()!) : null;
 
 // Using same streaming approach as working chat - no chunk processing needed
 
@@ -103,6 +104,7 @@ const adminRoute = new Hono()
         .select({
           id: sessionForms.id,
           sessionId: sessionForms.sessionId,
+          questions: sessionForms.questions,
           answers: sessionForms.answers,
           createdAt: sessionForms.createdAt,
         })
@@ -157,8 +159,8 @@ const adminRoute = new Hono()
         forms: threadGeneratedForms.map(form => ({
           id: form.id,
           sessionId: form.sessionId,
-          formData: form.formData || null,
-          generatedQuestions: form.generatedQuestions || null,
+          questions: form.questions || null,
+          answers: form.answers || null,
           createdAt: form.createdAt,
         })),
       };
@@ -658,6 +660,310 @@ You must internally analyze each query to understand:
     } catch (error) {
       logger.error("Error fetching admin metrics:", error);
       return c.json({ error: "Failed to fetch metrics" }, 500);
+    }
+  })
+  .get("/users", async (c) => {
+    try {
+      // Get current admin user ID from context (set by admin middleware)
+      const adminId = c.get("adminId");
+
+      // Get pagination parameters
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const search = c.req.query("search") || "";
+      const sortBy = c.req.query("sortBy") || "createdAt";
+      const sortOrder = c.req.query("sortOrder") || "desc";
+
+      const offset = (page - 1) * limit;
+
+      // Build where conditions for search and exclude current admin
+      let whereClause = ne(users.id, adminId); // Always exclude current admin
+
+      if (search) {
+        const searchCondition = or(
+          like(users.email, `%${search}%`),
+          like(users.firstName, `%${search}%`),
+          like(users.lastName, `%${search}%`),
+          like(users.nickname, `%${search}%`)
+        );
+        whereClause = and(whereClause, searchCondition);
+      }
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({ total: count(users.id) })
+        .from(users)
+        .where(whereClause);
+
+      const totalUsers = totalCountResult[0]?.total || 0;
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      // Build order by clause
+      let orderByClause;
+      switch (sortBy) {
+        case "email":
+          orderByClause = sortOrder === "asc" ? asc(users.email) : desc(users.email);
+          break;
+        case "firstName":
+          orderByClause = sortOrder === "asc" ? asc(users.firstName) : desc(users.firstName);
+          break;
+        case "lastName":
+          orderByClause = sortOrder === "asc" ? asc(users.lastName) : desc(users.lastName);
+          break;
+        case "createdAt":
+        default:
+          orderByClause = sortOrder === "asc" ? asc(users.createdAt) : desc(users.createdAt);
+          break;
+      }
+
+      // Get users with pagination and sorting, including thread count and role
+      const userList = await db
+        .select({
+          id: users.id,
+          clerkId: users.clerkId,
+          email: users.email,
+          nickname: users.nickname,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          age: users.age,
+          status: users.status,
+          role: users.status, // Map status to role for frontend compatibility
+          hobby: users.hobby,
+          profileImageUrl: users.profileImageUrl,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          threadCount: sql<number>`COUNT(${threads.id})`,
+        })
+        .from(users)
+        .leftJoin(threads, eq(users.id, threads.userId))
+        .where(whereClause)
+        .groupBy(
+          users.id,
+          users.clerkId,
+          users.email,
+          users.nickname,
+          users.firstName,
+          users.lastName,
+          users.age,
+          users.status,
+          users.hobby,
+          users.profileImageUrl,
+          users.createdAt,
+          users.updatedAt
+        )
+        .orderBy(orderByClause)
+        .limit(limit)
+        .offset(offset);
+
+      return c.json({
+        users: userList,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalUsers: totalUsers,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit: limit,
+        },
+        search: search,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+      });
+    } catch (error) {
+      logger.error("Error fetching users:", error);
+      return c.json({ error: "Failed to fetch users" }, 500);
+    }
+  })
+  .get("/personas", async (c) => {
+    try {
+      // Read the personas.json file from the project root
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const personasPath = path.join(process.cwd(), '..', 'personas.json');
+
+      if (!fs.existsSync(personasPath)) {
+        return c.json({ error: 'Personas configuration file not found' }, 404);
+      }
+
+      const personasData = fs.readFileSync(personasPath, 'utf-8');
+      const parsedData = JSON.parse(personasData);
+
+      return c.json(parsedData);
+    } catch (error) {
+      logger.error('Error loading personas configuration:', error);
+      return c.json({ error: 'Failed to load personas configuration' }, 500);
+    }
+  })
+  .post("/personas", async (c) => {
+    try {
+      const { personasData } = await c.req.json();
+
+      // Validate JSON
+      const parsedData = JSON.parse(personasData);
+
+      // Save to file
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const personasPath = path.join(process.cwd(), '..', 'personas.json');
+      fs.writeFileSync(personasPath, personasData, 'utf-8');
+
+      logger.log('Personas configuration saved successfully');
+
+      return c.json({
+        success: true,
+        message: 'Personas configuration saved successfully'
+      });
+    } catch (error) {
+      logger.error('Error saving personas configuration:', error);
+      return c.json({
+        success: false,
+        message: 'Invalid JSON format or save failed'
+      }, 400);
+    }
+  })
+  .get("/system-settings", async (c) => {
+    try {
+      // For now, return empty settings (in production, this would load from database/secure storage)
+      // TODO: Implement secure storage for API keys
+      const settings = {
+        geminiApiKey: '', // Don't return actual keys for security
+        elevenlabsApiKey: '',
+      };
+
+      return c.json(settings);
+    } catch (error) {
+      logger.error('Error loading system settings:', error);
+      return c.json({ error: 'Failed to load system settings' }, 500);
+    }
+  })
+  .post("/system-settings", async (c) => {
+    try {
+      const { geminiApiKey, elevenlabsApiKey } = await c.req.json();
+
+      // TODO: Implement secure storage for API keys (database with encryption)
+      // For now, update the in-memory cache
+      const { updateAdminSettings } = await import('../lib/config');
+      updateAdminSettings({
+        geminiApiKey: geminiApiKey || undefined,
+        elevenlabsApiKey: elevenlabsApiKey || undefined,
+      });
+
+      logger.log('System settings updated successfully');
+
+      return c.json({
+        success: true,
+        message: 'System settings saved successfully'
+      });
+    } catch (error) {
+      logger.error('Error saving system settings:', error);
+      return c.json({
+        success: false,
+        message: 'Failed to save system settings'
+      }, 400);
+    }
+  })
+  .post("/users/:userId/:action", async (c) => {
+    try {
+      const userId = c.req.param("userId");
+      const action = c.req.param("action");
+
+      if (!userId || !action) {
+        return c.json({ error: "User ID and action are required" }, 400);
+      }
+
+      // Get user from database
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(userId)))
+        .limit(1);
+
+      if (!user) {
+        return c.json({ error: "User not found" }, 404);
+      }
+
+      // Initialize Clerk client
+      const clerkClient = createClerkClient({
+        secretKey: process.env.CLERK_SECRET_KEY!,
+      });
+
+      switch (action) {
+        case "block":
+          // Block user in Clerk (ban the user)
+          await clerkClient.users.banUser(user.clerkId);
+          // Update local database status
+          await db
+            .update(users)
+            .set({ status: "blocked" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "remove":
+          try {
+            // Delete user from Clerk first
+            logger.log(`Attempting to delete user ${user.clerkId} from Clerk`);
+            await clerkClient.users.deleteUser(user.clerkId);
+            logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
+
+            // Delete from local database
+            logger.log(`Deleting user ${userId} from local database`);
+            await db
+              .delete(users)
+              .where(eq(users.id, parseInt(userId)));
+            logger.log(`Successfully deleted user ${userId} from local database`);
+          } catch (clerkError) {
+            logger.error(`Failed to delete user from Clerk:`, clerkError);
+            // If Clerk deletion fails, don't delete from local DB
+            throw new Error(`Failed to delete user from authentication service: ${clerkError}`);
+          }
+          break;
+
+        case "makeAdmin":
+          // Update user metadata in Clerk to make admin
+          await clerkClient.users.updateUserMetadata(user.clerkId, {
+            publicMetadata: {
+              role: "admin"
+            }
+          });
+          // Update local database
+          await db
+            .update(users)
+            .set({ status: "admin" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "revokeAdmin":
+          // Remove admin role from Clerk metadata
+          await clerkClient.users.updateUserMetadata(user.clerkId, {
+            publicMetadata: {
+              role: "user"
+            }
+          });
+          // Update local database
+          await db
+            .update(users)
+            .set({ status: "user" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        default:
+          return c.json({ error: "Invalid action" }, 400);
+      }
+
+      logger.log(`User ${action} action completed for user ${userId}`);
+      return c.json({
+        success: true,
+        message: `User ${action} action completed successfully`
+      });
+
+    } catch (error) {
+      logger.error('Error performing user action:', error);
+      return c.json({
+        success: false,
+        message: 'Failed to perform user action'
+      }, 500);
     }
   });
 
