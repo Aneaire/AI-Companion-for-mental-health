@@ -180,7 +180,7 @@ export function UserManagementDialog({
             <Button variant="outline" onClick={() => setConfirmAction(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleConfirmAction}>
+            <Button variant="destructive" onClick={handleConfirmAction} className="text-white">
               Yes, Remove User
             </Button>
           </DialogFooter>
