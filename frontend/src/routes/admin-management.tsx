@@ -15,6 +15,7 @@ import {
   Alert,
   AlertDescription,
 } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -417,7 +418,7 @@ function AdminManagementContent() {
     try {
       const token = await getToken();
       if (!token) {
-        alert('Authentication required');
+        toast.error('Authentication required');
         return;
       }
 
@@ -430,16 +431,22 @@ function AdminManagementContent() {
       });
 
       if (response.ok) {
-        alert(`User ${action} action completed successfully!`);
+        const actionMessages = {
+          block: 'User has been blocked',
+          remove: 'User has been removed',
+          makeAdmin: 'User has been made an administrator',
+          revokeAdmin: 'Admin privileges have been revoked'
+        };
+        toast.success(actionMessages[action]);
         // Refresh the user list
         refetchUsers();
       } else {
         const error = await response.json();
-        alert(`Action failed: ${error.message}`);
+        toast.error(`Action failed: ${error.message}`);
       }
     } catch (error) {
       console.error('Error performing user action:', error);
-      alert('Network error. Please try again.');
+      toast.error('Network error. Please try again.');
     } finally {
       setUserActionLoading(false);
     }
@@ -450,7 +457,7 @@ function AdminManagementContent() {
     try {
       const token = await getToken();
       if (!token) {
-        alert('Authentication required');
+        toast.error('Authentication required');
         return;
       }
 
@@ -466,15 +473,15 @@ function AdminManagementContent() {
       if (response.ok) {
         setSystemSettingsBackup(systemSettings);
         setIsSystemSettingsDirty(false);
-        alert('System settings saved successfully!');
+        toast.success('System settings saved successfully!');
       } else {
         const error = await response.json();
-        alert(`Save failed: ${error.message}`);
+        toast.error(`Save failed: ${error.message}`);
       }
 
     } catch (error) {
       console.error('Error saving system settings:', error);
-      alert('Network error. Please try again.');
+      toast.error('Network error. Please try again.');
     }
   };
 
@@ -491,7 +498,7 @@ function AdminManagementContent() {
     try {
       const token = await getToken();
       if (!token) {
-        alert('Authentication required');
+        toast.error('Authentication required');
         return;
       }
 
@@ -509,15 +516,15 @@ function AdminManagementContent() {
         setOriginalJson(currentJson);
         setPersonasBackup(personasConfig);
         setIsPersonasDirty(false);
-        alert('Personas configuration saved successfully!');
+        toast.success('Personas configuration saved successfully!');
       } else {
         const error = await response.json();
-        alert(`Save failed: ${error.message}`);
+        toast.error(`Save failed: ${error.message}`);
       }
 
     } catch (error) {
       console.error('Error saving personas:', error);
-      alert('Network error. Please try again.');
+      toast.error('Network error. Please try again.');
     }
   };
 
