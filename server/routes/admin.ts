@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { streamSSE } from "hono/streaming";
 import { db } from "../db/config";
-import { sessions, threads, messages, sessionForms } from "../db/schema";
+import { sessions, threads, messages, sessionForms, users } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
-import { count, eq, sql } from "drizzle-orm";
+import { count, eq, sql, desc, asc, like, or } from "drizzle-orm";
 import { geminiConfig } from "../lib/config";
 import { logger } from "../lib/logger";
 
@@ -103,6 +103,7 @@ const adminRoute = new Hono()
         .select({
           id: sessionForms.id,
           sessionId: sessionForms.sessionId,
+          questions: sessionForms.questions,
           answers: sessionForms.answers,
           createdAt: sessionForms.createdAt,
         })
@@ -157,8 +158,8 @@ const adminRoute = new Hono()
         forms: threadGeneratedForms.map(form => ({
           id: form.id,
           sessionId: form.sessionId,
-          formData: form.formData || null,
-          generatedQuestions: form.generatedQuestions || null,
+          questions: form.questions || null,
+          answers: form.answers || null,
           createdAt: form.createdAt,
         })),
       };
@@ -658,6 +659,112 @@ You must internally analyze each query to understand:
     } catch (error) {
       logger.error("Error fetching admin metrics:", error);
       return c.json({ error: "Failed to fetch metrics" }, 500);
+    }
+  })
+  .get("/users", async (c) => {
+    try {
+      // Get pagination parameters
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const search = c.req.query("search") || "";
+      const sortBy = c.req.query("sortBy") || "createdAt";
+      const sortOrder = c.req.query("sortOrder") || "desc";
+
+      const offset = (page - 1) * limit;
+
+      // Build where conditions for search
+      let whereClause = undefined;
+      if (search) {
+        whereClause = or(
+          like(users.email, `%${search}%`),
+          like(users.firstName, `%${search}%`),
+          like(users.lastName, `%${search}%`),
+          like(users.nickname, `%${search}%`)
+        );
+      }
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({ total: count(users.id) })
+        .from(users)
+        .where(whereClause);
+
+      const totalUsers = totalCountResult[0]?.total || 0;
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      // Build order by clause
+      let orderByClause;
+      switch (sortBy) {
+        case "email":
+          orderByClause = sortOrder === "asc" ? asc(users.email) : desc(users.email);
+          break;
+        case "firstName":
+          orderByClause = sortOrder === "asc" ? asc(users.firstName) : desc(users.firstName);
+          break;
+        case "lastName":
+          orderByClause = sortOrder === "asc" ? asc(users.lastName) : desc(users.lastName);
+          break;
+        case "createdAt":
+        default:
+          orderByClause = sortOrder === "asc" ? asc(users.createdAt) : desc(users.createdAt);
+          break;
+      }
+
+      // Get users with pagination and sorting, including thread count
+      const userList = await db
+        .select({
+          id: users.id,
+          clerkId: users.clerkId,
+          email: users.email,
+          nickname: users.nickname,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          age: users.age,
+          status: users.status,
+          hobby: users.hobby,
+          profileImageUrl: users.profileImageUrl,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          threadCount: sql<number>`COUNT(${threads.id})`,
+        })
+        .from(users)
+        .leftJoin(threads, eq(users.id, threads.userId))
+        .where(whereClause)
+        .groupBy(
+          users.id,
+          users.clerkId,
+          users.email,
+          users.nickname,
+          users.firstName,
+          users.lastName,
+          users.age,
+          users.status,
+          users.hobby,
+          users.profileImageUrl,
+          users.createdAt,
+          users.updatedAt
+        )
+        .orderBy(orderByClause)
+        .limit(limit)
+        .offset(offset);
+
+      return c.json({
+        users: userList,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalUsers: totalUsers,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit: limit,
+        },
+        search: search,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+      });
+    } catch (error) {
+      logger.error("Error fetching users:", error);
+      return c.json({ error: "Failed to fetch users" }, 500);
     }
   });
 
