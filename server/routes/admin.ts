@@ -766,6 +766,55 @@ You must internally analyze each query to understand:
       logger.error("Error fetching users:", error);
       return c.json({ error: "Failed to fetch users" }, 500);
     }
+  })
+  .get("/personas", async (c) => {
+    try {
+      // Read the personas.json file from the project root
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const personasPath = path.join(process.cwd(), 'personas.json');
+
+      if (!fs.existsSync(personasPath)) {
+        return c.json({ error: 'Personas configuration file not found' }, 404);
+      }
+
+      const personasData = fs.readFileSync(personasPath, 'utf-8');
+      const parsedData = JSON.parse(personasData);
+
+      return c.json(parsedData);
+    } catch (error) {
+      logger.error('Error loading personas configuration:', error);
+      return c.json({ error: 'Failed to load personas configuration' }, 500);
+    }
+  })
+  .post("/personas", async (c) => {
+    try {
+      const { personasData } = await c.req.json();
+
+      // Validate JSON
+      const parsedData = JSON.parse(personasData);
+
+      // Save to file
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const personasPath = path.join(process.cwd(), 'personas.json');
+      fs.writeFileSync(personasPath, personasData, 'utf-8');
+
+      logger.log('Personas configuration saved successfully');
+
+      return c.json({
+        success: true,
+        message: 'Personas configuration saved successfully'
+      });
+    } catch (error) {
+      logger.error('Error saving personas configuration:', error);
+      return c.json({
+        success: false,
+        message: 'Invalid JSON format or save failed'
+      }, 400);
+    }
   });
 
 export default adminRoute;
