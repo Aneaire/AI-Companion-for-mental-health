@@ -137,7 +137,7 @@ export function UserManagementDialog({
                   size="sm"
                   onClick={() => handleAction('remove')}
                   disabled={isLoading}
-                  className="w-full justify-start"
+                  className="w-full justify-start text-red-600 hover:text-red-700"
                 >
                   <UserX className="h-4 w-4 mr-2" />
                   Remove User
