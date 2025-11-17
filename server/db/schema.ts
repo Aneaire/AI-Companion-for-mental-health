@@ -314,3 +314,14 @@ export const dailyRequestLimits = pgTable("daily_request_limits", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Personas configuration table (replaces personas.json)
+export const personasConfig = pgTable("personas_config", {
+  id: serial("id").primaryKey(),
+  key: varchar("key").notNull().unique(), // 'main' for the main config
+  personas: jsonb("personas").$type<Record<string, any>>().notNull(),
+  selectionRules: jsonb("selection_rules").$type<Record<string, any>>(),
+  angerDetection: jsonb("anger_detection").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
