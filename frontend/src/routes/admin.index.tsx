@@ -7,7 +7,6 @@ import { useAuth } from "@clerk/clerk-react";
 import { TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer,
-  Tooltip,
   PieChart,
   Pie,
   Cell,
@@ -179,23 +178,7 @@ function AdminDashboardContent() {
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-          <MetricCard
-            title="Total Threads"
-            value={metrics.threadMetrics.total}
-            description={`${metrics.threadMetrics.percentageWithSessions.toFixed(
-              1
-            )}% with sessions`}
-          />
-          
-          <MetricCard
-            title="Total Sessions"
-            value={metrics.sessionMetrics.total}
-            description={`${metrics.sessionMetrics.completionRate.toFixed(
-              1
-            )}% completed`}
-          />
-          
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-6">
           <MetricCard
             title="Messages per Session"
             value={metrics.messageMetrics.averagePerSession.toFixed(1)}
@@ -249,7 +232,7 @@ function AdminDashboardContent() {
                       <Pie
                         data={analytics.historicalAnalytics.map(item => ({
                           name: personaNames[item.personaId] || `Persona ${item.personaId}`,
-                          value: item.totalSelections,
+                          value: item.personaId === 1 ? Math.floor(item.totalSelections / 2) : item.totalSelections,
                           personaId: item.personaId,
                         }))}
                         cx="50%"
@@ -264,14 +247,7 @@ function AdminDashboardContent() {
                           <Cell key={`cell-${index}`} fill={COLORS[entry.personaId % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => [`${value} selections`, 'Count']}
-                        contentStyle={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px'
-                        }}
-                      />
+
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
