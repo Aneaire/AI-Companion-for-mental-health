@@ -5,11 +5,11 @@ import { db } from "../db/config";
 import { sessions, threads, messages, sessionForms, users } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
 import { count, eq, sql, desc, asc, like, or } from "drizzle-orm";
-import { geminiConfig } from "../lib/config";
+import { geminiConfig, getGeminiApiKey } from "../lib/config";
 import { logger } from "../lib/logger";
 
 // Initialize Gemini
-const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const gemini = getGeminiApiKey() ? new GoogleGenerativeAI(getGeminiApiKey()!) : null;
 
 // Using same streaming approach as working chat - no chunk processing needed
 
@@ -813,6 +813,47 @@ You must internally analyze each query to understand:
       return c.json({
         success: false,
         message: 'Invalid JSON format or save failed'
+      }, 400);
+    }
+  })
+  .get("/system-settings", async (c) => {
+    try {
+      // For now, return empty settings (in production, this would load from database/secure storage)
+      // TODO: Implement secure storage for API keys
+      const settings = {
+        geminiApiKey: '', // Don't return actual keys for security
+        elevenlabsApiKey: '',
+      };
+
+      return c.json(settings);
+    } catch (error) {
+      logger.error('Error loading system settings:', error);
+      return c.json({ error: 'Failed to load system settings' }, 500);
+    }
+  })
+  .post("/system-settings", async (c) => {
+    try {
+      const { geminiApiKey, elevenlabsApiKey } = await c.req.json();
+
+      // TODO: Implement secure storage for API keys (database with encryption)
+      // For now, update the in-memory cache
+      const { updateAdminSettings } = await import('../lib/config');
+      updateAdminSettings({
+        geminiApiKey: geminiApiKey || undefined,
+        elevenlabsApiKey: elevenlabsApiKey || undefined,
+      });
+
+      logger.log('System settings updated successfully');
+
+      return c.json({
+        success: true,
+        message: 'System settings saved successfully'
+      });
+    } catch (error) {
+      logger.error('Error saving system settings:', error);
+      return c.json({
+        success: false,
+        message: 'Failed to save system settings'
       }, 400);
     }
   });

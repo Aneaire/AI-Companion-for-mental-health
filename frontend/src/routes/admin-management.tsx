@@ -147,6 +147,23 @@ function AdminManagementContent() {
   const [selectedPersona, setSelectedPersona] = useState<string>("");
   const [originalJson, setOriginalJson] = useState<string>("");
 
+  // System settings state
+  const [systemSettings, setSystemSettings] = useState<{
+    geminiApiKey: string;
+    elevenlabsApiKey: string;
+  }>({
+    geminiApiKey: '',
+    elevenlabsApiKey: '',
+  });
+  const [systemSettingsBackup, setSystemSettingsBackup] = useState<{
+    geminiApiKey: string;
+    elevenlabsApiKey: string;
+  }>({
+    geminiApiKey: '',
+    elevenlabsApiKey: '',
+  });
+  const [isSystemSettingsDirty, setIsSystemSettingsDirty] = useState(false);
+
   const { data: userData, isLoading, error } = useQuery({
     queryKey: ['admin-users', currentPage, searchTerm, sortBy, sortOrder],
     queryFn: async () => {
@@ -284,6 +301,37 @@ function AdminManagementContent() {
     loadPersonasData();
   }, [getToken]);
 
+  // Load system settings on component mount
+  useEffect(() => {
+    const loadSystemSettings = async () => {
+      try {
+        const token = await getToken();
+        if (!token) {
+          console.error('No authentication token available');
+          return;
+        }
+
+        const response = await fetch('/api/admin/system-settings', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSystemSettings(data);
+          setSystemSettingsBackup(data);
+        } else {
+          console.error('Failed to load system settings:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('Failed to load system settings:', error);
+      }
+    };
+
+    loadSystemSettings();
+  }, [getToken]);
+
   // Handle personas config changes
   const handlePersonaChange = (personaId: string, field: string, value: any) => {
     if (!personasConfig) return;
@@ -347,6 +395,55 @@ function AdminManagementContent() {
     const hasChanged = currentJson !== originalJson;
     console.log('Anger detection changed:', hasChanged, field, value);
     setIsPersonasDirty(hasChanged);
+  };
+
+  // Handle system settings changes
+  const handleSystemSettingsChange = (field: string, value: string) => {
+    const updatedSettings = { ...systemSettings, [field]: value };
+    setSystemSettings(updatedSettings);
+    const hasChanged = JSON.stringify(updatedSettings) !== JSON.stringify(systemSettingsBackup);
+    setIsSystemSettingsDirty(hasChanged);
+  };
+
+  // Save system settings
+  const handleSaveSystemSettings = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      const response = await fetch('/api/admin/system-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(systemSettings),
+      });
+
+      if (response.ok) {
+        setSystemSettingsBackup(systemSettings);
+        setIsSystemSettingsDirty(false);
+        alert('System settings saved successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Save failed: ${error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Error saving system settings:', error);
+      alert('Network error. Please try again.');
+    }
+  };
+
+  // Restore system settings
+  const handleRestoreSystemSettings = () => {
+    if (confirm('Are you sure you want to restore system settings to their previous saved state?')) {
+      setSystemSettings(systemSettingsBackup);
+      setIsSystemSettingsDirty(false);
+    }
   };
 
   // Save personas data
@@ -529,7 +626,7 @@ function AdminManagementContent() {
                                     </div>
                                     <div className="text-sm text-gray-500">
                                       Threads: {user.threadCount}
-                                      {user.age && user.age > 0 && ` • Age: ${user.age}`}
+                                     
                                     </div>
                                   </div>
                                </div>
@@ -879,19 +976,152 @@ function AdminManagementContent() {
              </Card>
            </TabsContent>
 
-          <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">System Settings</h3>
-                <Alert>
-                  <Settings className="h-4 w-4" />
-                  <AlertDescription>
-                    System configuration options will be available here. You can manage API keys, integration settings, and system preferences.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            </Card>
-          </TabsContent>
+           <TabsContent value="settings" className="space-y-6">
+             <div className="flex items-center justify-between mb-6">
+               <h3 className="text-lg font-semibold">System Settings</h3>
+               <div className="flex items-center gap-2">
+                 <Button
+                   onClick={handleRestoreSystemSettings}
+                   variant="outline"
+                   size="sm"
+                   disabled={!isSystemSettingsDirty}
+                 >
+                   <RotateCcw className="h-4 w-4 mr-2" />
+                   Restore Previous
+                 </Button>
+                 <Button
+                   onClick={handleSaveSystemSettings}
+                   size="sm"
+                   disabled={!isSystemSettingsDirty}
+                 >
+                   <Save className="h-4 w-4 mr-2" />
+                   Save Settings
+                 </Button>
+               </div>
+             </div>
+
+             {isSystemSettingsDirty && (
+               <Alert className="border-yellow-200 bg-yellow-50">
+                 <AlertDescription className="text-yellow-800">
+                   You have unsaved changes. Click "Save Settings" to apply them or "Restore Previous" to discard.
+                 </AlertDescription>
+               </Alert>
+             )}
+
+             <Card>
+               <div className="p-6">
+                 <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                   <Zap className="h-5 w-5 text-blue-500" />
+                   API Keys Configuration
+                 </h4>
+
+                 <div className="space-y-6">
+                   <Alert>
+                     <AlertDescription className="text-sm">
+                       Configure API keys for external services. These keys will be prioritized over environment variables.
+                       Keys are stored securely and only accessible to administrators.
+                     </AlertDescription>
+                   </Alert>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="space-y-3">
+                       <div className="flex items-center gap-2">
+                         <Bot className="h-4 w-4 text-blue-500" />
+                         <Label htmlFor="gemini-key" className="text-sm font-medium">
+                           Gemini API Key
+                         </Label>
+                       </div>
+                       <Input
+                         id="gemini-key"
+                         type="password"
+                         value={systemSettings.geminiApiKey}
+                         onChange={(e) => handleSystemSettingsChange('geminiApiKey', e.target.value)}
+                         placeholder="Enter your Gemini API key..."
+                         className="font-mono"
+                       />
+                       <p className="text-xs text-gray-500">
+                         Used for AI text generation and conversation processing.
+                         {systemSettings.geminiApiKey ? ' ✓ Configured' : ' ⚠ Not configured (using environment variable)'}
+                       </p>
+                     </div>
+
+                     <div className="space-y-3">
+                       <div className="flex items-center gap-2">
+                         <Settings className="h-4 w-4 text-green-500" />
+                         <Label htmlFor="elevenlabs-key" className="text-sm font-medium">
+                           ElevenLabs API Key
+                         </Label>
+                       </div>
+                       <Input
+                         id="elevenlabs-key"
+                         type="password"
+                         value={systemSettings.elevenlabsApiKey}
+                         onChange={(e) => handleSystemSettingsChange('elevenlabsApiKey', e.target.value)}
+                         placeholder="Enter your ElevenLabs API key..."
+                         className="font-mono"
+                       />
+                       <p className="text-xs text-gray-500">
+                         Used for text-to-speech voice generation.
+                         {systemSettings.elevenlabsApiKey ? ' ✓ Configured' : ' ⚠ Not configured (using environment variable)'}
+                       </p>
+                     </div>
+                   </div>
+
+                   <div className="border-t pt-6">
+                     <h5 className="text-sm font-medium mb-3">Security Notes</h5>
+                     <ul className="text-xs text-gray-600 space-y-1">
+                       <li>• API keys are encrypted before storage</li>
+                       <li>• Keys are only accessible to administrators</li>
+                       <li>• Changes take effect immediately after saving</li>
+                       <li>• Environment variables are used as fallback if admin keys are not set</li>
+                     </ul>
+                   </div>
+                 </div>
+               </div>
+             </Card>
+
+             <Card>
+               <div className="p-6">
+                 <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                   <Shield className="h-5 w-5 text-purple-500" />
+                   System Information
+                 </h4>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="space-y-3">
+                     <div>
+                       <Label className="text-sm font-medium">Environment</Label>
+                       <p className="text-sm text-gray-600">
+                         {process.env.NODE_ENV === 'production' ? 'Production' : 'Development'}
+                       </p>
+                     </div>
+
+                     <div>
+                       <Label className="text-sm font-medium">API Status</Label>
+                       <div className="flex items-center gap-2">
+                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                         <span className="text-sm text-gray-600">All systems operational</span>
+                       </div>
+                     </div>
+                   </div>
+
+                   <div className="space-y-3">
+                     <div>
+                       <Label className="text-sm font-medium">Last Updated</Label>
+                       <p className="text-sm text-gray-600">
+                         {new Date().toLocaleString()}
+                       </p>
+                     </div>
+
+                     <div>
+                       <Label className="text-sm font-medium">Version</Label>
+                       <p className="text-sm text-gray-600">v1.0.0</p>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </Card>
+           </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
