@@ -13,8 +13,19 @@ async function seedPersonas() {
       return;
     }
 
-    // Insert the configuration
-    await db.insert(personasConfig).values(configData[0]);
+    // Upsert the configuration (insert or update if exists)
+    await db
+      .insert(personasConfig)
+      .values(configData[0])
+      .onConflictDoUpdate({
+        target: personasConfig.key,
+        set: {
+          personas: configData[0].personas,
+          selectionRules: configData[0].selectionRules,
+          angerDetection: configData[0].angerDetection,
+          updatedAt: new Date(),
+        },
+      });
 
     console.log("✅ Personas configuration seeded successfully!");
   } catch (error) {

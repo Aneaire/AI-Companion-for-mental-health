@@ -5,7 +5,7 @@ import { db } from "../db/config";
 import { sessions, threads, messages, sessionForms, users } from "../db/schema";
 import { adminMiddleware } from "../middleware/admin";
 import { createClerkClient } from "@clerk/backend";
-import { count, eq, sql, desc, asc, like, or, ne, and } from "drizzle-orm";
+import { count, eq, sql, desc, asc, like, or, ne, and, isNull } from "drizzle-orm";
 import { geminiConfig, getGeminiApiKey } from "../lib/config";
 import { logger } from "../lib/logger";
 
@@ -576,6 +576,137 @@ You must internally analyze each query to understand:
     } catch (error) {
       logger.error("Error fetching anonymized threads:", error);
       return c.json({ error: "Failed to fetch threads" }, 500);
+    }
+  })
+  .get("/users/:userId/threads", async (c) => {
+    try {
+      const userId = parseInt(c.req.param("userId"));
+      if (!userId) {
+        return c.json({ error: "User ID is required" }, 400);
+      }
+
+      logger.log("Fetching threads for user:", userId);
+
+      // Get pagination parameters
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const offset = (page - 1) * limit;
+
+      // Get total count for pagination (exclude archived threads)
+      const totalCountResult = await db
+        .select({
+          total: count(threads.id),
+        })
+        .from(threads)
+        .where(and(eq(threads.userId, userId), isNull(threads.archived)));
+
+      const totalThreads = totalCountResult[0]?.total || 0;
+      const totalPages = Math.ceil(totalThreads / limit);
+
+      // Get threads with session count for this user
+      const userThreads = await db
+        .select({
+          id: threads.id,
+          createdAt: threads.createdAt,
+          updatedAt: threads.updatedAt,
+          sessionCount: sql<number>`COUNT(${sessions.id})`,
+          preferredName: threads.preferredName,
+          reasonForVisit: threads.reasonForVisit,
+        })
+        .from(threads)
+        .leftJoin(sessions, eq(sessions.threadId, threads.id))
+        .where(and(eq(threads.userId, userId), isNull(threads.archived)))
+        .groupBy(threads.id, threads.createdAt, threads.updatedAt, threads.preferredName, threads.reasonForVisit)
+        .orderBy(desc(threads.updatedAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Create thread display names
+      const threadsWithNames = userThreads.map((thread, index) => ({
+        id: thread.id,
+        displayName: thread.preferredName || `Thread ${offset + index + 1}`,
+        sessionCount: thread.sessionCount || 0,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        reasonForVisit: thread.reasonForVisit,
+      }));
+
+      logger.log("User threads:", threadsWithNames.length, "of", totalThreads);
+
+      return c.json({
+        threads: threadsWithNames,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalThreads: totalThreads,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit: limit,
+        }
+      });
+    } catch (error) {
+      logger.error("Error fetching user threads:", error);
+      return c.json({ error: "Failed to fetch user threads" }, 500);
+    }
+  })
+  .get("/threads/:threadId/messages", async (c) => {
+    try {
+      const threadId = parseInt(c.req.param("threadId"));
+      if (!threadId) {
+        return c.json({ error: "Thread ID is required" }, 400);
+      }
+
+      logger.log("Fetching messages for thread:", threadId);
+
+      // Get thread info
+      const thread = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.id, threadId))
+        .limit(1);
+
+      if (thread.length === 0) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      // Get all messages for this thread (across all sessions)
+      const threadMessages = await db
+        .select({
+          id: messages.id,
+          sender: messages.sender,
+          text: messages.text,
+          timestamp: messages.timestamp,
+          sessionId: messages.sessionId,
+          threadType: messages.threadType,
+        })
+        .from(messages)
+        .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(messages.timestamp);
+
+      // Get thread sessions for context
+      const threadSessions = await db
+        .select({
+          id: sessions.id,
+          sessionNumber: sessions.sessionNumber,
+          sessionName: sessions.sessionName,
+          status: sessions.status,
+          createdAt: sessions.createdAt,
+        })
+        .from(sessions)
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(sessions.sessionNumber);
+
+      logger.log("Thread messages:", threadMessages.length, "from", threadSessions.length, "sessions");
+
+      return c.json({
+        thread: thread[0],
+        sessions: threadSessions,
+        messages: threadMessages,
+      });
+    } catch (error) {
+      logger.error("Error fetching thread messages:", error);
+      return c.json({ error: "Failed to fetch thread messages" }, 500);
     }
   })
   .get("/metrics", async (c) => {

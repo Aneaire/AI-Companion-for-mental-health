@@ -19,7 +19,9 @@ import { Route as CounselorRouteImport } from './routes/counselor'
 import { Route as AdminManagementRouteImport } from './routes/admin-management'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminMonitorThreadsRouteImport } from './routes/admin.monitor-threads'
 import { Route as AdminCounselorRouteImport } from './routes/admin.counselor'
+import { Route as AdminThreadsThreadIdRouteImport } from './routes/admin.threads.$threadId'
 import { Route as AdminCounselorRefactoredRouteImport } from './routes/admin.counselor.refactored'
 
 const QualityAnalysisRoute = QualityAnalysisRouteImport.update({
@@ -72,9 +74,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMonitorThreadsRoute = AdminMonitorThreadsRouteImport.update({
+  id: '/admin/monitor-threads',
+  path: '/admin/monitor-threads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminCounselorRoute = AdminCounselorRouteImport.update({
   id: '/admin/counselor',
   path: '/admin/counselor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminThreadsThreadIdRoute = AdminThreadsThreadIdRouteImport.update({
+  id: '/admin/threads/$threadId',
+  path: '/admin/threads/$threadId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCounselorRefactoredRoute =
@@ -95,8 +107,10 @@ export interface FileRoutesByFullPath {
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/counselor': typeof AdminCounselorRouteWithChildren
+  '/admin/monitor-threads': typeof AdminMonitorThreadsRoute
   '/admin': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
+  '/admin/threads/$threadId': typeof AdminThreadsThreadIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,8 +123,10 @@ export interface FileRoutesByTo {
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/counselor': typeof AdminCounselorRouteWithChildren
+  '/admin/monitor-threads': typeof AdminMonitorThreadsRoute
   '/admin': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
+  '/admin/threads/$threadId': typeof AdminThreadsThreadIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,8 +140,10 @@ export interface FileRoutesById {
   '/podcast': typeof PodcastRoute
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/counselor': typeof AdminCounselorRouteWithChildren
+  '/admin/monitor-threads': typeof AdminMonitorThreadsRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
+  '/admin/threads/$threadId': typeof AdminThreadsThreadIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,8 +158,10 @@ export interface FileRouteTypes {
     | '/podcast'
     | '/quality-analysis'
     | '/admin/counselor'
+    | '/admin/monitor-threads'
     | '/admin'
     | '/admin/counselor/refactored'
+    | '/admin/threads/$threadId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -154,8 +174,10 @@ export interface FileRouteTypes {
     | '/podcast'
     | '/quality-analysis'
     | '/admin/counselor'
+    | '/admin/monitor-threads'
     | '/admin'
     | '/admin/counselor/refactored'
+    | '/admin/threads/$threadId'
   id:
     | '__root__'
     | '/'
@@ -168,8 +190,10 @@ export interface FileRouteTypes {
     | '/podcast'
     | '/quality-analysis'
     | '/admin/counselor'
+    | '/admin/monitor-threads'
     | '/admin/'
     | '/admin/counselor/refactored'
+    | '/admin/threads/$threadId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,7 +207,9 @@ export interface RootRouteChildren {
   PodcastRoute: typeof PodcastRoute
   QualityAnalysisRoute: typeof QualityAnalysisRoute
   AdminCounselorRoute: typeof AdminCounselorRouteWithChildren
+  AdminMonitorThreadsRoute: typeof AdminMonitorThreadsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminThreadsThreadIdRoute: typeof AdminThreadsThreadIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -258,11 +284,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/monitor-threads': {
+      id: '/admin/monitor-threads'
+      path: '/admin/monitor-threads'
+      fullPath: '/admin/monitor-threads'
+      preLoaderRoute: typeof AdminMonitorThreadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/counselor': {
       id: '/admin/counselor'
       path: '/admin/counselor'
       fullPath: '/admin/counselor'
       preLoaderRoute: typeof AdminCounselorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/threads/$threadId': {
+      id: '/admin/threads/$threadId'
+      path: '/admin/threads/$threadId'
+      fullPath: '/admin/threads/$threadId'
+      preLoaderRoute: typeof AdminThreadsThreadIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/counselor/refactored': {
@@ -298,7 +338,9 @@ const rootRouteChildren: RootRouteChildren = {
   PodcastRoute: PodcastRoute,
   QualityAnalysisRoute: QualityAnalysisRoute,
   AdminCounselorRoute: AdminCounselorRouteWithChildren,
+  AdminMonitorThreadsRoute: AdminMonitorThreadsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminThreadsThreadIdRoute: AdminThreadsThreadIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

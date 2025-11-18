@@ -4,8 +4,8 @@ import { join } from "path";
 
 const seedPersonasConfig = () => {
   try {
-    // Read the personas.json file
-    const configPath = join(process.cwd(), "frontend", "public", "personas.json");
+    // Read the personas.json file from the root directory
+    const configPath = join(process.cwd(), "..", "personas.json");
     const configData = readFileSync(configPath, "utf-8");
     const personasData = JSON.parse(configData);
 

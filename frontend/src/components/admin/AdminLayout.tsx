@@ -48,7 +48,13 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
       description: "Dashboard & Analytics"
     },
     {
-      to: "/quality-analysis", 
+      to: "/admin/monitor-threads",
+      icon: MessageSquare,
+      label: "Monitor Threads",
+      description: "View all therapeutic threads"
+    },
+    {
+      to: "/quality-analysis",
       icon: BarChart3,
       label: "Quality Analysis",
       description: "Thread analysis & insights"
