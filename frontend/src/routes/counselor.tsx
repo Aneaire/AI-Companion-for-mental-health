@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
   Send,
   User,
   Loader2,
+  HeadphonesIcon,
+  Users,
 } from "lucide-react";
 import MobileTopbar from "@/components/chat/MobileTopbar";
 import { CounselorSidebar } from "@/components/chat/CounselorSidebar";
@@ -65,6 +67,7 @@ export const Route = createFileRoute("/counselor")({
 
 function CounselorPage() {
   const { user } = useUser();
+  const location = useLocation();
   const { conversationPreferences, setConversationPreferences } = useChatStore();
   const [requests, setRequests] = useState<AppwriteCounselorRequest[]>([]);
   const [activeChat, setActiveChat] = useState<AppwriteCounselorChat | null>(null);
@@ -265,32 +268,45 @@ function CounselorPage() {
        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col h-full md:relative md:translate-x-0 ${
          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
        }`}>
-        {/* Navigation Section - Sticky on mobile */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-3 md:relative md:z-auto">
-          <div className="flex flex-col gap-1">
-            <a
-              href="/"
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50`}
-            >
-              <MessageCircle size={16} />
-              Chat
-            </a>
-            <a
-              href="/impersonate"
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50`}
-            >
-              <MessageCircle size={16} />
-              Impersonate
-            </a>
-            <a
-              href="/counselor"
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-blue-50 text-blue-700 border border-blue-200`}
-            >
-              <User size={16} />
-              Counselor
-            </a>
-          </div>
-        </div>
+         {/* Navigation Section - Sticky on mobile */}
+         <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-3 md:relative md:z-auto">
+           <div className="flex flex-col gap-1">
+             <Link
+               to="/"
+               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                 location.pathname === "/"
+                   ? "bg-blue-50 text-blue-700 border border-blue-200"
+                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+               }`}
+               onClick={() => setIsSidebarOpen(false)} // Close sidebar on mobile after navigation
+             >
+               <MessageCircle size={16} />
+               Chat
+             </Link>
+             <Link
+               to="/impersonate"
+               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                 location.pathname === "/impersonate"
+                   ? "bg-blue-50 text-blue-700 border border-blue-200"
+                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+               }`}
+               onClick={() => setIsSidebarOpen(false)}
+             >
+               <HeadphonesIcon size={16} /> Impersonate
+             </Link>
+             <Link
+               to="/counselor"
+               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                 location.pathname === "/counselor"
+                   ? "bg-blue-50 text-blue-700 border border-blue-200"
+                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+               }`}
+               onClick={() => setIsSidebarOpen(false)}
+             >
+               <Users size={16} /> Counselor
+             </Link>
+           </div>
+         </div>
         
         {/* Counselor Section */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
