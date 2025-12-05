@@ -357,9 +357,83 @@ function AdminDashboardContent() {
                 </div>
               </div>
             </Card>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* Role Permissions Table */}
+        <Card className="mt-8">
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Role Permissions</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Feature</th>
+                    <th className="text-center py-3 px-4 font-semibold text-red-600">Superadmin</th>
+                    <th className="text-center py-3 px-4 font-semibold text-blue-600">Admin</th>
+                    <th className="text-center py-3 px-4 font-semibold text-yellow-600">Observer</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">Admin Dashboard</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">User Management</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">Counselor Management</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">Monitor Threads</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">Quality Analysis</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">System Settings</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">Persona Configuration</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900 font-medium">Role Assignment</td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Roles are managed through Clerk user metadata. Contact superadmin to change role assignments.
+              </p>
+            </div>
+          </div>
+        </Card>
     </AdminLayout>
   );
 }
