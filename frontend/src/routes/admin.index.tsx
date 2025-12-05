@@ -404,7 +404,7 @@ function AdminDashboardContent() {
                     <td className="py-3 px-4 text-gray-900 font-medium">Quality Analysis</td>
                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
                   </tr>
                   <tr className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-gray-900 font-medium">System Settings</td>

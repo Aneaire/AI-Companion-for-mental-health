@@ -54,7 +54,7 @@ Standard user role with no administrative privileges.
 - **Monitor Threads**: Superadmin, Admin, Observer
 - **Individual Thread Viewing**: Superadmin, Admin, Observer
 - **Counselor Management**: Superadmin, Observer
-- **Quality Analysis**: Superadmin, Admin
+- **Quality Analysis**: Superadmin, Admin, Observer
 - **System Settings**: Superadmin only
 - **Persona Configuration**: Superadmin, Admin, Observer
 - **User Data Modification**: Superadmin, Admin
