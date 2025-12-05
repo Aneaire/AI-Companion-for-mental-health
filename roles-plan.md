@@ -27,11 +27,11 @@ Highest privilege level with complete system access and administrative control.
 - Responsible for system-wide administrative decisions
 
 ### Admin
-Standard administrative access with full feature permissions but limited role management.
-- Can access all admin features except system settings
-- Can view user roles but cannot modify them
-- Has access to counseling management and quality analysis
-- Primary administrative role for day-to-day operations
+Standard administrative access with core admin permissions.
+- Can access admin features including quality analysis and monitoring
+- Cannot access counselor management or system settings
+- Primary administrative role for oversight and analysis
+- Does not handle direct user counseling sessions
 
 ### Observer
 Limited administrative access focused on monitoring and basic administrative functions.
@@ -53,7 +53,7 @@ Standard user role with no administrative privileges.
 - **Role Assignment**: Superadmin only
 - **Monitor Threads**: Superadmin, Admin, Observer
 - **Individual Thread Viewing**: Superadmin, Admin, Observer
-- **Counselor Management**: Superadmin, Admin, Observer (chat-based, multiple handlers needed)
+- **Counselor Management**: Superadmin, Observer
 - **Quality Analysis**: Superadmin, Admin
 - **System Settings**: Superadmin only
 - **Persona Configuration**: Superadmin, Admin, Observer
