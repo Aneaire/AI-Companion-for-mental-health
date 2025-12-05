@@ -8,8 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Shield, UserX, UserCheck } from "lucide-react";
+import { AlertTriangle, UserX, UserCheck } from "lucide-react";
 import type { User } from "@/lib/appwriteSchema";
 
 interface UserManagementDialogProps {
@@ -48,7 +47,7 @@ export function UserManagementDialog({
     }
   };
 
-  const isAdmin = user.status === 'admin'; // We'll need to add this field to the User type
+
 
   return (
     <>
@@ -76,14 +75,7 @@ export function UserManagementDialog({
                 <label className="font-medium text-gray-700">Email</label>
                 <p className="text-gray-900">{user.email}</p>
               </div>
-              <div>
-                <label className="font-medium text-gray-700">Role</label>
-                <div className="flex items-center gap-2">
-                  <Badge variant={isAdmin ? "default" : "secondary"}>
-                    {isAdmin ? "Admin" : "User"}
-                  </Badge>
-                </div>
-              </div>
+
               <div>
                 <label className="font-medium text-gray-700">Threads</label>
                 <p className="text-gray-900">{user.threadCount}</p>
@@ -92,58 +84,34 @@ export function UserManagementDialog({
                 <label className="font-medium text-gray-700">Joined</label>
                 <p className="text-gray-900">{new Date(user.createdAt).toLocaleDateString()}</p>
               </div>
-            </div>
+             </div>
 
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">Available Actions</h4>
-              <div className="space-y-2">
-                {isAdmin ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAction('revokeAdmin')}
-                    disabled={isLoading}
-                    className="w-full justify-start"
-                  >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Revoke Admin Privileges
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAction('makeAdmin')}
-                    disabled={isLoading}
-                    className="w-full justify-start"
-                  >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Make Administrator
-                  </Button>
-                )}
+             <div className="border-t pt-4">
+               <h4 className="font-medium mb-3">Account Actions</h4>
+               <div className="space-y-2">
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   onClick={() => handleAction('block')}
+                   disabled={isLoading}
+                   className="w-full justify-start"
+                 >
+                   <UserX className="h-4 w-4 mr-2" />
+                   Block User
+                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAction('block')}
-                  disabled={isLoading}
-                  className="w-full justify-start"
-                >
-                  <UserX className="h-4 w-4 mr-2" />
-                  Block User
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleAction('remove')}
-                  disabled={isLoading}
-                  className="w-full justify-start text-white hover:text-white"
-                >
-                  <UserX className="h-4 w-4 mr-2" />
-                  Remove User
-                </Button>
-              </div>
-            </div>
+                 <Button
+                   variant="destructive"
+                   size="sm"
+                   onClick={() => handleAction('remove')}
+                   disabled={isLoading}
+                   className="w-full justify-start text-white hover:text-white"
+                 >
+                   <UserX className="h-4 w-4 mr-2" />
+                   Remove User
+                 </Button>
+               </div>
+             </div>
           </div>
 
           <DialogFooter>

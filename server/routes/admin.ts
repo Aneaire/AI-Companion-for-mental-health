@@ -796,7 +796,7 @@ You must internally analyze each query to understand:
   .get("/users", async (c) => {
     try {
       // Get current admin user ID from context (set by admin middleware)
-      const adminId = c.get("adminId");
+      const adminId = (c as any).get("adminId") as number;
 
       // Get pagination parameters
       const page = parseInt(c.req.query("page") || "1");
@@ -808,7 +808,7 @@ You must internally analyze each query to understand:
       const offset = (page - 1) * limit;
 
       // Build where conditions for search and exclude current admin
-      let whereClause = ne(users.id, adminId); // Always exclude current admin
+      let whereClause = ne(users.id, sql`${adminId as number}`); // Always exclude current admin
 
       if (search) {
         const searchCondition = or(
@@ -847,7 +847,7 @@ You must internally analyze each query to understand:
           break;
       }
 
-      // Get users with pagination and sorting, including thread count and role
+      // Get users with pagination and sorting, including thread count
       const userList = await db
         .select({
           id: users.id,
@@ -858,7 +858,6 @@ You must internally analyze each query to understand:
           lastName: users.lastName,
           age: users.age,
           status: users.status,
-          role: users.status, // Map status to role for frontend compatibility
           hobby: users.hobby,
           profileImageUrl: users.profileImageUrl,
           createdAt: users.createdAt,
@@ -911,7 +910,7 @@ You must internally analyze each query to understand:
       const fs = await import('fs');
       const path = await import('path');
 
-      const personasPath = path.join(process.cwd(), '..', 'personas.json');
+      const personasPath = path.join(process.cwd(), 'personas.json');
 
       if (!fs.existsSync(personasPath)) {
         return c.json({ error: 'Personas configuration file not found' }, 404);
@@ -937,7 +936,7 @@ You must internally analyze each query to understand:
       const fs = await import('fs');
       const path = await import('path');
 
-      const personasPath = path.join(process.cwd(), '..', 'personas.json');
+      const personasPath = path.join(process.cwd(), 'personas.json');
       fs.writeFileSync(personasPath, personasData, 'utf-8');
 
       logger.log('Personas configuration saved successfully');

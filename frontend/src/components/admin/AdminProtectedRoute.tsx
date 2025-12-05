@@ -4,29 +4,22 @@ import { useNavigate } from "@tanstack/react-router";
 
 interface AdminProtectedRouteProps {
   children: React.ReactNode;
+  allowedRoles?: string[]; // Optional: specify which roles can access this route
 }
 
-export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
+export function AdminProtectedRoute({ children, allowedRoles = ['superadmin', 'admin', 'observer'] }: AdminProtectedRouteProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      console.log("Checking admin permissions...");
-      console.log("Auth state:", { isLoaded, isSignedIn });
-      console.log("User:", user?.id);
-      console.log("User metadata:", user?.publicMetadata);
-      
       if (isLoaded && isSignedIn && user) {
-        const isUserAdmin = user.publicMetadata?.role === "admin";
-        console.log("Is admin?", isUserAdmin);
+        const userRole = user.publicMetadata?.role;
+        const hasAccess = userRole && allowedRoles.includes(userRole);
 
-        if (!isUserAdmin) {
-          console.log("User is not admin, redirecting...");
+        if (!hasAccess) {
           navigate({ to: "/" });
-        } else {
-          console.log("Admin access granted");
         }
       }
     };
@@ -38,9 +31,20 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
     return <div className="p-8">Loading...</div>;
   }
 
-  if (user?.publicMetadata?.role !== "admin") {
+  const userRole = user?.publicMetadata?.role;
+  const hasAccess = userRole && allowedRoles.includes(userRole);
+  if (!hasAccess) {
     return null; // Will redirect in useEffect
   }
 
   return <>{children}</>;
+}
+
+// Specialized route protection for Monitor Threads (observer access)
+export function ObserverProtectedRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminProtectedRoute allowedRoles={['superadmin', 'admin', 'observer']}>
+      {children}
+    </AdminProtectedRoute>
+  );
 }

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useAuth } from "@clerk/clerk-react";
+
 import { useState, useEffect, useRef } from "react";
 import {
   Tabs,
@@ -133,6 +134,8 @@ function AdminManagement() {
     </AdminProtectedRoute>
   );
 }
+
+
 
 function AdminManagementContent() {
   const { getToken } = useAuth();
@@ -566,11 +569,11 @@ function AdminManagementContent() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="users">User Management</TabsTrigger>
-             <TabsTrigger value="personas">Persona</TabsTrigger>
-            <TabsTrigger value="settings">System Settings</TabsTrigger>
-          </TabsList>
+           <TabsList>
+             <TabsTrigger value="users">User Management</TabsTrigger>
+              <TabsTrigger value="personas">Persona</TabsTrigger>
+             <TabsTrigger value="settings">System Settings</TabsTrigger>
+           </TabsList>
 
            <TabsContent value="users" className="space-y-6">
              <Card>
@@ -601,57 +604,57 @@ function AdminManagementContent() {
                       </Select>
                   </div>
 
-                 {error && (
-                   <Alert className="mb-4">
-                     <AlertDescription>
-                       Error loading users: {error.message}
-                     </AlertDescription>
-                   </Alert>
-                 )}
+                  {error && (
+                    <Alert className="mb-4">
+                      <AlertDescription>
+                        Error loading users: {error.message}
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
-                 <div className="border rounded-lg overflow-hidden">
-                   <table className="w-full">
-                     <thead className="bg-gray-50">
-                       <tr>
-                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                           <button
-                             onClick={() => handleSort('firstName')}
-                             className="flex items-center gap-1 hover:text-gray-700"
-                           >
-                             Name {getSortIcon('firstName')}
-                           </button>
-                         </th>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <button
-                              onClick={() => handleSort('email')}
+                              onClick={() => handleSort('firstName')}
                               className="flex items-center gap-1 hover:text-gray-700"
                             >
-                              Email {getSortIcon('email')}
+                              Name {getSortIcon('firstName')}
                             </button>
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                           <button
-                             onClick={() => handleSort('createdAt')}
-                             className="flex items-center gap-1 hover:text-gray-700"
-                           >
-                             Created {getSortIcon('createdAt')}
-                           </button>
-                         </th>
-                       </tr>
-                     </thead>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                             <button
+                               onClick={() => handleSort('email')}
+                               className="flex items-center gap-1 hover:text-gray-700"
+                             >
+                               Email {getSortIcon('email')}
+                             </button>
+                           </th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <button
+                              onClick={() => handleSort('createdAt')}
+                              className="flex items-center gap-1 hover:text-gray-700"
+                            >
+                              Created {getSortIcon('createdAt')}
+                            </button>
+                          </th>
+                        </tr>
+                      </thead>
                      <tbody className="bg-white divide-y divide-gray-200">
-                        {isLoading ? (
-                          <tr>
-                            <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-                              Loading users...
-                            </td>
-                          </tr>
-                        ) : userData?.users.length === 0 ? (
-                          <tr>
-                            <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-                              No users found
-                            </td>
-                          </tr>
+                         {isLoading ? (
+                           <tr>
+                             <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                               Loading users...
+                             </td>
+                           </tr>
+                         ) : userData?.users.length === 0 ? (
+                           <tr>
+                             <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                               No users found
+                             </td>
+                           </tr>
                        ) : (
                           userData?.users.map((user: User) => (
                             <tr
@@ -688,9 +691,9 @@ function AdminManagementContent() {
                               <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">{user.email}</div>
                               </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                               {new Date(user.createdAt).toLocaleDateString()}
-                             </td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(user.createdAt).toLocaleDateString()}
+                              </td>
                            </tr>
                          ))
                        )}
@@ -971,75 +974,11 @@ function AdminManagementContent() {
                          Higher weights give more importance to that factor when choosing which AI persona to activate.
                        </AlertDescription>
                      </Alert>
-                   </div>
-                 </div>
-               </div>
-             </Card>
-
-             {/* Anger Detection */}
-             <Card>
-               <div className="p-6">
-                 <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                   <AlertTriangle className="h-5 w-5 text-red-500" />
-                   Anger Detection Settings
-                 </h4>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-4">
-                     <div>
-                       <Label>Toxicity Threshold</Label>
-                       <Input
-                         type="number"
-                         step="0.1"
-                         min="0"
-                         max="1"
-                         value={personasConfig?.angerDetection.toxicityThreshold || 0}
-                         onChange={(e) => handleAngerDetectionChange('toxicityThreshold', parseFloat(e.target.value))}
-                       />
-                     </div>
-
-                     <div>
-                       <Label>Sentiment Thresholds</Label>
-                       <div className="space-y-2">
-                         {personasConfig && Object.entries(personasConfig.angerDetection.sentimentThreshold).map(([key, value]) => (
-                           <div key={key} className="flex items-center justify-between">
-                             <Label className="text-sm capitalize">{key}</Label>
-                             <Input
-                               type="number"
-                               step="0.1"
-                               min="0"
-                               max="1"
-                               value={value}
-                               onChange={(e) => handleAngerDetectionChange(`sentimentThreshold.${key}`, parseFloat(e.target.value))}
-                               className="w-20"
-                             />
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   </div>
-
-                   <div className="space-y-4">
-                     <div>
-                       <Label>Anger Keywords</Label>
-                       <ArrayItemManager
-                         items={personasConfig?.angerDetection.keywords || []}
-                         onAdd={(item) => {
-                           const updatedKeywords = [...(personasConfig?.angerDetection.keywords || []), item];
-                           handleAngerDetectionChange('keywords', updatedKeywords);
-                         }}
-                         onRemove={(index) => {
-                           const updatedKeywords = (personasConfig?.angerDetection.keywords || []).filter((_, i) => i !== index);
-                           handleAngerDetectionChange('keywords', updatedKeywords);
-                         }}
-                         placeholder="Add anger keyword..."
-                       />
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </Card>
-           </TabsContent>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </TabsContent>
 
             <TabsContent value="settings" className="space-y-6">
               <div className="flex items-center justify-between mb-6">
@@ -1185,9 +1124,9 @@ function AdminManagementContent() {
                    </div>
                  </div>
                </div>
-             </Card>
-           </TabsContent>
-        </Tabs>
+              </Card>
+            </TabsContent>
+         </Tabs>
       </div>
     </AdminLayout>
   );

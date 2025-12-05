@@ -42,7 +42,7 @@ export const Route = createFileRoute("/quality-analysis")({
 
 function QualityAnalysis() {
   return (
-    <AdminProtectedRoute>
+    <AdminProtectedRoute allowedRoles={['superadmin', 'admin']}>
       <QualityAnalysisContent />
     </AdminProtectedRoute>
   );

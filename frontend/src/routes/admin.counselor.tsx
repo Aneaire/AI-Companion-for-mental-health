@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { CounselorSidebar } from "@/components/admin/CounselorSidebar";
 import { CounselorChatArea } from "@/components/chat/CounselorChatArea";
 import { PendingRequests } from "@/components/admin/PendingRequests";
@@ -11,6 +12,14 @@ export const Route = createFileRoute("/admin/counselor")({
 });
 
 function CounselorDashboard() {
+  return (
+    <AdminProtectedRoute allowedRoles={['superadmin', 'admin', 'observer']}>
+      <CounselorDashboardContent />
+    </AdminProtectedRoute>
+  );
+}
+
+function CounselorDashboardContent() {
   const {
     requests,
     chats,
@@ -32,11 +41,9 @@ function CounselorDashboard() {
 
   if (isLoading) {
     return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
     );
   }
 

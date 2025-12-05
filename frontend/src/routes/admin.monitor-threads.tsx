@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import { ObserverProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,9 +70,9 @@ export const Route = createFileRoute('/admin/monitor-threads')({
 
 function MonitorThreads() {
   return (
-    <AdminProtectedRoute>
+    <ObserverProtectedRoute>
       <MonitorThreadsContent />
-    </AdminProtectedRoute>
+    </ObserverProtectedRoute>
   );
 }
 
