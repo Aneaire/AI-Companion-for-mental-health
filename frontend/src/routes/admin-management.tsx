@@ -5,7 +5,7 @@ import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useAuth } from "@clerk/clerk-react";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Tabs,
   TabsContent,
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Users, Settings, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Save, RotateCcw, Bot, Zap, Shield, Target, AlertTriangle, X, Plus } from "lucide-react";
+import { Users, Settings, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Save, RotateCcw, Bot, Zap, Shield, Target, AlertTriangle, X, Plus, UserCheck, Eye, Crown } from "lucide-react";
 import { getUsers, type UserListParams } from "@/services/userService";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
 import type { User } from "@/lib/appwriteSchema";
@@ -137,13 +138,63 @@ function AdminManagement() {
 
 
 
+// Helper function for role badges
+const getRoleBadge = (role: string) => {
+  const roleConfig = [
+    { value: 'user', label: 'User', icon: UserCheck, color: 'bg-gray-100 text-gray-800' },
+    { value: 'observer', label: 'Observer', icon: Eye, color: 'bg-blue-100 text-blue-800' },
+    { value: 'admin', label: 'Admin', icon: Shield, color: 'bg-purple-100 text-purple-800' },
+    { value: 'superadmin', label: 'Super Admin', icon: Crown, color: 'bg-yellow-100 text-yellow-800' },
+  ].find(r => r.value === role);
+  
+  if (!roleConfig) return null;
+  const Icon = roleConfig.icon;
+  return (
+    <Badge className={roleConfig.color}>
+      <Icon className="h-3 w-3 mr-1" />
+      {roleConfig.label}
+    </Badge>
+  );
+};
+
+
+
 function AdminManagementContent() {
   const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'createdAt' | 'email' | 'firstName' | 'lastName'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Simple debounce for search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleSearchChange = (value: string) => {
+    console.log('⌨️ Search input:', value);
+    setSearchTerm(value);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ Debounced search executing:', value);
+      setDebouncedSearchTerm(value);
+      setCurrentPage(1); // Reset to first page when searching
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+
+
+
 
   // Personas configuration state
   const [personasConfig, setPersonasConfig] = useState<PersonasConfig | null>(null);
@@ -175,8 +226,9 @@ function AdminManagementContent() {
   const [isSystemSettingsDirty, setIsSystemSettingsDirty] = useState(false);
 
   const { data: userData, isLoading, error, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users', currentPage, searchTerm, sortBy, sortOrder],
+    queryKey: ['admin-users', currentPage, debouncedSearchTerm, sortBy, sortOrder],
     queryFn: async () => {
+      console.log('🔍 Query triggered with:', { currentPage, debouncedSearchTerm, sortBy, sortOrder });
       const token = await getToken();
       if (!token) {
         throw new Error('No authentication token available');
@@ -184,12 +236,14 @@ function AdminManagementContent() {
       return getUsers({
         page: currentPage,
         limit: 20,
-        search: searchTerm,
+        search: debouncedSearchTerm,
         sortBy,
         sortOrder,
         token,
       });
     },
+    enabled: true, // Only enable when we have a token
+    staleTime: 30000, // Cache for 30 seconds to reduce unnecessary calls
   });
 
   const handleSort = (column: 'createdAt' | 'email' | 'firstName' | 'lastName') => {
@@ -416,7 +470,7 @@ function AdminManagementContent() {
   };
 
   // Handle user management actions
-  const handleUserAction = async (action: 'block' | 'remove' | 'makeAdmin' | 'revokeAdmin', userId: number) => {
+  const handleUserAction = async (action: 'block' | 'remove' | 'makeAdmin' | 'revokeAdmin' | 'updateRole', userId: number, newRole?: string) => {
     setUserActionLoading(true);
     try {
       const token = await getToken();
@@ -425,20 +479,35 @@ function AdminManagementContent() {
         return;
       }
 
-      const response = await fetch(`/api/admin/users/${userId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      let response;
+      if (action === 'updateRole') {
+        // Use role management API for role updates
+        response = await fetch(`/api/role-management/users/${userId}/role`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ newRole }),
+        });
+      } else {
+        // Use existing admin API for other actions
+        response = await fetch(`/api/admin/users/${userId}/${action}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      }
 
       if (response.ok) {
         const actionMessages = {
           block: 'User has been blocked',
           remove: 'User has been removed',
           makeAdmin: 'User has been made an administrator',
-          revokeAdmin: 'Admin privileges have been revoked'
+          revokeAdmin: 'Admin privileges have been revoked',
+          updateRole: `User role has been updated to ${newRole}`
         };
         toast.success(actionMessages[action]);
         // Refresh the user list
@@ -581,15 +650,12 @@ function AdminManagementContent() {
                  <div className="flex items-center gap-4 mb-6">
                      <div className="relative">
                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                       <Input
-                         placeholder="Search users..."
-                         value={searchTerm}
-                         onChange={(e) => {
-                           setSearchTerm(e.target.value);
-                           setCurrentPage(1);
-                         }}
-                         className="pl-10 w-64"
-                       />
+                        <Input
+                          placeholder="Search users..."
+                          value={searchTerm}
+                          onChange={(e) => handleSearchChange(e.target.value)}
+                          className="pl-10 w-64"
+                        />
                      </div>
                      <Select value={sortBy} onValueChange={(value: any) => handleSort(value)}>
                        <SelectTrigger className="w-40">
@@ -632,29 +698,32 @@ function AdminManagementContent() {
                                Email {getSortIcon('email')}
                              </button>
                            </th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <button
-                              onClick={() => handleSort('createdAt')}
-                              className="flex items-center gap-1 hover:text-gray-700"
-                            >
-                              Created {getSortIcon('createdAt')}
-                            </button>
-                          </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                             Role
+                           </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                             <button
+                               onClick={() => handleSort('createdAt')}
+                               className="flex items-center gap-1 hover:text-gray-700"
+                             >
+                               Created {getSortIcon('createdAt')}
+                             </button>
+                           </th>
                         </tr>
                       </thead>
                      <tbody className="bg-white divide-y divide-gray-200">
-                         {isLoading ? (
-                           <tr>
-                             <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-                               Loading users...
-                             </td>
-                           </tr>
-                         ) : userData?.users.length === 0 ? (
-                           <tr>
-                             <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-                               No users found
-                             </td>
-                           </tr>
+                          {isLoading ? (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                                Loading users...
+                              </td>
+                            </tr>
+                          ) : userData?.users.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                                No users found
+                              </td>
+                            </tr>
                        ) : (
                           userData?.users.map((user: User) => (
                             <tr
@@ -665,35 +734,51 @@ function AdminManagementContent() {
                                 setShowUserDialog(true);
                               }}
                             >
-                             <td className="px-4 py-4 whitespace-nowrap">
-                               <div className="flex items-center">
-                                 <div className="flex-shrink-0 h-10 w-10">
-                                   <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                     <span className="text-sm font-medium text-gray-700">
-                                       {(user.firstName?.[0] || user.email[0]).toUpperCase()}
-                                     </span>
-                                   </div>
-                                 </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {user.firstName && user.lastName
-                                        ? `${user.firstName} ${user.lastName}`
-                                        : user.nickname || user.email.split('@')[0]
-                                      }
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                      Threads: {user.threadCount}
-                                     
-                                    </div>
-                                  </div>
-                               </div>
-                             </td>
                               <td className="px-4 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{user.email}</div>
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0">
+                                    <Avatar className="h-10 w-10">
+                                      <AvatarImage 
+                                        src={user.profileImageUrl || undefined} 
+                                        alt={user.firstName && user.lastName 
+                                          ? `${user.firstName} ${user.lastName}` 
+                                          : user.nickname || user.email.split('@')[0]
+                                        } 
+                                        onError={(e) => {
+                                          // Force fallback when image fails to load
+                                          e.currentTarget.style.display = 'none';
+                                        }}
+                                      />
+                                      <AvatarFallback className="font-medium text-foreground">
+                                        {user.firstName && user.lastName
+                                          ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+                                          : (user.nickname || user.email.split('@')[0]).substring(0, 1).toUpperCase()
+                                        }
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </div>
+                                   <div className="ml-4">
+                                     <div className="text-sm font-medium text-gray-900">
+                                       {user.firstName && user.lastName
+                                         ? `${user.firstName} ${user.lastName}`
+                                         : user.nickname || user.email.split('@')[0]
+                                       }
+                                     </div>
+                                     <div className="text-sm text-gray-500">
+                                       Threads: {user.threadCount}
+                                     </div>
+                                   </div>
+                                </div>
                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {new Date(user.createdAt).toLocaleDateString()}
-                              </td>
+                               <td className="px-4 py-4 whitespace-nowrap">
+                                 <div className="text-sm text-gray-900">{user.email}</div>
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap">
+                                 {getRoleBadge(user.role || 'user')}
+                               </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                 {new Date(user.createdAt).toLocaleDateString()}
+                               </td>
                            </tr>
                          ))
                        )}

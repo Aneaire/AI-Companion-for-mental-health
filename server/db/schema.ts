@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   age: integer("age"),
   status: varchar("status"),
+  role: varchar("role").default("user"),
   hobby: text("hobby"),
   profileImageUrl: varchar("profile_image_url"),
   createdAt: timestamp("created_at").defaultNow(),

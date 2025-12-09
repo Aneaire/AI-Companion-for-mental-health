@@ -15,7 +15,7 @@ export function AdminProtectedRoute({ children, allowedRoles = ['superadmin', 'a
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (isLoaded && isSignedIn && user) {
-        const userRole = user.publicMetadata?.role;
+        const userRole = user.publicMetadata?.role as string;
         const hasAccess = userRole && allowedRoles.includes(userRole);
 
         if (!hasAccess) {
@@ -31,7 +31,7 @@ export function AdminProtectedRoute({ children, allowedRoles = ['superadmin', 'a
     return <div className="p-8">Loading...</div>;
   }
 
-  const userRole = user?.publicMetadata?.role;
+  const userRole = user?.publicMetadata?.role as string;
   const hasAccess = userRole && allowedRoles.includes(userRole);
   if (!hasAccess) {
     return null; // Will redirect in useEffect

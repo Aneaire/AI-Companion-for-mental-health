@@ -19,6 +19,7 @@ import { Route as CounselorRouteImport } from './routes/counselor'
 import { Route as AdminManagementRouteImport } from './routes/admin-management'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminRoleManagementRouteImport } from './routes/admin.role-management'
 import { Route as AdminMonitorThreadsRouteImport } from './routes/admin.monitor-threads'
 import { Route as AdminCounselorRouteImport } from './routes/admin.counselor'
 import { Route as AdminThreadsThreadIdRouteImport } from './routes/admin.threads.$threadId'
@@ -74,6 +75,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoleManagementRoute = AdminRoleManagementRouteImport.update({
+  id: '/admin/role-management',
+  path: '/admin/role-management',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminMonitorThreadsRoute = AdminMonitorThreadsRouteImport.update({
   id: '/admin/monitor-threads',
   path: '/admin/monitor-threads',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/counselor': typeof AdminCounselorRouteWithChildren
   '/admin/monitor-threads': typeof AdminMonitorThreadsRoute
+  '/admin/role-management': typeof AdminRoleManagementRoute
   '/admin': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
   '/admin/threads/$threadId': typeof AdminThreadsThreadIdRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/counselor': typeof AdminCounselorRouteWithChildren
   '/admin/monitor-threads': typeof AdminMonitorThreadsRoute
+  '/admin/role-management': typeof AdminRoleManagementRoute
   '/admin': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
   '/admin/threads/$threadId': typeof AdminThreadsThreadIdRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/quality-analysis': typeof QualityAnalysisRoute
   '/admin/counselor': typeof AdminCounselorRouteWithChildren
   '/admin/monitor-threads': typeof AdminMonitorThreadsRoute
+  '/admin/role-management': typeof AdminRoleManagementRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/counselor/refactored': typeof AdminCounselorRefactoredRoute
   '/admin/threads/$threadId': typeof AdminThreadsThreadIdRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/quality-analysis'
     | '/admin/counselor'
     | '/admin/monitor-threads'
+    | '/admin/role-management'
     | '/admin'
     | '/admin/counselor/refactored'
     | '/admin/threads/$threadId'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/quality-analysis'
     | '/admin/counselor'
     | '/admin/monitor-threads'
+    | '/admin/role-management'
     | '/admin'
     | '/admin/counselor/refactored'
     | '/admin/threads/$threadId'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/quality-analysis'
     | '/admin/counselor'
     | '/admin/monitor-threads'
+    | '/admin/role-management'
     | '/admin/'
     | '/admin/counselor/refactored'
     | '/admin/threads/$threadId'
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   QualityAnalysisRoute: typeof QualityAnalysisRoute
   AdminCounselorRoute: typeof AdminCounselorRouteWithChildren
   AdminMonitorThreadsRoute: typeof AdminMonitorThreadsRoute
+  AdminRoleManagementRoute: typeof AdminRoleManagementRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminThreadsThreadIdRoute: typeof AdminThreadsThreadIdRoute
 }
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/role-management': {
+      id: '/admin/role-management'
+      path: '/admin/role-management'
+      fullPath: '/admin/role-management'
+      preLoaderRoute: typeof AdminRoleManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/monitor-threads': {
       id: '/admin/monitor-threads'
       path: '/admin/monitor-threads'
@@ -339,6 +359,7 @@ const rootRouteChildren: RootRouteChildren = {
   QualityAnalysisRoute: QualityAnalysisRoute,
   AdminCounselorRoute: AdminCounselorRouteWithChildren,
   AdminMonitorThreadsRoute: AdminMonitorThreadsRoute,
+  AdminRoleManagementRoute: AdminRoleManagementRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminThreadsThreadIdRoute: AdminThreadsThreadIdRoute,
 }

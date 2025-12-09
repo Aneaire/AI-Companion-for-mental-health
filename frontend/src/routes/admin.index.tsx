@@ -3,7 +3,9 @@ import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { Link } from "@tanstack/react-router";
+import { Shield, Users } from "lucide-react";
 import { TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -84,6 +86,7 @@ function AdminDashboard() {
 
 function AdminDashboardContent() {
   const { getToken } = useAuth();
+  const { user } = useUser();
   
   const { data: metrics, isLoading } = useQuery<MetricsData>({
     queryKey: ["adminMetrics"],
@@ -149,6 +152,8 @@ function AdminDashboardContent() {
     );
   }
 
+  const userRole = user?.publicMetadata?.role as string;
+  
   const sidebarContent = (
     <div className="space-y-4">
       <div className="p-3 bg-blue-50 rounded-lg">
@@ -168,6 +173,28 @@ function AdminDashboardContent() {
           </li>
         </ul>
       </div>
+      
+      {userRole === 'superadmin' && (
+        <div className="p-3 bg-purple-50 rounded-lg">
+          <h4 className="font-medium text-purple-900 mb-2">Quick Actions</h4>
+          <div className="space-y-2">
+            <Link
+              to="/admin/role-management"
+              className="flex items-center gap-2 p-2 text-xs text-purple-700 hover:bg-purple-100 rounded-lg transition-colors"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Manage User Roles</span>
+            </Link>
+            <Link
+              to="/admin-management"
+              className="flex items-center gap-2 p-2 text-xs text-purple-700 hover:bg-purple-100 rounded-lg transition-colors"
+            >
+              <Users className="w-4 h-4" />
+              <span>User Management</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 

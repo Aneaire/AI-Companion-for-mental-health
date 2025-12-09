@@ -10,7 +10,8 @@ import {
   Heart, 
   TrendingUp,
   Menu,
-  X
+  X,
+  Shield
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -40,7 +41,7 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
     };
   }, [isSidebarOpen]);
 
-  const navigationItems = [
+  const baseNavigationItems = [
     {
       to: "/admin",
       icon: BarChart3,
@@ -72,6 +73,20 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
       description: "User & role management"
     }
   ];
+
+  // Add role management only for superadmin users
+  const userRole = user?.publicMetadata?.role;
+  const navigationItems = userRole === 'superadmin' 
+    ? [
+        ...baseNavigationItems,
+        {
+          to: "/admin/role-management",
+          icon: Shield,
+          label: "Role Management",
+          description: "Assign user roles & permissions"
+        }
+      ]
+    : baseNavigationItems;
 
   return (
     <div className="flex h-screen w-full">
