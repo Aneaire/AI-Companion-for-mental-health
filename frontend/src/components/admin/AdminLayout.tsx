@@ -13,6 +13,7 @@ import {
   X,
   Shield
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -174,11 +175,21 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
         {/* User Section */}
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-blue-700">
-                {user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0) || 'U'}
-              </span>
-            </div>
+            <Avatar className="w-10 h-10">
+              <AvatarImage 
+                src={user?.imageUrl || undefined} 
+                alt={user?.firstName && user?.lastName 
+                  ? `${user.firstName} ${user.lastName}` 
+                  : user?.primaryEmailAddress?.emailAddress || 'User'
+                } 
+              />
+              <AvatarFallback className="font-medium text-foreground">
+                {user?.firstName && user?.lastName
+                  ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+                  : (user?.primaryEmailAddress?.emailAddress || 'User').substring(0, 1).toUpperCase()
+                }
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {user?.firstName && user?.lastName 
@@ -187,7 +198,8 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
                 }
               </p>
               <p className="text-xs text-gray-500">
-                Administrator
+                {/* Display user's actual role from metadata instead of hardcoded "Administrator" */}
+                {user?.publicMetadata?.role || 'Administrator'}
               </p>
             </div>
           </div>
