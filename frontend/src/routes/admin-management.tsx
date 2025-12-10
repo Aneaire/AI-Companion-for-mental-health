@@ -136,29 +136,6 @@ function AdminManagement() {
   );
 }
 
-
-
-// Helper function for role badges
-const getRoleBadge = (role: string) => {
-  const roleConfig = [
-    { value: 'user', label: 'User', icon: UserCheck, color: 'bg-gray-100 text-gray-800' },
-    { value: 'observer', label: 'Observer', icon: Eye, color: 'bg-blue-100 text-blue-800' },
-    { value: 'admin', label: 'Admin', icon: Shield, color: 'bg-purple-100 text-purple-800' },
-    { value: 'superadmin', label: 'Super Admin', icon: Crown, color: 'bg-yellow-100 text-yellow-800' },
-  ].find(r => r.value === role);
-  
-  if (!roleConfig) return null;
-  const Icon = roleConfig.icon;
-  return (
-    <Badge className={roleConfig.color}>
-      <Icon className="h-3 w-3 mr-1" />
-      {roleConfig.label}
-    </Badge>
-  );
-};
-
-
-
 function AdminManagementContent() {
   const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
@@ -191,10 +168,6 @@ function AdminManagementContent() {
       }
     };
   }, []);
-
-
-
-
 
   // Personas configuration state
   const [personasConfig, setPersonasConfig] = useState<PersonasConfig | null>(null);
@@ -470,7 +443,7 @@ function AdminManagementContent() {
   };
 
   // Handle user management actions
-  const handleUserAction = async (action: 'block' | 'remove' | 'makeAdmin' | 'revokeAdmin' | 'updateRole', userId: number, newRole?: string) => {
+  const handleUserAction = async (action: 'block' | 'remove', userId: number) => {
     setUserActionLoading(true);
     try {
       const token = await getToken();
@@ -479,35 +452,18 @@ function AdminManagementContent() {
         return;
       }
 
-      let response;
-      if (action === 'updateRole') {
-        // Use role management API for role updates
-        response = await fetch(`/api/role-management/users/${userId}/role`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ newRole }),
-        });
-      } else {
-        // Use existing admin API for other actions
-        response = await fetch(`/api/admin/users/${userId}/${action}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-      }
+      const response = await fetch(`/api/admin/users/${userId}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (response.ok) {
         const actionMessages = {
           block: 'User has been blocked',
           remove: 'User has been removed',
-          makeAdmin: 'User has been made an administrator',
-          revokeAdmin: 'Admin privileges have been revoked',
-          updateRole: `User role has been updated to ${newRole}`
         };
         toast.success(actionMessages[action]);
         // Refresh the user list
@@ -615,7 +571,7 @@ function AdminManagementContent() {
         <ul className="space-y-2 text-xs text-purple-700">
           <li className="flex items-center gap-2">
             <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-            User role management
+            User management
           </li>
           <li className="flex items-center gap-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -639,7 +595,7 @@ function AdminManagementContent() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
            <TabsList>
-             <TabsTrigger value="users">User Management</TabsTrigger>
+             <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="personas">Persona</TabsTrigger>
              <TabsTrigger value="settings">System Settings</TabsTrigger>
            </TabsList>
@@ -699,9 +655,6 @@ function AdminManagementContent() {
                              </button>
                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                             Role
-                           </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                              <button
                                onClick={() => handleSort('createdAt')}
                                className="flex items-center gap-1 hover:text-gray-700"
@@ -714,17 +667,17 @@ function AdminManagementContent() {
                      <tbody className="bg-white divide-y divide-gray-200">
                           {isLoading ? (
                             <tr>
-                              <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                              <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
                                 Loading users...
                               </td>
                             </tr>
                           ) : userData?.users.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                              <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
                                 No users found
                               </td>
                             </tr>
-                       ) : (
+                         ) : (
                           userData?.users.map((user: User) => (
                             <tr
                               key={user.id}
@@ -772,9 +725,6 @@ function AdminManagementContent() {
                               </td>
                                <td className="px-4 py-4 whitespace-nowrap">
                                  <div className="text-sm text-gray-900">{user.email}</div>
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap">
-                                 {getRoleBadge(user.role || 'user')}
                                </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                                  {new Date(user.createdAt).toLocaleDateString()}
@@ -1211,7 +1161,7 @@ function AdminManagementContent() {
                </div>
               </Card>
             </TabsContent>
-         </Tabs>
+       </Tabs>
       </div>
     </AdminLayout>
   );

@@ -1032,11 +1032,16 @@ You must internally analyze each query to understand:
 
         case "remove":
           try {
+            // Delete user's threads first to avoid foreign key constraint
+            logger.log(`Deleting threads for user ${userId}`);
+            await db.delete(threads).where(eq(threads.userId, parseInt(userId)));
+            logger.log(`Successfully deleted threads for user ${userId}`);
+            
             // Delete user from Clerk first
             logger.log(`Attempting to delete user ${user.clerkId} from Clerk`);
             await clerkClient.users.deleteUser(user.clerkId);
             logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
-
+            
             // Delete from local database
             logger.log(`Deleting user ${userId} from local database`);
             await db

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { superadminMiddleware } from "../middleware/superadmin";
 import { createClerkClient } from "@clerk/backend";
 import { db } from "../db/config";
-import { users } from "../db/schema";
+import { users, threads } from "../db/schema";
 import { count, eq, sql, desc, asc, like, or, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
@@ -24,10 +24,10 @@ const roleManagementRoute = new Hono()
         secretKey: process.env.CLERK_SECRET_KEY!,
       });
 
-      // Build where conditions for search - show all users when searching, otherwise only non-user roles
+      // Build where conditions for search - show all users when searching, otherwise only user roles
       let whereClause: any;
       if (search) {
-        // When searching, show all users that match the search
+        // When searching, show all users that match search
         whereClause = or(
           like(users.email, `%${search}%`),
           like(users.firstName, `%${search}%`),
@@ -35,8 +35,8 @@ const roleManagementRoute = new Hono()
           like(users.nickname, `%${search}%`)
         );
       } else {
-        // When not searching, only show users with non-user roles
-        whereClause = sql`role != 'user'`;
+        // When not searching, only show users with user role (no special roles)
+        whereClause = sql`role = 'user' OR role IS NULL`;
       }
 
       // Get total count for pagination based on whereClause
@@ -69,7 +69,7 @@ const roleManagementRoute = new Hono()
           break;
       }
 
-      // Get users from database with pagination and sorting
+      // Get users from database with pagination and sorting, including thread count
       const userList = await db
         .select({
           id: users.id,
@@ -85,9 +85,12 @@ const roleManagementRoute = new Hono()
           profileImageUrl: users.profileImageUrl,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
+          threadCount: count(threads.id).as('threadCount'),
         })
         .from(users)
+        .leftJoin(threads, eq(users.id, threads.userId))
         .where(whereClause)
+        .groupBy(users.id, users.clerkId, users.email, users.nickname, users.firstName, users.lastName, users.age, users.status, users.role, users.hobby, users.profileImageUrl, users.createdAt, users.updatedAt)
         .orderBy(orderByClause)
         .limit(limit)
         .offset(offset);
@@ -181,14 +184,14 @@ const roleManagementRoute = new Hono()
   })
   .get("/roles/summary", async (c) => {
     try {
-      // Count roles from database - only count non-user roles
+      // Count roles from database - only count user roles
       const roleCountsResult = await db
         .select({
           role: users.role,
           count: count(users.id),
         })
         .from(users)
-        .where(sql`role != 'user'`)
+        .where(sql`role = 'user' OR role IS NULL`)
         .groupBy(users.role);
 
       const roleCounts = roleCountsResult.reduce((acc, row) => {
