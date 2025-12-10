@@ -16,6 +16,7 @@ const roleManagementRoute = new Hono()
       const search = c.req.query("search") || "";
       const sortBy = c.req.query("sortBy") || "createdAt";
       const sortOrder = c.req.query("sortOrder") || "desc";
+      const filterType = c.req.query("filterType") || "roles"; // "roles" or "all"
 
       const offset = (page - 1) * limit;
 
@@ -24,10 +25,10 @@ const roleManagementRoute = new Hono()
         secretKey: process.env.CLERK_SECRET_KEY!,
       });
 
-      // Build where conditions for search - show all users when searching, otherwise only user roles
+      // Build where conditions based on filter type
       let whereClause: any;
       if (search) {
-        // When searching, show all users that match search
+        // When searching, show all users that match search without role filter
         whereClause = or(
           like(users.email, `%${search}%`),
           like(users.firstName, `%${search}%`),
@@ -35,8 +36,17 @@ const roleManagementRoute = new Hono()
           like(users.nickname, `%${search}%`)
         );
       } else {
-        // When not searching, only show users with user role (no special roles)
-        whereClause = sql`role = 'user' OR role IS NULL`;
+        // When not searching, filter based on filterType parameter
+        if (filterType === "roles") {
+          // For role-management page: only show users with roles
+          whereClause = sql`role IN ('admin', 'observer', 'superadmin')`;
+        } else if (filterType === "admin-users") {
+          // For admin-management Users tab: only show regular users (exclude roles)
+          whereClause = sql`role = 'user' OR role IS NULL`;
+        } else {
+          // For admin-management page: show all users (including regular users)
+          whereClause = sql`role = 'user' OR role IS NULL OR role IN ('admin', 'observer', 'superadmin')`;
+        }
       }
 
       // Get total count for pagination based on whereClause
@@ -108,6 +118,7 @@ const roleManagementRoute = new Hono()
         search: search,
         sortBy: sortBy,
         sortOrder: sortOrder,
+        filterType: filterType,
       });
     } catch (error) {
       logger.error("Error fetching users for role management:", error);
@@ -184,19 +195,18 @@ const roleManagementRoute = new Hono()
   })
   .get("/roles/summary", async (c) => {
     try {
-      // Count roles from database - only count user roles
+      // Count roles from database - count all users with roles
       const roleCountsResult = await db
         .select({
           role: users.role,
           count: count(users.id),
         })
         .from(users)
-        .where(sql`role = 'user' OR role IS NULL`)
+        .where(sql`role IN ('admin', 'observer', 'superadmin')`)
         .groupBy(users.role);
 
       const roleCounts = roleCountsResult.reduce((acc, row) => {
-        const role = row.role || 'user';
-        acc[role] = row.count;
+        acc[row.role] = row.count;
         return acc;
       }, {} as Record<string, number>);
 
@@ -205,7 +215,6 @@ const roleManagementRoute = new Hono()
       return c.json({
         totalUsers,
         roleCounts: {
-          user: roleCounts.user || 0,
           admin: roleCounts.admin || 0,
           observer: roleCounts.observer || 0,
           superadmin: roleCounts.superadmin || 0,

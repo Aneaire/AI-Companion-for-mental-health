@@ -57,6 +57,7 @@ const RoleManagement: React.FC = () => {
         sortBy,
         sortOrder,
         limit,
+        filterType: 'roles', // Show only users with roles for role-management
         token
       });
     }

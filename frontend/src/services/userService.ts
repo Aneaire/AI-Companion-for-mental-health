@@ -21,6 +21,7 @@ export interface UserListParams {
   search?: string;
   sortBy?: 'createdAt' | 'email' | 'firstName' | 'lastName';
   sortOrder?: 'asc' | 'desc';
+  filterType?: 'all' | 'roles' | 'admin-users';
   token?: string;
 }
 
@@ -32,6 +33,7 @@ export const getUsers = async (params: UserListParams = {}): Promise<UserListRes
       search = '',
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      filterType = 'all',
       token
     } = params;
 
@@ -45,6 +47,7 @@ export const getUsers = async (params: UserListParams = {}): Promise<UserListRes
       search,
       sortBy,
       sortOrder,
+      filterType,
     });
 
     const response = await fetch(`/api/role-management/users?${queryParams}`, {

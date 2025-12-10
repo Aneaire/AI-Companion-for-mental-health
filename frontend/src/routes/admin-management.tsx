@@ -199,7 +199,7 @@ function AdminManagementContent() {
   const [isSystemSettingsDirty, setIsSystemSettingsDirty] = useState(false);
 
   const { data: userData, isLoading, error, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users', currentPage, debouncedSearchTerm, sortBy, sortOrder],
+    queryKey: ['admin-users', currentPage, debouncedSearchTerm, sortBy, sortOrder, 'admin-users'],
     queryFn: async () => {
       console.log('🔍 Query triggered with:', { currentPage, debouncedSearchTerm, sortBy, sortOrder });
       const token = await getToken();
@@ -212,6 +212,7 @@ function AdminManagementContent() {
         search: debouncedSearchTerm,
         sortBy,
         sortOrder,
+        filterType: 'admin-users', // Show only regular users (exclude roles) for admin-management Users tab
         token,
       });
     },
