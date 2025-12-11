@@ -50,7 +50,7 @@ export const getUsers = async (params: UserListParams = {}): Promise<UserListRes
       filterType,
     });
 
-    const response = await fetch(`/api/role-management/users?${queryParams}`, {
+    const response = await fetch(`/api/admin/users?${queryParams}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

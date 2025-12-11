@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -130,7 +130,7 @@ export const Route = createFileRoute("/admin-management")({
 
 function AdminManagement() {
   return (
-    <AdminProtectedRoute>
+    <AdminProtectedRoute allowedRoles={['superadmin', 'admin']}>
       <AdminManagementContent />
     </AdminProtectedRoute>
   );
@@ -138,6 +138,8 @@ function AdminManagement() {
 
 function AdminManagementContent() {
   const { getToken } = useAuth();
+  const { user } = useUser();
+  const userRole = user?.publicMetadata?.role as string;
   const [activeTab, setActiveTab] = useState("users");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -349,7 +351,7 @@ function AdminManagementContent() {
           return;
         }
 
-        const response = await fetch('/api/admin/system-settings', {
+        const response = await fetch('/api/superadmin/system-settings', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -490,7 +492,7 @@ function AdminManagementContent() {
         return;
       }
 
-      const response = await fetch('/api/admin/system-settings', {
+      const response = await fetch('/api/superadmin/system-settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -594,12 +596,16 @@ function AdminManagementContent() {
           <h1 className="text-2xl font-bold text-gray-900">Admin Management</h1>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-           <TabsList>
-             <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="personas">Persona</TabsTrigger>
-             <TabsTrigger value="settings">System Settings</TabsTrigger>
-           </TabsList>
+         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              {userRole === 'superadmin' && (
+                <>
+                  <TabsTrigger value="personas">Persona</TabsTrigger>
+                  <TabsTrigger value="settings">System Settings</TabsTrigger>
+                </>
+              )}
+            </TabsList>
 
            <TabsContent value="users" className="space-y-6">
              <Card>
@@ -784,7 +790,8 @@ function AdminManagementContent() {
               />
             </TabsContent>
 
-            <TabsContent value="personas" className="space-y-6">
+            {userRole === 'superadmin' && (
+              <TabsContent value="personas" className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold hidden md:block">Persona Configuration</h3>
                 <div className="flex items-center gap-2">
@@ -1014,9 +1021,11 @@ function AdminManagementContent() {
                   </div>
                 </div>
               </Card>
-            </TabsContent>
+              </TabsContent>
+            )}
 
-            <TabsContent value="settings" className="space-y-6">
+            {userRole === 'superadmin' && (
+              <TabsContent value="settings" className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold hidden md:block">System Settings</h3>
                 <div className="flex items-center gap-2">
@@ -1161,8 +1170,9 @@ function AdminManagementContent() {
                  </div>
                </div>
               </Card>
-            </TabsContent>
-       </Tabs>
+              </TabsContent>
+            )}
+        </Tabs>
       </div>
     </AdminLayout>
   );

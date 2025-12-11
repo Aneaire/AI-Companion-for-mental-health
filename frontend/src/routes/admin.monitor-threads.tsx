@@ -147,7 +147,7 @@ function MonitorThreadsContent() {
         limit: pageSize.toString(),
       });
 
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/threads?${params}`, {
+      const response = await fetch(`/api/observer/users/${selectedUser.id}/threads?${params}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
         },

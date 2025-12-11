@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { adminMiddleware } from "../middleware/admin";
+import { superadminMiddleware } from "../middleware/superadmin";
 import { db } from "../db/config";
 import { personasConfig } from "../db/schema";
 import { eq } from "drizzle-orm";
@@ -68,7 +68,7 @@ const savePersonasConfigToDB = async (config: any) => {
 };
 
 // Get current personas configuration
-personas.get("/config", adminMiddleware, async (c) => {
+personas.get("/config", superadminMiddleware, async (c) => {
   const config = await loadPersonasConfig();
   if (!config) {
     return c.json({ error: "Failed to load personas configuration" }, 500);
@@ -77,7 +77,7 @@ personas.get("/config", adminMiddleware, async (c) => {
 });
 
 // Get default personas configuration
-personas.get("/default", adminMiddleware, async (c) => {
+personas.get("/default", superadminMiddleware, async (c) => {
   const config = loadDefaultConfig();
   if (!config) {
     return c.json({ error: "Failed to load default configuration" }, 500);
@@ -86,7 +86,7 @@ personas.get("/default", adminMiddleware, async (c) => {
 });
 
 // Save personas configuration
-personas.post("/config", adminMiddleware, async (c) => {
+personas.post("/config", superadminMiddleware, async (c) => {
   try {
     const body = await c.req.json();
 

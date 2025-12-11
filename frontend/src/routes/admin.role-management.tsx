@@ -4,7 +4,7 @@ import RoleManagement from "@/components/admin/RoleManagement";
 
 function RoleManagementPage() {
   return (
-    <AdminProtectedRoute>
+    <AdminProtectedRoute allowedRoles={['superadmin']}>
       <RoleManagement />
     </AdminProtectedRoute>
   );

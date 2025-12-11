@@ -16,7 +16,7 @@ const RoleManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState<'email' | 'firstName' | 'lastName' | 'createdAt'>('email');
+  const [sortBy, setSortBy] = useState<'email' | 'firstName' | 'lastName' | 'role' | 'createdAt'>('role');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedRole, setSelectedRole] = useState<RoleChange | null>(null);
   const [limit] = useState(10);
@@ -47,19 +47,33 @@ const RoleManagement: React.FC = () => {
   const queryClient = useQueryClient();
 
   const { data: usersData, isLoading, error } = useQuery({
-    queryKey: ['users', currentPage, debouncedSearchTerm, sortBy, sortOrder, limit],
+    queryKey: ['roleManagementUsers', currentPage, debouncedSearchTerm, sortBy, sortOrder, limit],
     queryFn: async () => {
       const token = await getToken();
       if (!token) throw new Error('Authentication required');
-      return userService.getUsers({
-        page: currentPage,
+
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
         search: debouncedSearchTerm,
         sortBy,
         sortOrder,
-        limit,
-        filterType: 'roles', // Show only users with roles for role-management
-        token
+        filterType: 'all', // Show all users for role management
       });
+
+      const response = await fetch(`/api/role-management/users?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+
+      return response.json();
     }
   });
 
@@ -70,7 +84,7 @@ const RoleManagement: React.FC = () => {
       return userService.updateUserRole(userId, newRole, token);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['roleManagementUsers'] });
       setSelectedRole(null);
     },
     onError: (error) => {
@@ -179,12 +193,14 @@ const RoleManagement: React.FC = () => {
           <div className="flex items-center space-x-2">
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'email' | 'firstName' | 'lastName' | 'createdAt')}
+              onChange={(e) => setSortBy(e.target.value as 'email' | 'firstName' | 'lastName' | 'role' | 'createdAt')}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
+              <option value="role">Role</option>
               <option value="email">Email</option>
               <option value="firstName">First Name</option>
               <option value="lastName">Last Name</option>
+              <option value="createdAt">Created Date</option>
             </select>
             
             <button

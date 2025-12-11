@@ -75,19 +75,28 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
     }
   ];
 
-  // Add role management only for superadmin users
+  // Conditionally show navigation items based on role
   const userRole = user?.publicMetadata?.role;
-  const navigationItems = userRole === 'superadmin' 
-    ? [
-        ...baseNavigationItems,
-        {
-          to: "/admin/role-management",
-          icon: Shield,
-          label: "Role Management",
-          description: "Assign user roles & permissions"
-        }
-      ]
-    : baseNavigationItems;
+  let navigationItems = [...baseNavigationItems];
+
+  // Filter navigation items based on role permissions
+  if (userRole === 'admin') {
+    // Admin users cannot access monitor threads
+    navigationItems = navigationItems.filter(item => item.to !== '/admin/monitor-threads');
+  } else if (userRole === 'observer') {
+    // Observer users cannot access admin management
+    navigationItems = navigationItems.filter(item => item.to !== '/admin-management');
+  }
+
+  // Add role management only for superadmin users
+  if (userRole === 'superadmin') {
+    navigationItems.push({
+      to: "/admin/role-management",
+      icon: Shield,
+      label: "Role Management",
+      description: "Assign user roles & permissions"
+    });
+  }
 
   return (
     <div className="flex h-screen w-full">
@@ -199,7 +208,7 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
               </p>
               <p className="text-xs text-gray-500">
                 {/* Display user's actual role from metadata instead of hardcoded "Administrator" */}
-                {user?.publicMetadata?.role || 'Administrator'}
+                {(user?.publicMetadata?.role as string) || 'Administrator'}
               </p>
             </div>
           </div>

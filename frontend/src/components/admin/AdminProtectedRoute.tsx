@@ -40,10 +40,10 @@ export function AdminProtectedRoute({ children, allowedRoles = ['superadmin', 'a
   return <>{children}</>;
 }
 
-// Specialized route protection for Monitor Threads (observer access)
+// Specialized route protection for Monitor Threads (observer access only)
 export function ObserverProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
-    <AdminProtectedRoute allowedRoles={['superadmin', 'admin', 'observer']}>
+    <AdminProtectedRoute allowedRoles={['superadmin', 'observer']}>
       {children}
     </AdminProtectedRoute>
   );

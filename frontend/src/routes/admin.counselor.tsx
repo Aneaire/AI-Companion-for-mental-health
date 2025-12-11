@@ -13,7 +13,7 @@ export const Route = createFileRoute("/admin/counselor")({
 
 function CounselorDashboard() {
   return (
-    <AdminProtectedRoute allowedRoles={['superadmin', 'observer']}>
+    <AdminProtectedRoute allowedRoles={['superadmin', 'admin', 'observer']}>
       <CounselorDashboardContent />
     </AdminProtectedRoute>
   );

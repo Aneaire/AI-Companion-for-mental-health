@@ -4,7 +4,7 @@ import HeaderUser from "@/integrations/clerk/header-user";
 import type { Session } from "@/stores/chatStore";
 import { useUser } from "@clerk/clerk-react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronDown, ChevronRight, MessageSquare, Plus, HeadphonesIcon, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageSquare, Plus, HeadphonesIcon, Users, Shield } from "lucide-react";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { useInView } from "react-intersection-observer";
 import { memo } from "react";
@@ -182,18 +182,31 @@ export const Sidebar = memo(function Sidebar({
              >
                <HeadphonesIcon size={16} /> Impersonate
              </Link>
-             <Link
-               to="/counselor"
-               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                 location.pathname === "/counselor"
-                   ? "bg-blue-50 text-blue-700 border border-blue-200"
-                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-               }`}
-               onClick={() => onClose()}
-             >
-               <Users size={16} /> Counselor
-             </Link>
-          </div>
+              <Link
+                to="/counselor"
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname === "/counselor"
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+                onClick={() => onClose()}
+              >
+                <Users size={16} /> Counselor
+              </Link>
+              {user?.publicMetadata?.role && ['superadmin', 'admin', 'observer'].includes(user.publicMetadata.role as string) ? (
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    location.pathname.startsWith("/admin")
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                  onClick={() => onClose()}
+                >
+                  <Shield size={16} /> Admin
+                </Link>
+              ) : null}
+           </div>
         </div>
 
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">

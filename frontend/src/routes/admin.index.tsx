@@ -415,18 +415,18 @@ function AdminDashboardContent() {
                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
                   </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900 font-medium">Counselor Management</td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900 font-medium">Monitor Threads</td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                  </tr>
+                   <tr className="hover:bg-gray-50">
+                     <td className="py-3 px-4 text-gray-900 font-medium">Counselor Management</td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                   </tr>
+                   <tr className="hover:bg-gray-50">
+                     <td className="py-3 px-4 text-gray-900 font-medium">Monitor Threads</td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                   </tr>
                   <tr className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-gray-900 font-medium">Quality Analysis</td>
                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
@@ -439,18 +439,24 @@ function AdminDashboardContent() {
                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
                   </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900 font-medium">Persona Configuration</td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900 font-medium">Role Assignment</td>
-                    <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
-                    <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
-                  </tr>
+                   <tr className="hover:bg-gray-50">
+                     <td className="py-3 px-4 text-gray-900 font-medium">Persona Configuration</td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                   </tr>
+                   <tr className="hover:bg-gray-50">
+                     <td className="py-3 px-4 text-gray-900 font-medium">Admin Management</td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                   </tr>
+                   <tr className="hover:bg-gray-50">
+                     <td className="py-3 px-4 text-gray-900 font-medium">Role Assignment</td>
+                     <td className="text-center py-3 px-4"><span className="text-green-600 font-bold">✓</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                     <td className="text-center py-3 px-4"><span className="text-red-600 font-bold">✗</span></td>
+                   </tr>
                 </tbody>
               </table>
             </div>

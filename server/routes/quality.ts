@@ -8,6 +8,7 @@ import { geminiConfig } from "../lib/config";
 import { db } from "../db/config";
 import { messages, sessionForms, sessions, threads } from "../db/schema";
 import { logger } from "../lib/logger";
+import { adminMiddleware } from "../middleware/admin";
 
 // Initialize Gemini
 const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
@@ -56,6 +57,7 @@ export const qualityResponseSchema = z.object({
 });
 
 const quality = new Hono()
+  .use("/*", adminMiddleware) // Protect all quality analysis routes
   .get("/threads/:threadId/data", async (c) => {
     try {
       const threadId = parseInt(c.req.param("threadId"));

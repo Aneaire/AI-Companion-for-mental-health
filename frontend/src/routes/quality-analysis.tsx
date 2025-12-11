@@ -141,7 +141,7 @@ function QualityAnalysisContent() {
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Quality Analysis</h1>
           </div>
-          <p className="text-gray-600 text-lg">Analyze thread quality and generate therapeutic insights</p>
+          <p className="text-gray-600 text-lg">Analyze thread quality and generate therapeutic insights when you don't need to see specific conversations of the user - an alternative to monitor threads</p>
         </div>
 
         {selectedThreadId ? (

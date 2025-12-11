@@ -12,7 +12,7 @@ import quality from "./routes/quality";
 import enhanceBackground from "./routes/enhance-background";
 import threadsRoute from "./routes/threads";
 import user from "./routes/user";
-import adminRoute from "./routes/admin";
+import { adminRoute, observerRoute, superadminRoute } from "./routes/admin";
 import counselorRoute from "./routes/counselor";
 import testRoute from "./routes/test";
 import personaTemplatesRoute from "./routes/persona-templates";
@@ -56,6 +56,8 @@ const routes = app
   .route("/api/persona-library", personaLibraryRoute)
   .route("/api/generate-form", generateFormRoute)
   .route("/api/admin", adminRoute)
+  .route("/api/observer", observerRoute)
+  .route("/api/superadmin", superadminRoute)
   .route("/api/admin/personas", personasRoute)
   .route("/api/role-management", roleManagementRoute)
   .route("/api/counselor", counselorRoute)

@@ -3,7 +3,8 @@ import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { streamSSE } from "hono/streaming";
 import { db } from "../db/config";
 import { sessions, threads, messages, sessionForms, users } from "../db/schema";
-import { adminMiddleware } from "../middleware/admin";
+import { adminMiddleware, observerMiddleware } from "../middleware/admin";
+import { superadminMiddleware } from "../middleware/superadmin";
 import { createClerkClient } from "@clerk/backend";
 import { count, eq, sql, desc, asc, like, or, ne, and, isNull } from "drizzle-orm";
 import { geminiConfig, getGeminiApiKey } from "../lib/config";
@@ -516,7 +517,364 @@ You must internally analyze each query to understand:
       logger.error("Error in analysis chat:", error);
       return c.json({ error: "Failed to process analysis request" }, 500);
     }
+    })
+  .get("/metrics", async (c) => {
+    try {
+      // Get threads with sessions metrics
+      const threadMetrics = await db
+        .select({
+          totalThreads: count(threads.id),
+          threadsWithSessions: count(
+            sql`CASE WHEN EXISTS (
+              SELECT 1 FROM ${sessions} 
+              WHERE ${sessions.threadId} = ${threads.id}
+            ) THEN 1 END`
+          ),
+        })
+        .from(threads);
+
+      // Get session metrics
+      const sessionMetrics = await db
+        .select({
+          totalSessions: count(sessions.id),
+          completedSessions: count(
+            sql`CASE WHEN ${sessions.status} = 'finished' THEN 1 END`
+          ),
+        })
+        .from(sessions);
+
+      // Get message metrics
+      const messageMetrics = await db
+        .select({
+          totalMessages: count(messages.id),
+        })
+        .from(messages)
+        .where(eq(messages.threadType, "main"));
+
+      // Count unique sessions with messages
+      const uniqueSessionsWithMessages = await db
+        .select({
+          uniqueSessions: sql<number>`COUNT(DISTINCT ${messages.sessionId})`,
+        })
+        .from(messages)
+        .where(eq(messages.threadType, "main"));
+
+      const avgMessagesPerSession = uniqueSessionsWithMessages[0].uniqueSessions > 0
+        ? messageMetrics[0].totalMessages / uniqueSessionsWithMessages[0].uniqueSessions
+        : 0;
+
+      // Get form completion metrics
+      const formMetrics = await db
+        .select({
+          totalForms: count(sessionForms.id),
+          totalCompletableSessions: count(
+            sql`CASE WHEN ${sessions.status} = 'finished' THEN 1 END`
+          ),
+        })
+        .from(sessions)
+        .leftJoin(sessionForms, eq(sessions.id, sessionForms.sessionId));
+
+      return c.json({
+        threadMetrics: {
+          total: threadMetrics[0].totalThreads,
+          withSessions: threadMetrics[0].threadsWithSessions,
+          percentageWithSessions: 
+            (threadMetrics[0].threadsWithSessions / threadMetrics[0].totalThreads) * 100 || 0,
+        },
+        sessionMetrics: {
+          total: sessionMetrics[0].totalSessions,
+          completed: sessionMetrics[0].completedSessions,
+          completionRate: 
+            (sessionMetrics[0].completedSessions / sessionMetrics[0].totalSessions) * 100 || 0,
+        },
+        messageMetrics: {
+          total: messageMetrics[0].totalMessages,
+          averagePerSession: Number(avgMessagesPerSession.toFixed(2)) || 0,
+        },
+        formMetrics: {
+          total: formMetrics[0].totalForms,
+          completionRate: 
+            (formMetrics[0].totalForms / formMetrics[0].totalCompletableSessions) * 100 || 0,
+        },
+      });
+    } catch (error) {
+      logger.error("Error fetching admin metrics:", error);
+      return c.json({ error: "Failed to fetch metrics" }, 500);
+    }
   })
+  .get("/users", async (c) => {
+    try {
+      // Get current admin user ID from context (set by admin middleware)
+      const adminId = (c as any).get("adminId") as number;
+
+      // Get pagination parameters
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const search = c.req.query("search") || "";
+      const sortBy = c.req.query("sortBy") || "createdAt";
+      const sortOrder = c.req.query("sortOrder") || "desc";
+
+      const offset = (page - 1) * limit;
+
+      // Build where conditions for search and exclude current admin
+      let whereClause: any = ne(users.id, sql`${adminId as number}`); // Always exclude current admin
+
+      if (search) {
+        const searchCondition = or(
+          like(users.email, `%${search}%`),
+          like(users.firstName, `%${search}%`),
+          like(users.lastName, `%${search}%`),
+          like(users.nickname, `%${search}%`)
+        );
+        whereClause = and(whereClause, searchCondition);
+      }
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({ total: count(users.id) })
+        .from(users)
+        .where(whereClause);
+
+      const totalUsers = totalCountResult[0]?.total || 0;
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      // Build order by clause
+      let orderByClause;
+      switch (sortBy) {
+        case "email":
+          orderByClause = sortOrder === "asc" ? asc(users.email) : desc(users.email);
+          break;
+        case "firstName":
+          orderByClause = sortOrder === "asc" ? asc(users.firstName) : desc(users.firstName);
+          break;
+        case "lastName":
+          orderByClause = sortOrder === "asc" ? asc(users.lastName) : desc(users.lastName);
+          break;
+        case "createdAt":
+        default:
+          orderByClause = sortOrder === "asc" ? asc(users.createdAt) : desc(users.createdAt);
+          break;
+      }
+
+      // Get users with pagination and sorting, including thread count
+      const userList = await db
+        .select({
+          id: users.id,
+          clerkId: users.clerkId,
+          email: users.email,
+          nickname: users.nickname,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          age: users.age,
+          status: users.status,
+          role: users.role,
+          hobby: users.hobby,
+          profileImageUrl: users.profileImageUrl,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          threadCount: sql<number>`COUNT(${threads.id})`,
+        })
+        .from(users)
+        .leftJoin(threads, eq(users.id, threads.userId))
+        .where(whereClause)
+        .groupBy(
+          users.id,
+          users.clerkId,
+          users.email,
+          users.nickname,
+          users.firstName,
+          users.lastName,
+          users.age,
+          users.status,
+          users.role,
+          users.hobby,
+          users.profileImageUrl,
+          users.createdAt,
+          users.updatedAt
+        )
+        .orderBy(orderByClause)
+        .limit(limit)
+        .offset(offset);
+
+      return c.json({
+        users: userList,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalUsers: totalUsers,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit: limit,
+        },
+        search: search,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+      });
+    } catch (error) {
+      logger.error("Error fetching users:", error);
+      return c.json({ error: "Failed to fetch users" }, 500);
+    }
+  })
+  .get("/personas", async (c) => {
+    try {
+      // Read the personas.json file from the project root
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const personasPath = path.join(process.cwd(), 'personas.json');
+
+      if (!fs.existsSync(personasPath)) {
+        return c.json({ error: 'Personas configuration file not found' }, 404);
+      }
+
+      const personasData = fs.readFileSync(personasPath, 'utf-8');
+      const parsedData = JSON.parse(personasData);
+
+      return c.json(parsedData);
+    } catch (error) {
+      logger.error('Error loading personas configuration:', error);
+      return c.json({ error: 'Failed to load personas configuration' }, 500);
+    }
+  })
+  .post("/personas", async (c) => {
+    try {
+      const { personasData } = await c.req.json();
+
+      // Validate JSON
+      const parsedData = JSON.parse(personasData);
+
+      // Save to file
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const personasPath = path.join(process.cwd(), 'personas.json');
+      fs.writeFileSync(personasPath, personasData, 'utf-8');
+
+      logger.log('Personas configuration saved successfully');
+
+      return c.json({
+        success: true,
+        message: 'Personas configuration saved successfully'
+      });
+    } catch (error) {
+      logger.error('Error saving personas configuration:', error);
+      return c.json({
+        success: false,
+        message: 'Invalid JSON format or save failed'
+      }, 400);
+    }
+  })
+  .post("/users/:userId/:action", async (c) => {
+    try {
+      const userId = c.req.param("userId");
+      const action = c.req.param("action");
+
+      if (!userId || !action) {
+        return c.json({ error: "User ID and action are required" }, 400);
+      }
+
+      // Get user from database
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(userId)))
+        .limit(1);
+
+      if (!user) {
+        return c.json({ error: "User not found" }, 404);
+      }
+
+      // Initialize Clerk client
+      const clerkClient = createClerkClient({
+        secretKey: process.env.CLERK_SECRET_KEY!,
+      });
+
+      switch (action) {
+        case "block":
+          // Block user in Clerk (ban the user)
+          await clerkClient.users.banUser(user.clerkId);
+          // Update local database status
+          await db
+            .update(users)
+            .set({ status: "blocked" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "remove":
+          try {
+            // Delete user's threads first to avoid foreign key constraint
+            logger.log(`Deleting threads for user ${userId}`);
+            await db.delete(threads).where(eq(threads.userId, parseInt(userId)));
+            logger.log(`Successfully deleted threads for user ${userId}`);
+            
+            // Delete user from Clerk first
+            logger.log(`Attempting to delete user ${user.clerkId} from Clerk`);
+            await clerkClient.users.deleteUser(user.clerkId);
+            logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
+            
+            // Delete from local database
+            logger.log(`Deleting user ${userId} from local database`);
+            await db
+              .delete(users)
+              .where(eq(users.id, parseInt(userId)));
+            logger.log(`Successfully deleted user ${userId} from local database`);
+          } catch (clerkError) {
+            logger.error(`Failed to delete user from Clerk:`, clerkError);
+            // If Clerk deletion fails, don't delete from local DB
+            throw new Error(`Failed to delete user from authentication service: ${clerkError}`);
+          }
+          break;
+
+        case "makeAdmin":
+          // Update user metadata in Clerk to make admin
+          await clerkClient.users.updateUserMetadata(user.clerkId, {
+            publicMetadata: {
+              role: "admin"
+            }
+          });
+          // Update local database
+          await db
+            .update(users)
+            .set({ status: "admin" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        case "revokeAdmin":
+          // Remove admin role from Clerk metadata
+          await clerkClient.users.updateUserMetadata(user.clerkId, {
+            publicMetadata: {
+              role: "user"
+            }
+          });
+          // Update local database
+          await db
+            .update(users)
+            .set({ status: "user" })
+            .where(eq(users.id, parseInt(userId)));
+          break;
+
+        default:
+          return c.json({ error: "Invalid action" }, 400);
+      }
+
+      logger.log(`User ${action} action completed for user ${userId}`);
+      return c.json({
+        success: true,
+        message: `User ${action} action completed successfully`
+      });
+
+    } catch (error) {
+      logger.error('Error performing user action:', error);
+      return c.json({
+        success: false,
+        message: 'Failed to perform user action'
+      }, 500);
+    }
+   });
+
+// Observer-only routes for monitor threads functionality
+const observerRoute = new Hono()
+  .use("/*", observerMiddleware) // Protect all observer routes
   .get("/threads/anonymized", async (c) => {
     try {
       logger.log("Fetching anonymized threads...");
@@ -649,6 +1007,462 @@ You must internally analyze each query to understand:
       return c.json({ error: "Failed to fetch user threads" }, 500);
     }
   })
+  .get("/threads/:threadId/analyze", async (c) => {
+    try {
+      const threadId = parseInt(c.req.param("threadId"));
+      logger.log("Analyzing thread:", threadId);
+
+      // Get comprehensive thread data with all related information
+      const thread = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.id, threadId))
+        .limit(1);
+
+      if (thread.length === 0) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      const threadSessions = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(sessions.sessionNumber);
+
+      // Get all messages with full context for analysis
+      const threadMessages = await db
+        .select({
+          id: messages.id,
+          sender: messages.sender,
+          text: messages.text,
+          timestamp: messages.timestamp,
+          sessionId: messages.sessionId,
+        })
+        .from(messages)
+        .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(messages.timestamp);
+
+      // Get session forms with full data
+      const threadGeneratedForms = await db
+        .select({
+          id: sessionForms.id,
+          sessionId: sessionForms.sessionId,
+          questions: sessionForms.questions,
+          answers: sessionForms.answers,
+          createdAt: sessionForms.createdAt,
+        })
+        .from(sessionForms)
+        .innerJoin(sessions, eq(sessionForms.sessionId, sessions.id))
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(sessionForms.createdAt);
+
+      // Extract initial form data from thread with safe JSON parsing
+      const initialForm = {
+        sessionName: thread[0].sessionName,
+        preferredName: thread[0].preferredName,
+        currentEmotions: thread[0].currentEmotions || null,
+        reasonForVisit: thread[0].reasonForVisit,
+        supportType: thread[0].supportType || null,
+        additionalContext: thread[0].additionalContext,
+      };
+
+      const initialFormExists = !!(
+        initialForm.sessionName ||
+        initialForm.preferredName ||
+        initialForm.currentEmotions ||
+        initialForm.reasonForVisit ||
+        initialForm.supportType ||
+        initialForm.additionalContext
+      );
+
+      const totalForms = (initialFormExists ? 1 : 0) + threadGeneratedForms.length;
+
+      // Prepare comprehensive context for analysis
+      const analysisContext = {
+        threadId: threadId,
+        sessionCount: threadSessions.length,
+        messageCount: threadMessages.length,
+        formCount: totalForms,
+        initialForm: initialFormExists ? initialForm : null,
+        sessions: threadSessions.map(session => ({
+          id: session.id,
+          sessionNumber: session.sessionNumber,
+          status: session.status,
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+          messagesInSession: threadMessages.filter(m => m.sessionId === session.id).length,
+        })),
+        messages: threadMessages.map(msg => ({
+          id: msg.id,
+          sender: msg.sender,
+          text: msg.text,
+          timestamp: msg.timestamp,
+          sessionId: msg.sessionId,
+        })),
+        forms: threadGeneratedForms.map(form => ({
+          id: form.id,
+          sessionId: form.sessionId,
+          questions: form.questions || null,
+          answers: form.answers || null,
+          createdAt: form.createdAt,
+        })),
+      };
+
+      // Enhanced analysis with full context
+      const userMessages = threadMessages.filter(m => m.sender === 'user');
+      const aiMessages = threadMessages.filter(m => m.sender === 'ai');
+
+      // Calculate engagement metrics
+      const avgUserMessageLength = userMessages.length > 0
+        ? userMessages.reduce((sum, msg) => sum + msg.text.length, 0) / userMessages.length
+        : 0;
+
+      const avgAiMessageLength = aiMessages.length > 0
+        ? aiMessages.reduce((sum, msg) => sum + msg.text.length, 0) / aiMessages.length
+        : 0;
+
+      // Session completion analysis
+      const completedSessions = threadSessions.filter(s => s.status === 'finished').length;
+      const sessionCompletionRate = threadSessions.length > 0
+        ? (completedSessions / threadSessions.length) * 100
+        : 0;
+
+      // Form completion analysis per session
+      const formsPerSession = threadSessions.length > 0
+        ? totalForms / threadSessions.length
+        : 0;
+
+      const analysis = {
+        threadId: threadId,
+        displayName: `Thread ${Math.floor(Math.random() * 100) + 1}`,
+        sessionCount: threadSessions.length,
+        messageCount: threadMessages.length,
+        formCount: totalForms,
+        isAnalyzed: true,
+        context: analysisContext, // Full context for AI analysis
+        metrics: {
+          userMessages: userMessages.length,
+          aiMessages: aiMessages.length,
+          avgUserMessageLength: Math.round(avgUserMessageLength),
+          avgAiMessageLength: Math.round(avgAiMessageLength),
+          sessionCompletionRate: Math.round(sessionCompletionRate),
+          formsPerSession: Math.round(formsPerSession * 100) / 100,
+          completedSessions: completedSessions,
+        },
+        summary: `Comprehensive analysis completed for a ${threadSessions.length}-session therapeutic conversation. User engagement: ${userMessages.length} messages (avg ${Math.round(avgUserMessageLength)} chars), AI responses: ${aiMessages.length} messages (avg ${Math.round(avgAiMessageLength)} chars). Session completion rate: ${Math.round(sessionCompletionRate)}% (${completedSessions}/${threadSessions.length}). Form engagement: ${totalForms} forms across ${threadSessions.length} sessions (${Math.round(formsPerSession * 100) / 100} forms/session). ${initialFormExists ? 'Initial assessment completed. ' : 'No initial assessment. '}${threadGeneratedForms.length} dynamic forms generated. Conversation demonstrates ${threadMessages.length > threadSessions.length * 8 ? 'high' : threadMessages.length > threadSessions.length * 4 ? 'moderate' : 'low'} therapeutic engagement with ${sessionCompletionRate > 70 ? 'excellent' : sessionCompletionRate > 50 ? 'good' : 'developing'} session progression patterns.`
+      };
+
+      return c.json(analysis);
+    } catch (error) {
+      logger.error("Error analyzing thread:", error);
+      logger.error("Error details:", error instanceof Error ? error.message : "Unknown error");
+      logger.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+      return c.json({
+        error: "Failed to analyze thread",
+        details: error instanceof Error ? error.message : "Unknown error"
+      }, 500);
+    }
+  })
+  .post("/threads/:threadId/chat", async (c) => {
+    try {
+      const threadId = parseInt(c.req.param("threadId"));
+      const { message, conversationHistory } = await c.req.json();
+
+      logger.log("Analysis chat for thread:", threadId, "Message:", message);
+
+      // Get comprehensive thread context for intelligent analysis
+      const thread = await db
+        .select()
+        .from(threads)
+        .where(eq(threads.id, threadId))
+        .limit(1);
+
+      if (thread.length === 0) {
+        return c.json({ error: "Thread not found" }, 404);
+      }
+
+      const threadSessions = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(sessions.sessionNumber);
+
+      // Get complete messages for analysis
+      const threadMessages = await db
+        .select({
+          id: messages.id,
+          sender: messages.sender,
+          text: messages.text,
+          timestamp: messages.timestamp,
+          sessionId: messages.sessionId,
+        })
+        .from(messages)
+        .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(messages.timestamp);
+
+      const threadGeneratedForms = await db
+        .select({
+          id: sessionForms.id,
+          sessionId: sessionForms.sessionId,
+          answers: sessionForms.answers,
+          createdAt: sessionForms.createdAt,
+        })
+        .from(sessionForms)
+        .innerJoin(sessions, eq(sessionForms.sessionId, sessions.id))
+        .where(eq(sessions.threadId, threadId))
+        .orderBy(sessionForms.createdAt);
+
+      // Extract initial form data with safe JSON parsing
+      const initialForm = {
+        sessionName: thread[0].sessionName,
+        preferredName: thread[0].preferredName,
+        currentEmotions: thread[0].currentEmotions || null,
+        reasonForVisit: thread[0].reasonForVisit,
+        supportType: thread[0].supportType || null,
+        additionalContext: thread[0].additionalContext,
+      };
+
+      const initialFormExists = !!(
+        initialForm.sessionName ||
+        initialForm.preferredName ||
+        initialForm.currentEmotions ||
+        initialForm.reasonForVisit ||
+        initialForm.supportType ||
+        initialForm.additionalContext
+      );
+
+      const totalForms = (initialFormExists ? 1 : 0) + threadGeneratedForms.length;
+
+      // Calculate detailed metrics
+      const userMessages = threadMessages.filter(m => m.sender === 'user');
+      const aiMessages = threadMessages.filter(m => m.sender === 'ai');
+      const completedSessions = threadSessions.filter(s => s.status === 'finished').length;
+      const sessionCompletionRate = threadSessions.length > 0 ? (completedSessions / threadSessions.length) * 100 : 0;
+
+      const avgUserMessageLength = userMessages.length > 0
+        ? userMessages.reduce((sum, msg) => sum + msg.text.length, 0) / userMessages.length
+        : 0;
+
+      const avgAiMessageLength = aiMessages.length > 0
+        ? aiMessages.reduce((sum, msg) => sum + msg.text.length, 0) / aiMessages.length
+        : 0;
+
+      // Session-by-session analysis
+      const sessionAnalysis = threadSessions.map((session, i) => {
+        const sessionMessages = threadMessages.filter(m => m.sessionId === session.id);
+        const sessionUserMessages = sessionMessages.filter(m => m.sender === 'user');
+        const sessionAiMessages = sessionMessages.filter(m => m.sender === 'ai');
+        const sessionGeneratedForms = threadGeneratedForms.filter(f => f.sessionId === session.id);
+
+        return {
+          sessionNumber: i + 1,
+          status: session.status,
+          messageCount: sessionMessages.length,
+          userMessageCount: sessionUserMessages.length,
+          aiMessageCount: sessionAiMessages.length,
+          formsGenerated: sessionGeneratedForms.length,
+          avgUserMsgLength: sessionUserMessages.length > 0
+            ? sessionUserMessages.reduce((sum, msg) => sum + msg.text.length, 0) / sessionUserMessages.length
+            : 0,
+          avgAiMsgLength: sessionAiMessages.length > 0
+            ? sessionAiMessages.reduce((sum, msg) => sum + msg.text.length, 0) / sessionAiMessages.length
+            : 0,
+        };
+      });
+
+      // Create privacy-safe analysis context
+      const analysisContext = createPrivacySafeAnalysisContext(
+        thread[0],
+        threadSessions,
+        threadMessages,
+        threadGeneratedForms
+      );
+
+      // Build analysis context for AI
+      const analysisHistory: Content[] = [{
+        role: "user",
+        parts: [{
+          text: `Thread Analysis Context (Privacy-Protected):
+
+**Therapeutic Session Overview:**
+- Total Sessions: ${analysisContext.threadMetrics.totalSessions} (${analysisContext.threadMetrics.completedSessions} completed, ${analysisContext.threadMetrics.completionRate.toFixed(1)}% completion rate)
+- Message Distribution: ${analysisContext.threadMetrics.totalMessages} total messages (${analysisContext.threadMetrics.userMessages} user, ${analysisContext.threadMetrics.aiMessages} AI)
+- Assessment Engagement: ${analysisContext.threadMetrics.formsCompleted} therapeutic assessments completed
+- Communication Patterns: User avg ${analysisContext.communicationMetrics.avgUserMessageLength} chars/message, AI avg ${analysisContext.communicationMetrics.avgAiMessageLength} chars/message
+- Response Ratio: ${analysisContext.communicationMetrics.responseRatio}:1 (AI:User)
+
+**Session Progression Pattern:**
+${analysisContext.sessionPattern.map(s => `Session ${s.sessionNumber}: ${s.messageCount} messages (${s.userMessageCount} user, ${s.aiMessageCount} AI), status: ${s.status}`).join('\n')}
+
+**Therapeutic Progress Indicators:**
+- Engagement Type: ${analysisContext.therapyProgressIndicators.longitudinalEngagement}
+- Assessment Participation: ${analysisContext.therapyProgressIndicators.assessmentEngagement} forms completed
+- Session Volume Trend: ${analysisContext.therapyProgressIndicators.sessionProgression.map(s => `S${s.session}(${s.messageVolume}msg)`).join(' → ')}
+
+Previous conversation context: ${(conversationHistory || []).slice(-5).map((msg: any) => `Analyst: [Previous analysis context]`).join('\n')}
+
+CRITICAL: This is a privacy-protected analysis context. Do not reference specific user content or personal details. Focus only on therapeutic patterns and quality metrics.`
+        }]
+      }];
+
+      // Enhanced system instruction that analyzes message intent first, then adapts response
+      const systemInstructionText = `You are an INTELLIGENT THERAPEUTIC CONVERSATION ANALYST with expertise in analyzing administrator queries and providing precisely tailored responses.
+
+**CRITICAL PRIVACY REQUIREMENTS:**
+- DO NOT leak, mention, or reference any specific user information, names, personal details, or identifiable content
+- DO NOT quote or reproduce exact user messages or AI responses
+- Focus ONLY on patterns, metrics, and therapeutic quality indicators
+- Use generic references like "the user," "the conversation," or "the therapeutic interaction"
+
+**PRIMARY DIRECTIVE: ANALYZE THE MESSAGE INTERNALLY**
+You must internally analyze each query to understand:
+1. Question intent and what the admin is really asking for
+2. Urgency level and appropriate response depth
+3. Focus area and specific aspects needing attention
+4. Optimal response format and structure
+
+**IMPORTANT: DO NOT OUTPUT YOUR INTERNAL ANALYSIS PROCESS. Go directly to providing the requested information.**
+
+**RESPONSE TYPES BASED ON MESSAGE ANALYSIS:**
+
+**QUICK & SIMPLE** - For rapid insights:
+- Triggers: "How was...", "Was there...", "Did the user...", "Quick check on...", yes/no questions
+- Response: 2-3 bullet points, direct answer, minimal formatting
+- Length: 50-150 words
+- Example Query: "How was session 3?" → Brief engagement and sentiment summary
+
+**METRICS-FOCUSED** - For data-driven questions:
+- Triggers: "How many", "What percentage", "Show metrics", "Compare numbers", "Statistics", "Count", "Rate"
+- Response: Structured data with numbers, percentages, tables
+- Include: Specific counts, completion rates, comparison data
+- Example Query: "Show engagement metrics" → Quantitative breakdown with percentages
+
+**SENTIMENT & EMOTIONAL** - For qualitative insights:
+- Triggers: "How did the user feel", "Emotional state", "What do you think", "User's mindset", "Therapeutic relationship"
+- Response: Thoughtful analysis of emotional patterns and therapeutic dynamics
+- Focus: Engagement quality, emotional progression, relationship building
+- Example Query: "How did the user feel in session 3?" → Emotional engagement analysis
+
+**SESSION-SPECIFIC** - For targeted session analysis:
+- Triggers: "Session [number]", "What happened in", "Compare session X to Y"
+- Response: Focused analysis on specific session(s) with context
+- Include: Session-specific metrics, progression from previous sessions
+- Example Query: "Analyze session 5" → Detailed session breakdown with progression context
+
+**EFFECTIVENESS & QUALITY** - For therapeutic assessment:
+- Triggers: "Effectiveness", "Quality", "How well did", "Therapeutic value", "AI performance"
+- Response: Professional clinical evaluation with evidence-based insights
+- Include: Intervention quality, response appropriateness, therapeutic outcomes
+- Example Query: "Was the AI effective?" → Clinical effectiveness assessment
+
+**COMPARATIVE ANALYSIS** - For progression tracking:
+- Triggers: "Compare", "Progression", "Change over time", "Improvement", "Trend"
+- Response: Multi-session comparison with trend analysis
+- Include: Progression patterns, improvement indicators, concerning trends
+- Example Query: "How did engagement change across sessions?" → Longitudinal analysis
+
+**MESSAGE ANALYSIS EXAMPLES:**
+
+"How was session 3?"
+→ ANALYSIS: Quick check, session-specific, moderate depth needed
+→ RESPONSE: Brief session summary with key engagement and sentiment indicators
+
+"Show me all the engagement metrics"
+→ ANALYSIS: Data request, comprehensive metrics needed, structured format
+→ RESPONSE: Complete quantitative breakdown with tables and percentages
+
+"What do you think about how the user felt during the therapeutic process?"
+→ ANALYSIS: Sentiment focus, qualitative insights needed, professional depth
+→ RESPONSE: Emotional journey analysis with therapeutic relationship assessment
+
+"Compare session 1 to session 5 - any improvement?"
+→ ANALYSIS: Comparative request, progression focus, specific sessions
+→ RESPONSE: Side-by-side comparison with improvement indicators
+
+"CRITICAL: DO NOT SHOW YOUR THINKING PROCESS. Skip any "ANALYSIS:" or "DECODE:" sections and go straight to the answer the admin needs."
+
+**ADAPTIVE FORMATTING:**
+- **Quick answers**: Minimal formatting, bullet points only if needed
+- **Metrics**: Tables, structured lists, clear numerical breakdowns
+- **Sentiment**: Narrative format with professional observations
+- **Comparisons**: Side-by-side format or before/after structure
+
+**RESPONSE STRATEGY:**
+1. **Internally analyze the admin's message for intent, urgency, and scope (DO NOT OUTPUT THIS)**
+2. **Select the most appropriate response type based on your internal analysis**
+3. **Go directly to providing the requested information using thread context**
+4. **Ensure privacy protection while maximizing insight value**
+5. **Match the administrator's communication style and information needs**
+
+**KEY CAPABILITIES:**
+- Session-by-session analysis with specific insights
+- Emotional and sentiment tracking across therapeutic journey
+- Quantitative metrics with meaningful interpretations
+- Therapeutic effectiveness evaluation from clinical perspective
+- User engagement patterns and participation analysis
+- Comparative analysis showing progression or concerns
+
+**CRITICAL: DO NOT SHOW YOUR THINKING PROCESS. Skip any "ANALYSIS:" or "DECODE:" sections and go straight to the answer the admin needs.**`;
+
+      // Initialize Gemini model for streaming analysis
+      if (!gemini) {
+        return c.json({ error: "AI service not configured" }, 503);
+      }
+
+      const model = gemini.getGenerativeModel({
+        model: geminiConfig.twoPoint5FlashLite,
+        systemInstruction: {
+          role: "model",
+          parts: [{ text: systemInstructionText }],
+        },
+      });
+
+      const chatSession = model.startChat({
+        history: analysisHistory,
+        generationConfig: {
+          maxOutputTokens: 2000,
+        },
+      });
+
+      // Stream the AI analysis response using the same pattern as working chat
+      return streamSSE(c, async (stream) => {
+        let aiResponseText = "";
+        let buffer = "";
+        try {
+          const result = await chatSession.sendMessageStream(message);
+
+          for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            aiResponseText += chunkText;
+            buffer += chunkText;
+
+            // Send buffered content when we have enough characters or hit word boundaries
+            // More conservative buffering to prevent word breaking
+            if (buffer.length >= 15 || (buffer.length >= 5 && chunkText && /\s/.test(chunkText))) {
+              await stream.writeSSE({ data: buffer });
+              buffer = "";
+            }
+          }
+
+          // Send any remaining buffered content
+          if (buffer) {
+            await stream.writeSSE({ data: buffer });
+          }
+
+        } catch (error) {
+          logger.error("Error during AI streaming:", error);
+          await stream.writeSSE({
+            data: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      });
+    } catch (error) {
+      logger.error("Error in analysis chat:", error);
+      return c.json({ error: "Failed to process analysis request" }, 500);
+    }
+  })
   .get("/threads/:threadId/messages", async (c) => {
     try {
       const threadId = parseInt(c.req.param("threadId"));
@@ -708,251 +1522,11 @@ You must internally analyze each query to understand:
       logger.error("Error fetching thread messages:", error);
       return c.json({ error: "Failed to fetch thread messages" }, 500);
     }
-  })
-  .get("/metrics", async (c) => {
-    try {
-      // Get threads with sessions metrics
-      const threadMetrics = await db
-        .select({
-          totalThreads: count(threads.id),
-          threadsWithSessions: count(
-            sql`CASE WHEN EXISTS (
-              SELECT 1 FROM ${sessions} 
-              WHERE ${sessions.threadId} = ${threads.id}
-            ) THEN 1 END`
-          ),
-        })
-        .from(threads);
+  });
 
-      // Get session metrics
-      const sessionMetrics = await db
-        .select({
-          totalSessions: count(sessions.id),
-          completedSessions: count(
-            sql`CASE WHEN ${sessions.status} = 'finished' THEN 1 END`
-          ),
-        })
-        .from(sessions);
-
-      // Get message metrics
-      const messageMetrics = await db
-        .select({
-          totalMessages: count(messages.id),
-        })
-        .from(messages)
-        .where(eq(messages.threadType, "main"));
-
-      // Count unique sessions with messages
-      const uniqueSessionsWithMessages = await db
-        .select({
-          uniqueSessions: sql<number>`COUNT(DISTINCT ${messages.sessionId})`,
-        })
-        .from(messages)
-        .where(eq(messages.threadType, "main"));
-
-      const avgMessagesPerSession = uniqueSessionsWithMessages[0].uniqueSessions > 0
-        ? messageMetrics[0].totalMessages / uniqueSessionsWithMessages[0].uniqueSessions
-        : 0;
-
-      // Get form completion metrics
-      const formMetrics = await db
-        .select({
-          totalForms: count(sessionForms.id),
-          totalCompletableSessions: count(
-            sql`CASE WHEN ${sessions.status} = 'finished' THEN 1 END`
-          ),
-        })
-        .from(sessions)
-        .leftJoin(sessionForms, eq(sessions.id, sessionForms.sessionId));
-
-      return c.json({
-        threadMetrics: {
-          total: threadMetrics[0].totalThreads,
-          withSessions: threadMetrics[0].threadsWithSessions,
-          percentageWithSessions: 
-            (threadMetrics[0].threadsWithSessions / threadMetrics[0].totalThreads) * 100 || 0,
-        },
-        sessionMetrics: {
-          total: sessionMetrics[0].totalSessions,
-          completed: sessionMetrics[0].completedSessions,
-          completionRate: 
-            (sessionMetrics[0].completedSessions / sessionMetrics[0].totalSessions) * 100 || 0,
-        },
-        messageMetrics: {
-          total: messageMetrics[0].totalMessages,
-          averagePerSession: Number(avgMessagesPerSession.toFixed(2)) || 0,
-        },
-        formMetrics: {
-          total: formMetrics[0].totalForms,
-          completionRate: 
-            (formMetrics[0].totalForms / formMetrics[0].totalCompletableSessions) * 100 || 0,
-        },
-      });
-    } catch (error) {
-      logger.error("Error fetching admin metrics:", error);
-      return c.json({ error: "Failed to fetch metrics" }, 500);
-    }
-  })
-  .get("/users", async (c) => {
-    try {
-      // Get current admin user ID from context (set by admin middleware)
-      const adminId = (c as any).get("adminId") as number;
-
-      // Get pagination parameters
-      const page = parseInt(c.req.query("page") || "1");
-      const limit = parseInt(c.req.query("limit") || "20");
-      const search = c.req.query("search") || "";
-      const sortBy = c.req.query("sortBy") || "createdAt";
-      const sortOrder = c.req.query("sortOrder") || "desc";
-
-      const offset = (page - 1) * limit;
-
-      // Build where conditions for search and exclude current admin
-      let whereClause = ne(users.id, sql`${adminId as number}`); // Always exclude current admin
-
-      if (search) {
-        const searchCondition = or(
-          like(users.email, `%${search}%`),
-          like(users.firstName, `%${search}%`),
-          like(users.lastName, `%${search}%`),
-          like(users.nickname, `%${search}%`)
-        );
-        whereClause = and(whereClause, searchCondition);
-      }
-
-      // Get total count for pagination
-      const totalCountResult = await db
-        .select({ total: count(users.id) })
-        .from(users)
-        .where(whereClause);
-
-      const totalUsers = totalCountResult[0]?.total || 0;
-      const totalPages = Math.ceil(totalUsers / limit);
-
-      // Build order by clause
-      let orderByClause;
-      switch (sortBy) {
-        case "email":
-          orderByClause = sortOrder === "asc" ? asc(users.email) : desc(users.email);
-          break;
-        case "firstName":
-          orderByClause = sortOrder === "asc" ? asc(users.firstName) : desc(users.firstName);
-          break;
-        case "lastName":
-          orderByClause = sortOrder === "asc" ? asc(users.lastName) : desc(users.lastName);
-          break;
-        case "createdAt":
-        default:
-          orderByClause = sortOrder === "asc" ? asc(users.createdAt) : desc(users.createdAt);
-          break;
-      }
-
-      // Get users with pagination and sorting, including thread count
-      const userList = await db
-        .select({
-          id: users.id,
-          clerkId: users.clerkId,
-          email: users.email,
-          nickname: users.nickname,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          age: users.age,
-          status: users.status,
-          hobby: users.hobby,
-          profileImageUrl: users.profileImageUrl,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          threadCount: sql<number>`COUNT(${threads.id})`,
-        })
-        .from(users)
-        .leftJoin(threads, eq(users.id, threads.userId))
-        .where(whereClause)
-        .groupBy(
-          users.id,
-          users.clerkId,
-          users.email,
-          users.nickname,
-          users.firstName,
-          users.lastName,
-          users.age,
-          users.status,
-          users.hobby,
-          users.profileImageUrl,
-          users.createdAt,
-          users.updatedAt
-        )
-        .orderBy(orderByClause)
-        .limit(limit)
-        .offset(offset);
-
-      return c.json({
-        users: userList,
-        pagination: {
-          currentPage: page,
-          totalPages: totalPages,
-          totalUsers: totalUsers,
-          hasNext: page < totalPages,
-          hasPrev: page > 1,
-          limit: limit,
-        },
-        search: search,
-        sortBy: sortBy,
-        sortOrder: sortOrder,
-      });
-    } catch (error) {
-      logger.error("Error fetching users:", error);
-      return c.json({ error: "Failed to fetch users" }, 500);
-    }
-  })
-  .get("/personas", async (c) => {
-    try {
-      // Read the personas.json file from the project root
-      const fs = await import('fs');
-      const path = await import('path');
-
-      const personasPath = path.join(process.cwd(), 'personas.json');
-
-      if (!fs.existsSync(personasPath)) {
-        return c.json({ error: 'Personas configuration file not found' }, 404);
-      }
-
-      const personasData = fs.readFileSync(personasPath, 'utf-8');
-      const parsedData = JSON.parse(personasData);
-
-      return c.json(parsedData);
-    } catch (error) {
-      logger.error('Error loading personas configuration:', error);
-      return c.json({ error: 'Failed to load personas configuration' }, 500);
-    }
-  })
-  .post("/personas", async (c) => {
-    try {
-      const { personasData } = await c.req.json();
-
-      // Validate JSON
-      const parsedData = JSON.parse(personasData);
-
-      // Save to file
-      const fs = await import('fs');
-      const path = await import('path');
-
-      const personasPath = path.join(process.cwd(), 'personas.json');
-      fs.writeFileSync(personasPath, personasData, 'utf-8');
-
-      logger.log('Personas configuration saved successfully');
-
-      return c.json({
-        success: true,
-        message: 'Personas configuration saved successfully'
-      });
-    } catch (error) {
-      logger.error('Error saving personas configuration:', error);
-      return c.json({
-        success: false,
-        message: 'Invalid JSON format or save failed'
-      }, 400);
-    }
-  })
+// Superadmin-only routes for sensitive system configuration
+const superadminRoute = new Hono()
+  .use("/*", superadminMiddleware) // Protect all superadmin routes
   .get("/system-settings", async (c) => {
     try {
       // For now, return empty settings (in production, this would load from database/secure storage)
@@ -993,113 +1567,6 @@ You must internally analyze each query to understand:
         message: 'Failed to save system settings'
       }, 400);
     }
-  })
-  .post("/users/:userId/:action", async (c) => {
-    try {
-      const userId = c.req.param("userId");
-      const action = c.req.param("action");
-
-      if (!userId || !action) {
-        return c.json({ error: "User ID and action are required" }, 400);
-      }
-
-      // Get user from database
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, parseInt(userId)))
-        .limit(1);
-
-      if (!user) {
-        return c.json({ error: "User not found" }, 404);
-      }
-
-      // Initialize Clerk client
-      const clerkClient = createClerkClient({
-        secretKey: process.env.CLERK_SECRET_KEY!,
-      });
-
-      switch (action) {
-        case "block":
-          // Block user in Clerk (ban the user)
-          await clerkClient.users.banUser(user.clerkId);
-          // Update local database status
-          await db
-            .update(users)
-            .set({ status: "blocked" })
-            .where(eq(users.id, parseInt(userId)));
-          break;
-
-        case "remove":
-          try {
-            // Delete user's threads first to avoid foreign key constraint
-            logger.log(`Deleting threads for user ${userId}`);
-            await db.delete(threads).where(eq(threads.userId, parseInt(userId)));
-            logger.log(`Successfully deleted threads for user ${userId}`);
-            
-            // Delete user from Clerk first
-            logger.log(`Attempting to delete user ${user.clerkId} from Clerk`);
-            await clerkClient.users.deleteUser(user.clerkId);
-            logger.log(`Successfully deleted user ${user.clerkId} from Clerk`);
-            
-            // Delete from local database
-            logger.log(`Deleting user ${userId} from local database`);
-            await db
-              .delete(users)
-              .where(eq(users.id, parseInt(userId)));
-            logger.log(`Successfully deleted user ${userId} from local database`);
-          } catch (clerkError) {
-            logger.error(`Failed to delete user from Clerk:`, clerkError);
-            // If Clerk deletion fails, don't delete from local DB
-            throw new Error(`Failed to delete user from authentication service: ${clerkError}`);
-          }
-          break;
-
-        case "makeAdmin":
-          // Update user metadata in Clerk to make admin
-          await clerkClient.users.updateUserMetadata(user.clerkId, {
-            publicMetadata: {
-              role: "admin"
-            }
-          });
-          // Update local database
-          await db
-            .update(users)
-            .set({ status: "admin" })
-            .where(eq(users.id, parseInt(userId)));
-          break;
-
-        case "revokeAdmin":
-          // Remove admin role from Clerk metadata
-          await clerkClient.users.updateUserMetadata(user.clerkId, {
-            publicMetadata: {
-              role: "user"
-            }
-          });
-          // Update local database
-          await db
-            .update(users)
-            .set({ status: "user" })
-            .where(eq(users.id, parseInt(userId)));
-          break;
-
-        default:
-          return c.json({ error: "Invalid action" }, 400);
-      }
-
-      logger.log(`User ${action} action completed for user ${userId}`);
-      return c.json({
-        success: true,
-        message: `User ${action} action completed successfully`
-      });
-
-    } catch (error) {
-      logger.error('Error performing user action:', error);
-      return c.json({
-        success: false,
-        message: 'Failed to perform user action'
-      }, 500);
-    }
   });
 
-export default adminRoute;
+export { adminRoute, observerRoute, superadminRoute };

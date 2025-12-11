@@ -16,7 +16,7 @@ const roleManagementRoute = new Hono()
       const search = c.req.query("search") || "";
       const sortBy = c.req.query("sortBy") || "createdAt";
       const sortOrder = c.req.query("sortOrder") || "desc";
-      const filterType = c.req.query("filterType") || "roles"; // "roles" or "all"
+      const filterType = c.req.query("filterType") || "all"; // "roles", "admin-users", or "all"
 
       const offset = (page - 1) * limit;
 
@@ -44,16 +44,19 @@ const roleManagementRoute = new Hono()
           // For admin-management Users tab: only show regular users (exclude roles)
           whereClause = sql`role = 'user' OR role IS NULL`;
         } else {
-          // For admin-management page: show all users (including regular users)
-          whereClause = sql`role = 'user' OR role IS NULL OR role IN ('admin', 'observer', 'superadmin')`;
+          // Show all users
+          whereClause = undefined;
         }
       }
 
       // Get total count for pagination based on whereClause
-      const totalCountResult = await db
+      const totalCountQuery = db
         .select({ total: count(users.id) })
-        .from(users)
-        .where(whereClause);
+        .from(users);
+      if (whereClause) {
+        totalCountQuery.where(whereClause);
+      }
+      const totalCountResult = await totalCountQuery;
 
       const totalUsers = totalCountResult[0]?.total || 0;
       const totalPages = Math.ceil(totalUsers / limit);
@@ -71,16 +74,49 @@ const roleManagementRoute = new Hono()
           orderByClause = sortOrder === "asc" ? asc(users.lastName) : desc(users.lastName);
           break;
         case "role":
-          orderByClause = sortOrder === "asc" ? asc(users.role) : desc(users.role);
+          // Use hierarchical ordering for role sorting
+          orderByClause = sortOrder === "asc"
+            ? sql`
+                CASE
+                  WHEN ${users.role} = 'superadmin' THEN 1
+                  WHEN ${users.role} = 'admin' THEN 2
+                  WHEN ${users.role} = 'observer' THEN 3
+                  WHEN ${users.role} = 'user' THEN 4
+                  ELSE 5
+                END ASC,
+                ${users.createdAt} DESC
+              `
+            : sql`
+                CASE
+                  WHEN ${users.role} = 'superadmin' THEN 1
+                  WHEN ${users.role} = 'admin' THEN 2
+                  WHEN ${users.role} = 'observer' THEN 3
+                  WHEN ${users.role} = 'user' THEN 4
+                  ELSE 5
+                END DESC,
+                ${users.createdAt} DESC
+              `;
           break;
         case "createdAt":
-        default:
           orderByClause = sortOrder === "asc" ? asc(users.createdAt) : desc(users.createdAt);
+          break;
+        default:
+          // Default: sort by role hierarchy (superadmin > admin > observer > user), then by createdAt
+          orderByClause = sql`
+            CASE
+              WHEN ${users.role} = 'superadmin' THEN 1
+              WHEN ${users.role} = 'admin' THEN 2
+              WHEN ${users.role} = 'observer' THEN 3
+              WHEN ${users.role} = 'user' THEN 4
+              ELSE 5
+            END ASC,
+            ${users.createdAt} DESC
+          `;
           break;
       }
 
       // Get users from database with pagination and sorting, including thread count
-      const userList = await db
+      const userListQuery = db
         .select({
           id: users.id,
           clerkId: users.clerkId,
@@ -98,8 +134,11 @@ const roleManagementRoute = new Hono()
           threadCount: count(threads.id).as('threadCount'),
         })
         .from(users)
-        .leftJoin(threads, eq(users.id, threads.userId))
-        .where(whereClause)
+        .leftJoin(threads, eq(users.id, threads.userId));
+      if (whereClause) {
+        userListQuery.where(whereClause);
+      }
+      const userList = await userListQuery
         .groupBy(users.id, users.clerkId, users.email, users.nickname, users.firstName, users.lastName, users.age, users.status, users.role, users.hobby, users.profileImageUrl, users.createdAt, users.updatedAt)
         .orderBy(orderByClause)
         .limit(limit)
@@ -206,7 +245,9 @@ const roleManagementRoute = new Hono()
         .groupBy(users.role);
 
       const roleCounts = roleCountsResult.reduce((acc, row) => {
-        acc[row.role] = row.count;
+        if (row.role) {
+          acc[row.role] = row.count;
+        }
         return acc;
       }, {} as Record<string, number>);
 

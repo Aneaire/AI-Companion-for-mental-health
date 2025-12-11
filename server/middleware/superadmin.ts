@@ -36,7 +36,7 @@ export const superadminMiddleware: MiddlewareHandler = async (c, next) => {
 
       // Get user metadata from Clerk
       const user = await clerkClient.users.getUser(payload.sub);
-      const userRole = user.publicMetadata?.role;
+      const userRole = user.publicMetadata?.role as string;
 
       if (!userRole || !SUPERADMIN_ROLES.includes(userRole)) {
         logger.log(`Access denied for user ${payload.sub} with role: ${userRole}`);
@@ -44,11 +44,53 @@ export const superadminMiddleware: MiddlewareHandler = async (c, next) => {
       }
 
       // Get user's database ID and role
-      const [superadminUser] = await db
+      let [superadminUser] = await db
         .select()
         .from(users)
         .where(eq(users.clerkId, payload.sub))
         .limit(1);
+
+      // If superadmin user doesn't exist in database but has superadmin role in Clerk, auto-create them
+      if (!superadminUser && userRole === 'superadmin') {
+        logger.log(`Superadmin user not found in database, auto-creating: ${payload.sub} with role: ${userRole}`);
+
+        try {
+          const email = user.emailAddresses?.[0]?.emailAddress;
+          if (!email) {
+            logger.error(`Cannot auto-create superadmin user ${payload.sub}: no email address found in Clerk`);
+            return c.json({ error: "Unauthorized - Superadmin user missing email" }, 403);
+          }
+
+          const [newUser] = await db
+            .insert(users)
+            .values({
+              clerkId: payload.sub,
+              email: email,
+              firstName: user.firstName || null,
+              lastName: user.lastName || null,
+              nickname: user.username || null,
+              role: userRole,
+              status: 'admin',
+              profileImageUrl: user.imageUrl || null,
+            })
+            .returning();
+
+          superadminUser = newUser;
+          logger.log(`Successfully auto-created superadmin user: ${superadminUser.id} (${email})`);
+        } catch (createError: any) {
+          logger.error(`Failed to auto-create superadmin user: ${createError?.message || createError}`);
+          if (createError?.code === '23505') { // Unique constraint violation
+            logger.log(`Superadmin user ${payload.sub} already exists, fetching existing user`);
+            [superadminUser] = await db
+              .select()
+              .from(users)
+              .where(eq(users.clerkId, payload.sub))
+              .limit(1);
+          } else {
+            return c.json({ error: "Unauthorized - Failed to create superadmin user" }, 500);
+          }
+        }
+      }
 
       if (!superadminUser) {
         logger.log(`Superadmin user not found in database: ${payload.sub}`);

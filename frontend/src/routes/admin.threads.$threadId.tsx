@@ -55,7 +55,7 @@ function AdminThreadViewer() {
         throw new Error("No authentication token available");
       }
 
-      const response = await fetch(`/api/admin/threads/${threadId}/messages`, {
+      const response = await fetch(`/api/observer/threads/${threadId}/messages`, {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
