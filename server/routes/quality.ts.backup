@@ -10,38 +10,6 @@ import { messages, sessionForms, sessions, threads } from "../db/schema";
 import { logger } from "../lib/logger";
 import { adminMiddleware } from "../middleware/admin";
 
-// Type definitions for better type safety
-interface ThreadContext {
-  thread: typeof threads.$inferSelect;
-  sessions: (typeof sessions.$inferSelect)[];
-  messages: (typeof messages.$inferSelect)[];
-  forms: (typeof sessionForms.$inferSelect)[];
-}
-
-interface AnalysisResult {
-  overallProgress: number;
-  emotionalStability: number;
-  communicationClarity: number;
-  problemSolving: number;
-  selfAwareness: number;
-  qualityScores?: Array<{
-    timestamp: number;
-    score: number;
-    category: string;
-    message: string;
-  }>;
-  insights: string[];
-  recommendations: string[];
-  crisisDetected?: boolean;
-  summary?: string;
-}
-
-interface UserAnalysisResult {
-  response: string;
-  recommendations: string[];
-  insights: string[];
-}
-
 // Initialize Gemini
 const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
@@ -153,53 +121,44 @@ const quality = new Hono()
   })
   .get("/threads/:threadId/data", async (c) => {
     try {
-      const threadIdParam = c.req.param("threadId");
-      const threadId = parseInt(threadIdParam);
-
-      if (isNaN(threadId) || threadId <= 0) {
-        logger.warn("Invalid thread ID parameter:", threadIdParam);
+      const threadId = parseInt(c.req.param("threadId"));
+      
+      if (isNaN(threadId)) {
         return c.json({ error: "Invalid thread ID" }, 400);
       }
 
       // Get thread data with counts
-      let threadData: any[] = [];
-      try {
-        threadData = await db
-          .select({
-            id: threads.id,
-            displayName: sql<string>`COALESCE(${threads.sessionName}, 'Thread ' || ${threads.id})`.as('displayName'),
-            sessionCount: sql<number>`count(${sessions.id})`.mapWith(Number).as('sessionCount'),
-            messageCount: sql<number>`(
-              SELECT count(${messages.id})
-              FROM ${messages}
-              INNER JOIN ${sessions} ON ${messages.sessionId} = ${sessions.id}
-              WHERE ${sessions.threadId} = ${threadId}
-            )`.mapWith(Number).as('messageCount'),
-            formCount: sql<number>`(
-              SELECT count(${sessionForms.id})
-              FROM ${sessionForms}
-              INNER JOIN ${sessions} ON ${sessionForms.sessionId} = ${sessions.id}
-              WHERE ${sessions.threadId} = ${threadId}
-            )`.mapWith(Number).as('formCount'),
-          })
-          .from(threads)
-          .leftJoin(sessions, eq(threads.id, sessions.threadId))
-          .where(eq(threads.id, threadId))
-          .groupBy(threads.id, threads.sessionName)
-          .limit(1);
-      } catch (dbError) {
-        logger.error("Database error fetching thread data:", threadId, dbError);
-        return c.json({ error: "Database error occurred" }, 500);
-      }
+      const threadData = await db
+        .select({
+          id: threads.id,
+          displayName: sql<string>`COALESCE(${threads.sessionName}, 'Thread ' || ${threads.id})`.as('displayName'),
+          sessionCount: sql<number>`count(${sessions.id})`.mapWith(Number).as('sessionCount'),
+          messageCount: sql<number>`(
+            SELECT count(${messages.id})
+            FROM ${messages}
+            INNER JOIN ${sessions} ON ${messages.sessionId} = ${sessions.id}
+            WHERE ${sessions.threadId} = ${threadId}
+          )`.mapWith(Number).as('messageCount'),
+          formCount: sql<number>`(
+            SELECT count(${sessionForms.id})
+            FROM ${sessionForms}
+            INNER JOIN ${sessions} ON ${sessionForms.sessionId} = ${sessions.id}
+            WHERE ${sessions.threadId} = ${threadId}
+          )`.mapWith(Number).as('formCount'),
+        })
+        .from(threads)
+        .leftJoin(sessions, eq(threads.id, sessions.threadId))
+        .where(eq(threads.id, threadId))
+        .groupBy(threads.id, threads.sessionName)
+        .limit(1);
 
       if (threadData.length === 0) {
-        logger.warn("Thread not found:", threadId);
         return c.json({ error: "Thread not found" }, 404);
       }
 
       return c.json(threadData[0]);
     } catch (error) {
-      logger.error("Unexpected error fetching thread data:", error);
+      logger.error("Error fetching thread data:", error);
       return c.json({ error: "Failed to fetch thread data" }, 500);
     }
   })
@@ -207,88 +166,46 @@ const quality = new Hono()
     try {
       const page = parseInt(c.req.query("page") || "1");
       const limit = parseInt(c.req.query("limit") || "20");
-      const search = c.req.query("search") || "";
-
-      // Validate pagination parameters
-      if (page < 1 || limit < 1 || limit > 100) {
-        logger.warn("Invalid pagination parameters:", { page, limit });
-        return c.json({ error: "Invalid pagination parameters. Page must be >= 1, limit must be 1-100" }, 400);
-      }
-
       const offset = (page - 1) * limit;
 
-      // Build search condition
-      let searchCondition = eq(threads.id, threads.id); // Default true condition
-      if (search.trim()) {
-        // Search in preferred names (case-insensitive)
-        searchCondition = ilike(threads.preferredName, `%${search.trim()}%`);
-      }
+      // Get unique users - simplified for now
+      const threadsData = await db
+        .select({
+          userId: threads.userId,
+          preferredName: threads.preferredName,
+          createdAt: threads.createdAt,
+        })
+        .from(threads)
+        .orderBy(desc(threads.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-      // Get unique users with search and pagination
-      let threadsData: any[] = [];
-      try {
-        threadsData = await db
-          .select({
-            userId: threads.userId,
-            preferredName: threads.preferredName,
-            createdAt: threads.createdAt,
-          })
-          .from(threads)
-          .where(searchCondition)
-          .orderBy(desc(threads.createdAt))
-          .limit(limit)
-          .offset(offset);
-      } catch (dbError) {
-        logger.error("Database error fetching threads for users:", dbError);
-        return c.json({ error: "Database error occurred while fetching users" }, 500);
-      }
-
-      // Group by user manually with error handling
+      // Group by user manually
       const userMap = new Map();
-      try {
-        threadsData.forEach(thread => {
-          const userId = thread.userId;
-          if (!userMap.has(userId)) {
-            userMap.set(userId, {
-              id: userId,
-              displayName: thread.preferredName || `User ${userId}`,
-              threadCount: 0,
-              totalSessions: 0,
-              totalMessages: 0,
-              createdAt: thread.createdAt?.toISOString() || new Date().toISOString(),
-            });
-          }
-          userMap.get(userId).threadCount++;
-        });
-      } catch (processingError) {
-        logger.error("Error processing user data:", processingError);
-        return c.json({ error: "Error processing user data" }, 500);
-      }
+      threadsData.forEach(thread => {
+        const userId = thread.userId;
+        if (!userMap.has(userId)) {
+          userMap.set(userId, {
+            id: userId,
+            displayName: thread.preferredName || `User ${userId}`,
+            threadCount: 0,
+            totalSessions: 0,
+            totalMessages: 0,
+            createdAt: thread.createdAt?.toISOString() || new Date().toISOString(),
+          });
+        }
+        userMap.get(userId).threadCount++;
+      });
 
       const usersData = Array.from(userMap.values());
 
-      // Get total count for pagination with error handling
-      let totalUsers = 0;
-      try {
-        let allThreads: any[] = [];
-        if (search.trim()) {
-          allThreads = await db
-            .select({ userId: threads.userId })
-            .from(threads)
-            .where(ilike(threads.preferredName, `%${search.trim()}%`));
-        } else {
-          allThreads = await db
-            .select({ userId: threads.userId })
-            .from(threads);
-        }
-
-        const uniqueUsers = new Set(allThreads.map(t => t.userId));
-        totalUsers = uniqueUsers.size;
-      } catch (countError) {
-        logger.error("Error counting total users:", countError);
-        // Continue with current page count as fallback
-        totalUsers = usersData.length;
-      }
+      // Get total count for pagination
+      const allThreads = await db
+        .select({ userId: threads.userId })
+        .from(threads);
+      
+      const uniqueUsers = new Set(allThreads.map(t => t.userId));
+      const totalUsers = uniqueUsers.size;
 
       return c.json({
         users: usersData,
@@ -299,11 +216,10 @@ const quality = new Hono()
           hasNext: page * limit < totalUsers,
           hasPrev: page > 1,
           limit,
-          search: search || undefined,
         },
       });
     } catch (error) {
-      logger.error("Unexpected error fetching quality users:", error);
+      logger.error("Error fetching quality users:", error);
       return c.json({ error: "Failed to fetch users" }, 500);
     }
   })
@@ -403,7 +319,7 @@ const quality = new Hono()
       });
     } catch (error) {
       logger.error("Error fetching quality threads:", error);
-      return c.json({ error: "Failed to fetch quality threads" }, 500);
+      return c.json({ error: "Failed to fetch threads" }, 500);
     }
   })
   .post(
@@ -523,13 +439,8 @@ function anonymizeContent(text: string): string {
 }
 
 // Get comprehensive thread context for analysis
-async function getThreadContext(sessionId: number): Promise<ThreadContext | null> {
+async function getThreadContext(sessionId: number) {
   try {
-    if (!sessionId || sessionId <= 0) {
-      logger.warn("Invalid session ID provided:", sessionId);
-      return null;
-    }
-
     // Get session and thread info
     const sessionData = await db
       .select({
@@ -542,58 +453,39 @@ async function getThreadContext(sessionId: number): Promise<ThreadContext | null
       .limit(1);
 
     if (sessionData.length === 0) {
-      logger.warn("Session not found for ID:", sessionId);
-      return null;
+      throw new Error("Session not found");
     }
 
     const threadId = sessionData[0].thread.id;
 
-    // Get all thread sessions with error handling
-    let allSessions: any[] = [];
-    try {
-      allSessions = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.threadId, threadId))
-        .orderBy(sessions.sessionNumber);
-    } catch (error) {
-      logger.error("Error fetching sessions for thread:", threadId, error);
-      // Continue with empty sessions array
-    }
+    // Get all thread sessions
+    const allSessions = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.threadId, threadId))
+      .orderBy(sessions.sessionNumber);
 
-    // Get all messages in thread with error handling
-    let allMessages: any[] = [];
-    try {
-      allMessages = await db
-        .select({
-          id: messages.id,
-          sender: messages.sender,
-          text: messages.text,
-          timestamp: messages.timestamp,
-          sessionId: messages.sessionId,
-        })
-        .from(messages)
-        .innerJoin(sessions, eq(messages.sessionId, sessions.id))
-        .where(eq(sessions.threadId, threadId))
-        .orderBy(messages.timestamp);
-    } catch (error) {
-      logger.error("Error fetching messages for thread:", threadId, error);
-      // Continue with empty messages array
-    }
+    // Get all messages in thread
+    const allMessages = await db
+      .select({
+        id: messages.id,
+        sender: messages.sender,
+        text: messages.text,
+        timestamp: messages.timestamp,
+        sessionId: messages.sessionId,
+      })
+      .from(messages)
+      .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+      .where(eq(sessions.threadId, threadId))
+      .orderBy(messages.timestamp);
 
-    // Get all forms in thread with error handling
-    let allForms: any[] = [];
-    try {
-      allForms = await db
-        .select()
-        .from(sessionForms)
-        .innerJoin(sessions, eq(sessionForms.sessionId, sessions.id))
-        .where(eq(sessions.threadId, threadId))
-        .orderBy(sessionForms.createdAt);
-    } catch (error) {
-      logger.error("Error fetching forms for thread:", threadId, error);
-      // Continue with empty forms array
-    }
+    // Get all forms in thread
+    const allForms = await db
+      .select()
+      .from(sessionForms)
+      .innerJoin(sessions, eq(sessionForms.sessionId, sessions.id))
+      .where(eq(sessions.threadId, threadId))
+      .orderBy(sessionForms.createdAt);
 
     return {
       thread: sessionData[0].thread,
@@ -602,83 +494,55 @@ async function getThreadContext(sessionId: number): Promise<ThreadContext | null
       forms: allForms,
     };
   } catch (error) {
-    logger.error("Error getting thread context for session:", sessionId, error);
+    logger.error("Error getting thread context:", error);
     return null;
   }
 }
 
-// Get thread context for user analysis (by threadId)
-async function getThreadContextForAnalysis(threadId: number): Promise<ThreadContext | null> {
-  try {
-    if (!threadId || threadId <= 0) {
-      logger.warn("Invalid thread ID provided:", threadId);
-      return null;
-    }
 
-    // Get thread info with error handling
-    let threadData: any[] = [];
-    try {
-      threadData = await db
-        .select()
-        .from(threads)
-        .where(eq(threads.id, threadId))
-        .limit(1);
-    } catch (error) {
-      logger.error("Error fetching thread data for ID:", threadId, error);
-      return null;
-    }
+
+// Get thread context for user analysis (by threadId)
+async function getThreadContextForAnalysis(threadId: number) {
+  try {
+    // Get thread info
+    const threadData = await db
+      .select()
+      .from(threads)
+      .where(eq(threads.id, threadId))
+      .limit(1);
 
     if (threadData.length === 0) {
-      logger.warn("Thread not found for ID:", threadId);
       return null;
     }
 
-    // Get all thread sessions with error handling
-    let allSessions: any[] = [];
-    try {
-      allSessions = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.threadId, threadId))
-        .orderBy(sessions.sessionNumber);
-    } catch (error) {
-      logger.error("Error fetching sessions for thread:", threadId, error);
-      // Continue with empty sessions array
-    }
+    // Get all thread sessions
+    const allSessions = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.threadId, threadId))
+      .orderBy(sessions.sessionNumber);
 
-    // Get all messages in thread with error handling
-    let allMessages: any[] = [];
-    try {
-      allMessages = await db
-        .select({
-          id: messages.id,
-          sender: messages.sender,
-          text: messages.text,
-          timestamp: messages.timestamp,
-          sessionId: messages.sessionId,
-        })
-        .from(messages)
-        .innerJoin(sessions, eq(messages.sessionId, sessions.id))
-        .where(eq(sessions.threadId, threadId))
-        .orderBy(messages.timestamp);
-    } catch (error) {
-      logger.error("Error fetching messages for thread:", threadId, error);
-      // Continue with empty messages array
-    }
+    // Get all messages in thread
+    const allMessages = await db
+      .select({
+        id: messages.id,
+        sender: messages.sender,
+        text: messages.text,
+        timestamp: messages.timestamp,
+        sessionId: messages.sessionId,
+      })
+      .from(messages)
+      .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+      .where(eq(sessions.threadId, threadId))
+      .orderBy(messages.timestamp);
 
-    // Get all forms in thread with error handling
-    let allForms: any[] = [];
-    try {
-      allForms = await db
-        .select()
-        .from(sessionForms)
-        .innerJoin(sessions, eq(sessionForms.sessionId, sessions.id))
-        .where(eq(sessions.threadId, threadId))
-        .orderBy(sessionForms.createdAt);
-    } catch (error) {
-      logger.error("Error fetching forms for thread:", threadId, error);
-      // Continue with empty forms array
-    }
+    // Get all forms in thread
+    const allForms = await db
+      .select()
+      .from(sessionForms)
+      .innerJoin(sessions, eq(sessionForms.sessionId, sessions.id))
+      .where(eq(sessions.threadId, threadId))
+      .orderBy(sessionForms.createdAt);
 
     return {
       thread: threadData[0],
@@ -687,17 +551,17 @@ async function getThreadContextForAnalysis(threadId: number): Promise<ThreadCont
       forms: allForms,
     };
   } catch (error) {
-    logger.error("Error getting thread context for analysis:", threadId, error);
+    logger.error("Error getting thread context for analysis:", error);
     return null;
   }
 }
 
 // Analyze user with AI for admin questions
 async function analyzeUserWithAI(
-  threadContext: ThreadContext,
+  threadContext: any,
   question: string,
   conversationHistory: { role: string; content: string }[]
-): Promise<UserAnalysisResult> {
+) {
   if (!gemini) {
     return {
       response: "AI service not configured",
@@ -764,7 +628,7 @@ Respond naturally - brief for simple questions, detailed when asked.`;
 }
 
 // Generate therapeutic progress scores
-async function generateTherapeuticProgressScores(threadContext: ThreadContext): Promise<AnalysisResult> {
+async function generateTherapeuticProgressScores(threadContext: any) {
   if (!gemini) {
     return {
       overallProgress: 0,
@@ -772,11 +636,8 @@ async function generateTherapeuticProgressScores(threadContext: ThreadContext): 
       communicationClarity: 0,
       problemSolving: 0,
       selfAwareness: 0,
-      qualityScores: [],
       insights: ["AI service not configured"],
-      recommendations: ["AI service not configured"],
-      crisisDetected: false,
-      summary: "Unable to analyze - AI service not available"
+      recommendations: ["Check AI service configuration"],
     };
   }
 
@@ -909,18 +770,22 @@ async function analyzeMessageQuality(
     supportType?: string[];
     additionalContext?: string;
   },
-  threadContext?: ThreadContext | null
-): Promise<AnalysisResult> {
+  threadContext?: {
+    thread: any;
+    sessions: any[];
+    messages: any[];
+    forms: any[];
+  } | null
+) {
   if (!gemini) {
     return {
       overallProgress: 0,
       emotionalStability: 0,
       communicationClarity: 0,
       problemSolving: 0,
-      selfAwareness: 0,
-      qualityScores: [],
-      insights: ["AI service not configured"],
       recommendations: ["AI service not configured"],
+      crisisDetected: false,
+      summary: "Unable to analyze - AI service not available"
     };
   }
 
@@ -933,9 +798,6 @@ async function analyzeMessageQuality(
       emotionalStability: 0,
       communicationClarity: 0,
       problemSolving: 0,
-      selfAwareness: 0,
-      qualityScores: [],
-      insights: ["AI service not configured"],
       recommendations: ["AI service not configured"],
       crisisDetected: false,
       summary: "Unable to analyze - AI service not available"
@@ -955,7 +817,7 @@ async function analyzeMessageQuality(
       selfAwareness: 0,
       qualityScores: [],
       insights: ["No messages to analyze"],
-      recommendations: ["Continue conversation to enable analysis"],
+      recommendations: ["Continue the conversation to enable analysis"],
     };
   }
 
@@ -972,7 +834,7 @@ async function analyzeMessageQuality(
 - Complete Thread History: ${totalSessions} sessions with ${totalThreadMessages} total messages
 - Session Completion Rate: ${completedSessions}/${totalSessions} (${Math.round(completedSessions/totalSessions*100)}%)
 - Assessment Forms Completed: ${totalForms} therapeutic assessments
-- Thread Duration: ${Math.round((new Date(fullContext.sessions[fullContext.sessions.length - 1]?.updatedAt || Date.now()).getTime() - new Date(fullContext.sessions[0]?.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24))} days
+- Thread Duration: ${Math.round((new Date(fullContext.sessions[fullContext.sessions.length-1]?.updatedAt).getTime() - new Date(fullContext.sessions[0]?.createdAt).getTime()) / (1000 * 60 * 60 * 24))} days
 - Session Pattern: ${fullContext.sessions.map(s => `Session ${s.sessionNumber}(${s.status})`).join(', ')}
 `;
   }
@@ -991,54 +853,155 @@ async function analyzeMessageQuality(
 - Initial assessment provided: ${initialForm ? 'Yes' : 'No'}
 ${contextualInfo}
 
-**SCORING CRITERIA (0-100):**
-1. **Overall Progress**: General therapeutic improvement and engagement
-2. **Emotional Stability**: Ability to regulate emotions and handle stress
-3. **Communication Clarity**: Expressing thoughts and feelings effectively
-4. **Problem Solving**: Developing coping strategies and solutions
-5. **Self Awareness**: Understanding personal patterns and triggers
+**Your Role:**
+Analyze therapeutic conversation quality across multiple dimensions. Provide detailed insights about:
+- Problems and issues discussed (without revealing personal details)
+- Therapeutic techniques and approaches used
+- Communication patterns and effectiveness
+- Progress indicators and treatment outcomes
+- Engagement quality and depth
+
+**FORMATTING REQUIREMENTS:**
+- Use proper markdown formatting with clear structure
+- Include headers (##), bullet points (•), and numbered lists
+- Use **bold text** for key findings and recommendations
+- Provide clear separation between analysis sections
+
+**Response Requirements:**
+Provide numerical scores (0-100) for each dimension plus detailed reasoning about:
+1. Specific problems and concerns addressed
+2. Therapeutic methods and interventions observed
+3. Communication effectiveness and rapport building
+4. Progress indicators and outcome measures
+5. Recommendations for continued treatment
+
+Focus on professional therapeutic assessment with actionable insights while maintaining client confidentiality.`;
+
+  // Build anonymized context
+  let contextString = "";
+  if (initialForm) {
+    contextString += "Initial Assessment Context (Anonymized):\n";
+    if (initialForm.currentEmotions && initialForm.currentEmotions.length > 0) {
+      contextString += `- Initial emotional state categories: ${initialForm.currentEmotions.length} emotions identified\n`;
+    }
+    if (initialForm.reasonForVisit) {
+      contextString += `- Visit reason category: [${initialForm.reasonForVisit.length > 50 ? 'Detailed' : 'Brief'}] therapeutic need\n`;
+    }
+    if (initialForm.supportType && initialForm.supportType.length > 0) {
+      contextString += `- Preferred support types: ${initialForm.supportType.length} approaches requested\n`;
+    }
+    if (initialForm.additionalContext) {
+      contextString += `- Additional context provided: [${initialForm.additionalContext.length} characters]\n`;
+    }
+  }
+
+  // Create anonymized conversation flow for analysis
+  const conversationFlow = messages.map((msg, index) => {
+    const anonymizedText = anonymizeContent(msg.text);
+    return `${msg.sender.toUpperCase()} [Message ${index + 1}]: ${anonymizedText.length} characters, ${anonymizedText.split(' ').length} words, ${anonymizedText.split('.').length} sentences`;
+  }).join('\n');
+
+  // Calculate engagement metrics
+  const userMessages = messages.filter(m => m.sender === "user");
+  const aiMessages = messages.filter(m => m.sender === "ai");
+  const avgUserLength = userMessages.length > 0 ? userMessages.reduce((sum, m) => sum + m.text.length, 0) / userMessages.length : 0;
+  const avgAiLength = aiMessages.length > 0 ? aiMessages.reduce((sum, m) => sum + m.text.length, 0) / aiMessages.length : 0;
+
+  const prompt = `Analyze this therapeutic conversation for quality and effectiveness. Provide detailed, actionable insights for clinical review.
+
+${contextString}
+
+Conversation Flow Analysis (Anonymized):
+${conversationFlow}
+
+Engagement Metrics:
+- User message average length: ${Math.round(avgUserLength)} characters
+- AI response average length: ${Math.round(avgAiLength)} characters
+- Response ratio: ${aiMessages.length}:${userMessages.length} (AI:User)
+- Conversation duration: ${messages.length > 0 ? Math.round((Math.max(...messages.map(m => m.timestamp)) - Math.min(...messages.map(m => m.timestamp))) / (1000 * 60)) : 0} minutes
+
+**THERAPEUTIC ANALYSIS REQUIREMENTS:**
+
+1. **PROBLEMS & ISSUES IDENTIFIED:**
+   - List specific problems discussed (anxiety, depression, relationship issues, stress, trauma, etc.)
+   - Identify severity levels (mild, moderate, severe)
+   - Note patterns of problem recurrence or escalation
+   - Include any crisis indicators detected
+
+2. **THERAPEUTIC TECHNIQUES USED:**
+   - Active listening and validation techniques observed
+   - Cognitive behavioral strategies employed
+   - Mindfulness or grounding exercises suggested
+   - Problem-solving approaches utilized
+   - Emotional regulation techniques taught
+
+3. **COMMUNICATION EFFECTIVENESS:**
+   - User's emotional expression patterns
+   - AI's rapport building effectiveness
+   - Communication clarity and mutual understanding
+   - Response appropriateness to user's emotional state
+
+4. **PROGRESS INDICATORS:**
+   - Measurable changes in emotional regulation
+   - Development of new coping skills
+   - Insight and self-awareness growth
+   - Behavioral pattern improvements
+   - Goal achievement milestones
+
+5. **TREATMENT OUTCOMES:**
+   - Symptom reduction or management progress
+   - Functional improvements in daily life
+   - Quality of life enhancements
+   - Relapse prevention or early warning signs
+   - Continued treatment engagement
 
 **RESPONSE FORMAT:**
-Respond with this exact JSON structure:
+Provide detailed analysis with specific examples and actionable clinical insights. Focus on therapeutic effectiveness and treatment progression.
+
+Respond in this exact JSON format:
 {
-  "overallProgress": 75,
-  "emotionalStability": 70,
-  "communicationClarity": 80,
-  "problemSolving": 65,
-  "selfAwareness": 78,
+  "overallProgress": 85,
+  "emotionalStability": 78,
+  "communicationClarity": 82,
+  "problemSolving": 75,
+  "selfAwareness": 80,
   "qualityScores": [
     {
-      "timestamp": ${Date.now()},
+      "timestamp": 1234567890,
       "score": 82,
       "category": "emotional_regulation",
-      "message": "User demonstrates improved emotional awareness"
-    },
-    {
-      "timestamp": ${Date.now() - 3600000},
-      "score": 78,
-      "category": "engagement_quality",
-      "message": "Consistent participation across sessions"
+      "message": "User demonstrated improved emotional awareness"
     }
   ],
   "insights": [
-    "User shows consistent engagement across sessions",
-    "Emotional regulation techniques appear to be working",
-    "Communication patterns indicate growing self-awareness"
+    "User shows significant progress in anxiety management through consistent CBT techniques",
+    "Therapeutic alliance strengthened through active validation and appropriate challenges",
+    "Communication patterns indicate increased insight and self-reflection capabilities"
   ],
   "recommendations": [
-    "Continue current therapeutic approach",
-    "Consider introducing advanced coping strategies",
-    "Monitor for potential setbacks during stressful periods"
+    "Continue exposure therapy exercises while maintaining emotional safety",
+    "Introduce advanced cognitive restructuring for persistent negative thought patterns",
+    "Schedule follow-up to assess medication effectiveness if symptoms persist"
   ]
 }
 
-Focus on measurable progress and therapeutic outcomes while maintaining privacy.`;
+Provide professional clinical assessment with specific therapeutic insights while maintaining confidentiality.`;
+
+  const chatSession = model.startChat({
+    history: [{
+      role: "user",
+      parts: [{ text: systemInstructionText }]
+    }],
+    generationConfig: {
+      maxOutputTokens: 2000,
+    },
+  });
 
   try {
-    const result = await model.generateContent(systemInstructionText);
+    const result = await chatSession.sendMessage(prompt);
     const response = result.response.text();
 
-    // Extract JSON from response
+    // Extract JSON from the response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error("No JSON found in response");
@@ -1046,6 +1009,7 @@ Focus on measurable progress and therapeutic outcomes while maintaining privacy.
 
     const parsed = JSON.parse(jsonMatch[0]);
 
+    // Validate and return the response with bounds checking
     return {
       overallProgress: Math.min(100, Math.max(0, parsed.overallProgress || 0)),
       emotionalStability: Math.min(100, Math.max(0, parsed.emotionalStability || 0)),
@@ -1054,47 +1018,85 @@ Focus on measurable progress and therapeutic outcomes while maintaining privacy.
       selfAwareness: Math.min(100, Math.max(0, parsed.selfAwareness || 0)),
       qualityScores: Array.isArray(parsed.qualityScores) ? parsed.qualityScores : [],
       insights: Array.isArray(parsed.insights) ? parsed.insights : ["Analysis completed with privacy protection"],
-      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : ["Continue therapeutic engagement"],
+       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : ["Continue therapeutic engagement"],
     };
-   } catch (error) {
-     logger.error("Error parsing Gemini response:", error);
+  } catch (parseError) {
+    logger.error("Error parsing Gemini response:", parseError);
 
-     // Enhanced fallback with basic metrics
-     const sessionCount = threadContext?.sessions?.length || 0;
-     const messageCount = threadContext?.messages?.length || 0;
-     const formCount = threadContext?.forms?.length || 0;
+    // Enhanced fallback with basic metrics
+    const userMsgCount = userMessages.length;
+    const aiMsgCount = aiMessages.length;
+    const avgLength = avgUserLength;
 
-     return {
-       overallProgress: Math.min(75, Math.max(25, sessionCount * 15)),
-       emotionalStability: Math.min(80, Math.max(30, messageCount > 20 ? 70 : 50)),
-       communicationClarity: Math.min(85, Math.max(35, formCount > 0 ? 75 : 55)),
-       problemSolving: Math.min(70, Math.max(25, sessionCount > 3 ? 65 : 45)),
-       selfAwareness: Math.min(75, Math.max(30, messageCount > 30 ? 70 : 50)),
-       qualityScores: [],
-       insights: ["Basic analysis completed", "Engagement metrics calculated"],
-       recommendations: ["Continue monitoring progress", "Consider therapeutic interventions"],
-     };
-   }
-}
+    return {
+      overallProgress: Math.min(75, Math.max(25, userMsgCount * 10)),
+      emotionalStability: Math.min(80, Math.max(30, avgLength > 50 ? 70 : 50)),
+      communicationClarity: Math.min(85, Math.max(35, avgLength > 100 ? 80 : 60)),
+      problemSolving: Math.min(70, Math.max(25, aiMsgCount > userMsgCount ? 65 : 45)),
+      selfAwareness: Math.min(75, Math.max(30, initialForm ? 65 : 50)),
+      qualityScores: messages.filter((msg, index) => index % Math.max(1, Math.floor(messages.length / 5)) === 0).map((msg, index) => ({
+        timestamp: msg.timestamp,
+        score: Math.min(85, Math.max(45, 60 + (msg.text.length > 100 ? 15 : 0))),
+        category: msg.sender === "user" ? "user_engagement" : "ai_response",
+        message: `Segment ${index + 1}`,
+      })),
+      insights: [
+        `Conversation shows ${userMsgCount > 5 ? 'strong' : 'developing'} therapeutic engagement patterns`,
+        `Communication demonstrates ${avgLength > 75 ? 'detailed' : 'concise'} expression style`,
+        "Privacy-protected analysis completed successfully"
+      ],
+      recommendations: [
+        "Continue therapeutic conversation development",
+        "Maintain current engagement patterns",
+        "Consider expanding therapeutic tool usage"
+      ],
+    };
+  }
+});
 
-// Chat endpoint for interactive user analysis
+// Chat endpoint for user analysis
 quality.post("/users/chat", async (c) => {
   try {
     const { threadId, question, conversationHistory } = await c.req.json();
-
+    
     if (!threadId || !question) {
       return c.json({ error: "Thread ID and question are required" }, 400);
     }
-
+    
     // Get thread context for analysis
     const threadContext = await getThreadContextForAnalysis(parseInt(threadId));
     if (!threadContext) {
       return c.json({ error: "Thread not found" }, 404);
     }
-
+    
     // Analyze user with AI
     const result = await analyzeUserWithAI(threadContext, question, conversationHistory || []);
+    
+    return c.json(result);
+  } catch (error) {
+    logger.error("Error in user analysis chat:", error);
+    return c.json({ error: "Failed to process chat request" }, 500);
+  }
+export default quality;
 
+// Chat endpoint for user analysis
+quality.post("/users/chat", async (c) => {
+  try {
+    const { threadId, question, conversationHistory } = await c.req.json();
+    
+    if (!threadId || !question) {
+      return c.json({ error: "Thread ID and question are required" }, 400);
+    }
+    
+    // Get thread context for analysis
+    const threadContext = await getThreadContextForAnalysis(parseInt(threadId));
+    if (!threadContext) {
+      return c.json({ error: "Thread not found" }, 404);
+    }
+    
+    // Analyze user with AI
+    const result = await analyzeUserWithAI(threadContext, question, conversationHistory || []);
+    
     return c.json(result);
   } catch (error) {
     logger.error("Error in user analysis chat:", error);
@@ -1102,4 +1104,4 @@ quality.post("/users/chat", async (c) => {
   }
 });
 
-export default quality;
+export type QualityType = typeof quality;
