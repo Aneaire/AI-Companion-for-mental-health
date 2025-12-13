@@ -71,7 +71,7 @@ export function AdminLayout({ children, sidebarContent }: AdminLayoutProps) {
       to: "/admin-management",
       icon: Users,
       label: "Admin Management",
-      description: "User & role management"
+      description: "User & Settings"
     }
   ];
 
