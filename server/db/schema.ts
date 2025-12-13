@@ -326,3 +326,51 @@ export const personasConfig = pgTable("personas_config", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Thread access logging and permissions
+export const threadAccessLogs = pgTable("thread_access_logs", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id")
+    .notNull()
+    .references(() => users.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  threadId: integer("thread_id").references(() => threads.id), // NULL for user-level access
+  accessType: varchar("access_type", {
+    enum: ["user_threads", "thread_details", "thread_messages"],
+  }).notNull(),
+  reason: text("reason").notNull(),
+  status: varchar("status", {
+    enum: ["pending", "approved", "denied", "expired"],
+  }).notNull().default("pending"),
+  approvedAt: timestamp("approved_at"),
+  expiresAt: timestamp("expires_at"),
+  deniedAt: timestamp("denied_at"),
+  denialReason: text("denial_reason"),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const threadAccessPermissions = pgTable("thread_access_permissions", {
+  id: serial("id").primaryKey(),
+  accessLogId: integer("access_log_id")
+    .notNull()
+    .references(() => threadAccessLogs.id, { onDelete: "cascade" }),
+  adminId: integer("admin_id")
+    .notNull()
+    .references(() => users.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  threadId: integer("thread_id").references(() => threads.id),
+  accessType: varchar("access_type", {
+    enum: ["user_threads", "thread_details", "thread_messages"],
+  }).notNull(),
+  grantedAt: timestamp("granted_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});

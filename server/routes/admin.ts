@@ -2,13 +2,84 @@ import { Hono } from "hono";
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { streamSSE } from "hono/streaming";
 import { db } from "../db/config";
-import { sessions, threads, messages, sessionForms, users } from "../db/schema";
+import { sessions, threads, messages, sessionForms, users, threadAccessLogs, threadAccessPermissions } from "../db/schema";
 import { adminMiddleware, observerMiddleware } from "../middleware/admin";
 import { superadminMiddleware } from "../middleware/superadmin";
 import { createClerkClient } from "@clerk/backend";
 import { count, eq, sql, desc, asc, like, or, ne, and, isNull } from "drizzle-orm";
 import { geminiConfig, getGeminiApiKey } from "../lib/config";
 import { logger } from "../lib/logger";
+
+// Simple in-memory rate limiter for access requests
+const accessRequestRateLimit = new Map<string, { count: number; resetTime: number }>();
+
+const checkRateLimit = (adminId: number): boolean => {
+  const now = Date.now();
+  const windowMs = 60 * 60 * 1000; // 1 hour window
+  const maxRequests = 10; // Max 10 requests per hour
+
+  const key = `admin_${adminId}`;
+  const current = accessRequestRateLimit.get(key);
+
+  if (!current || now > current.resetTime) {
+    // Reset or initialize
+    accessRequestRateLimit.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+
+  if (current.count >= maxRequests) {
+    return false;
+  }
+
+  current.count++;
+  return true;
+};
+
+// Middleware to validate thread access permissions
+const threadAccessMiddleware = async (c: any, next: any) => {
+  try {
+    const observerId = c.get("observerId") as number;
+    const userId = parseInt(c.req.param("userId"));
+    const accessType = "user_threads"; // Default for user threads endpoint
+
+    if (!userId) {
+      return c.json({ error: "User ID is required" }, 400);
+    }
+
+    // Check for active permission
+    const activePermission = await db
+      .select()
+      .from(threadAccessPermissions)
+      .where(and(
+        eq(threadAccessPermissions.adminId, observerId),
+        eq(threadAccessPermissions.userId, userId),
+        isNull(threadAccessPermissions.threadId), // User-level access
+        eq(threadAccessPermissions.accessType, accessType as any),
+        eq(threadAccessPermissions.isActive, true),
+        sql`${threadAccessPermissions.expiresAt} > NOW()`
+      ))
+      .limit(1);
+
+    if (activePermission.length === 0) {
+      logger.log(`AUDIT: Access denied - Observer ${observerId} attempted to access user ${userId} threads without permission. IP: ${c.req.header("x-forwarded-for") || c.req.header("x-real-ip")}, User-Agent: ${c.req.header("user-agent")}`);
+      return c.json({
+        error: "Access denied",
+        message: "You need to request access to view this user's threads. Please provide a reason for accessing their data.",
+        requiresAccessRequest: true,
+        userId,
+        accessType
+      }, 403);
+    }
+
+    // Log the access attempt
+    logger.log(`AUDIT: Access granted - Observer ${observerId} viewing threads for user ${userId}. Permission expires: ${activePermission[0].expiresAt}. IP: ${c.req.header("x-forwarded-for") || c.req.header("x-real-ip")}`);
+
+    await next();
+  } catch (error) {
+    logger.error("Error in thread access middleware:", error);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+};
 
 // Initialize Gemini
 const gemini = getGeminiApiKey() ? new GoogleGenerativeAI(getGeminiApiKey()!) : null;
@@ -875,6 +946,7 @@ You must internally analyze each query to understand:
 // Observer-only routes for monitor threads functionality
 const observerRoute = new Hono()
   .use("/*", observerMiddleware) // Protect all observer routes
+  .get("/users/:userId/threads", threadAccessMiddleware) // Apply access validation
   .get("/threads/anonymized", async (c) => {
     try {
       logger.log("Fetching anonymized threads...");
@@ -1566,6 +1638,184 @@ const superadminRoute = new Hono()
         success: false,
         message: 'Failed to save system settings'
       }, 400);
+    }
+  });
+
+// Thread access management endpoints
+adminRoute
+  .post("/thread-access/request", async (c) => {
+    try {
+      const adminId = (c as any).get("adminId") as number;
+      const { userId, threadId, accessType, reason } = await c.req.json();
+
+      if (!userId || !accessType || !reason) {
+        return c.json({ error: "User ID, access type, and reason are required" }, 400);
+      }
+
+      // Check rate limit
+      if (!checkRateLimit(adminId)) {
+        logger.log(`Rate limit exceeded for admin ${adminId} on access request`);
+        return c.json({
+          error: "Rate limit exceeded",
+          message: "Too many access requests. Please wait before requesting access again."
+        }, 429);
+      }
+
+      // Validate access type
+      const validAccessTypes = ["user_threads", "thread_details", "thread_messages"];
+      if (!validAccessTypes.includes(accessType)) {
+        return c.json({ error: "Invalid access type" }, 400);
+      }
+
+      // For auto-approval, create both log and permission entries
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours from now
+
+      // Create access log entry
+      const [accessLog] = await db
+        .insert(threadAccessLogs)
+        .values({
+          adminId,
+          userId: parseInt(userId),
+          threadId: threadId ? parseInt(threadId) : null,
+          accessType,
+          reason,
+          status: "approved", // Auto-approve
+          approvedAt: new Date(),
+          expiresAt,
+          ipAddress: c.req.header("x-forwarded-for") || c.req.header("x-real-ip"),
+          userAgent: c.req.header("user-agent"),
+        })
+        .returning();
+
+      // Create active permission
+      await db
+        .insert(threadAccessPermissions)
+        .values({
+          accessLogId: accessLog.id,
+          adminId,
+          userId: parseInt(userId),
+          threadId: threadId ? parseInt(threadId) : null,
+          accessType,
+          grantedAt: new Date(),
+          expiresAt,
+        });
+
+      logger.log(`Thread access auto-approved for admin ${adminId} to user ${userId}, type: ${accessType}, reason: ${reason}`);
+
+      return c.json({
+        success: true,
+        accessLog,
+        message: "Access granted for 24 hours"
+      });
+    } catch (error) {
+      logger.error("Error creating thread access request:", error);
+      return c.json({ error: "Failed to create access request" }, 500);
+    }
+  })
+  .get("/thread-access/check", async (c) => {
+    try {
+      const adminId = (c as any).get("adminId") as number;
+      const userId = c.req.query("userId");
+      const threadId = c.req.query("threadId");
+      const accessType = c.req.query("accessType");
+
+      if (!userId || !accessType) {
+        return c.json({ error: "User ID and access type are required" }, 400);
+      }
+
+      // Check for active permission
+      const activePermission = await db
+        .select()
+        .from(threadAccessPermissions)
+        .where(and(
+          eq(threadAccessPermissions.adminId, adminId),
+          eq(threadAccessPermissions.userId, parseInt(userId)),
+          threadId ? eq(threadAccessPermissions.threadId, parseInt(threadId)) : isNull(threadAccessPermissions.threadId),
+          eq(threadAccessPermissions.accessType, accessType as any),
+          eq(threadAccessPermissions.isActive, true),
+          sql`${threadAccessPermissions.expiresAt} > NOW()`
+        ))
+        .limit(1);
+
+      const hasAccess = activePermission.length > 0;
+
+      return c.json({
+        hasAccess,
+        expiresAt: hasAccess ? activePermission[0].expiresAt : null,
+        accessType,
+        userId: parseInt(userId),
+        threadId: threadId ? parseInt(threadId) : null
+      });
+    } catch (error) {
+      logger.error("Error checking thread access:", error);
+      return c.json({ error: "Failed to check access" }, 500);
+    }
+  })
+  .get("/thread-access/logs", async (c) => {
+    try {
+      const adminId = (c as any).get("adminId") as number;
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "20");
+      const status = c.req.query("status");
+      const offset = (page - 1) * limit;
+
+      let whereClause: any = eq(threadAccessLogs.adminId, adminId);
+
+      if (status) {
+        whereClause = and(whereClause, eq(threadAccessLogs.status, status as any));
+      }
+
+      // Get total count
+      const totalCountResult = await db
+        .select({ total: count(threadAccessLogs.id) })
+        .from(threadAccessLogs)
+        .where(whereClause);
+
+      const totalLogs = totalCountResult[0]?.total || 0;
+      const totalPages = Math.ceil(totalLogs / limit);
+
+      // Get logs with pagination
+      const logs = await db
+        .select({
+          id: threadAccessLogs.id,
+          userId: threadAccessLogs.userId,
+          threadId: threadAccessLogs.threadId,
+          accessType: threadAccessLogs.accessType,
+          reason: threadAccessLogs.reason,
+          status: threadAccessLogs.status,
+          approvedAt: threadAccessLogs.approvedAt,
+          expiresAt: threadAccessLogs.expiresAt,
+          deniedAt: threadAccessLogs.deniedAt,
+          denialReason: threadAccessLogs.denialReason,
+          createdAt: threadAccessLogs.createdAt,
+          user: {
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          }
+        })
+        .from(threadAccessLogs)
+        .leftJoin(users, eq(threadAccessLogs.userId, users.id))
+        .where(whereClause)
+        .orderBy(desc(threadAccessLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      return c.json({
+        logs,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalLogs,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit,
+        }
+      });
+    } catch (error) {
+      logger.error("Error fetching thread access logs:", error);
+      return c.json({ error: "Failed to fetch access logs" }, 500);
     }
   });
 

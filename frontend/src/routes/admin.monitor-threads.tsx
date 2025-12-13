@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ObserverProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AccessRequestModal } from "@/components/admin/AccessRequestModal";
+import { AccessStatusIndicator } from "@/components/admin/AccessStatusIndicator";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useMemo } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { Eye, MessageSquare, Users, Calendar, Search, Filter, ArrowLeft, User } from "lucide-react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Eye, MessageSquare, Users, Calendar, Search, Filter, ArrowLeft, User, Shield, AlertTriangle } from "lucide-react";
 
 interface UserData {
   id: number;
@@ -78,7 +80,7 @@ function MonitorThreads() {
 
 function MonitorThreadsContent() {
   const { getToken } = useAuth();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,6 +89,8 @@ function MonitorThreadsContent() {
   const [userThreadsPage, setUserThreadsPage] = useState(1);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [showAccessModal, setShowAccessModal] = useState(false);
+  const [accessError, setAccessError] = useState("");
 
   // Debounce search term
   useEffect(() => {
@@ -99,6 +103,33 @@ function MonitorThreadsContent() {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  const handleUserSelect = (user: UserData) => {
+    setSelectedUser(user);
+    setUserThreadsPage(1);
+    setAccessError("");
+  };
+
+  const handleRequestAccess = () => {
+    setShowAccessModal(true);
+  };
+
+  const handleAccessRequestSubmitted = (requestId: number) => {
+    // Access has been granted, clear error and refetch threads and access status
+    setAccessError("");
+
+    if (selectedUser) {
+      // Invalidate threads query
+      queryClient.invalidateQueries({
+        queryKey: ["adminUserThreads", selectedUser.id, userThreadsPage]
+      });
+
+      // Invalidate access status query - match the exact key from AccessStatusIndicator
+      queryClient.invalidateQueries({
+        queryKey: ["accessStatus", selectedUser.id, undefined, "user_threads"]
+      });
+    }
+  };
 
   // Query for users list
   const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery<UsersResponse>({
@@ -154,12 +185,23 @@ function MonitorThreadsContent() {
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.requiresAccessRequest) {
+          setAccessError(`Access required to view ${selectedUser.firstName || selectedUser.email}'s threads`);
+          setShowAccessModal(true);
+          throw new Error("Access required");
+        }
         throw new Error("Failed to fetch user threads");
       }
 
       return response.json();
     },
     enabled: !!selectedUser,
+    retry: (failureCount, error) => {
+      // Don't retry if it's an access error
+      if (error.message === "Access required") return false;
+      return failureCount < 3;
+    },
   });
 
   const sidebarContent = (
@@ -266,15 +308,33 @@ function MonitorThreadsContent() {
           /* User Threads View */
           <Card className="p-6">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {selectedUser.firstName && selectedUser.lastName
-                  ? `${selectedUser.firstName} ${selectedUser.lastName}`
-                  : selectedUser.email
-                }
-              </h2>
-              <p className="text-sm text-gray-600">
-                {selectedUser.threadCount} total thread{selectedUser.threadCount !== 1 ? 's' : ''}
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {selectedUser.firstName && selectedUser.lastName
+                      ? `${selectedUser.firstName} ${selectedUser.lastName}`
+                      : selectedUser.email
+                    }
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {selectedUser.threadCount} total thread{selectedUser.threadCount !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <AccessStatusIndicator
+                  userId={selectedUser.id}
+                  accessType="user_threads"
+                  onRequestAccess={handleRequestAccess}
+                />
+              </div>
+
+              {accessError && (
+                <Alert className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    {accessError}
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             {threadsLoading ? (
@@ -381,7 +441,7 @@ function MonitorThreadsContent() {
                   <div
                     key={user.id}
                     className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => setSelectedUser(user)}
+                     onClick={() => handleUserSelect(user)}
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -447,6 +507,18 @@ function MonitorThreadsContent() {
           </Card>
         )}
       </div>
+
+      {/* Access Request Modal */}
+      <AccessRequestModal
+        isOpen={showAccessModal}
+        onClose={() => setShowAccessModal(false)}
+        userId={selectedUser?.id || 0}
+        accessType="user_threads"
+        userName={selectedUser ? (selectedUser.firstName && selectedUser.lastName
+          ? `${selectedUser.firstName} ${selectedUser.lastName}`
+          : selectedUser.email) : undefined}
+        onRequestSubmitted={handleAccessRequestSubmitted}
+      />
     </AdminLayout>
   );
 }
